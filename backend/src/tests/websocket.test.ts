@@ -198,4 +198,128 @@ describe('WebSocket', () => {
         });
       });
   });
+
+  it('should only receive messages in joined channel room', (done) => {
+    let secondToken: string;
+    let channel2Id: number;
+    let clientSocket2: ClientSocket;
+    let receivedInChannel1 = false;
+    let receivedInChannel2 = false;
+
+    // Create second user and second channel
+    request(app)
+      .post('/auth/register')
+      .send({
+        email: 'ws-room-test@example.com',
+        password: 'password123',
+        name: 'Room Test User',
+      })
+      .then((res) => {
+        secondToken = res.body.token;
+        // Create second channel
+        return request(app)
+          .post('/channels')
+          .set('Authorization', `Bearer ${secondToken}`)
+          .send({ name: 'ws-test-channel-2' });
+      })
+      .then((res) => {
+        channel2Id = res.body.id;
+
+        // Connect client 1 to channel 1
+        clientSocket = Client(`http://localhost:${port}`, {
+          auth: { token: authToken },
+        });
+
+        clientSocket.on('connect', () => {
+          clientSocket.emit('join:channel', channelId);
+
+          clientSocket.on('message:new', (message) => {
+            if (message.channelId === channelId) {
+              receivedInChannel1 = true;
+            }
+            if (message.channelId === channel2Id) {
+              receivedInChannel2 = true;
+            }
+          });
+
+          // Connect client 2 to channel 2
+          clientSocket2 = Client(`http://localhost:${port}`, {
+            auth: { token: secondToken },
+          });
+
+          clientSocket2.on('connect', () => {
+            clientSocket2.emit('join:channel', channel2Id);
+
+            // Wait for joins to complete
+            setTimeout(() => {
+              // Send message to channel 2
+              clientSocket2.emit('message:send', {
+                channelId: channel2Id,
+                content: 'Message to channel 2',
+              });
+
+              // Wait and check results
+              setTimeout(() => {
+                // Client 1 should NOT have received the message from channel 2
+                expect(receivedInChannel2).toBe(false);
+                clientSocket2.disconnect();
+                done();
+              }, 200);
+            }, 100);
+          });
+        });
+      });
+  });
+
+  it('should receive messages after joining multiple channels', (done) => {
+    let channel2Id: number;
+    let receivedMessages: any[] = [];
+
+    // Create second channel with same user
+    request(app)
+      .post('/channels')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({ name: 'ws-multi-channel' })
+      .then((res) => {
+        channel2Id = res.body.id;
+
+        clientSocket = Client(`http://localhost:${port}`, {
+          auth: { token: authToken },
+        });
+
+        clientSocket.on('connect', () => {
+          // Join both channels
+          clientSocket.emit('join:channel', channelId);
+          clientSocket.emit('join:channel', channel2Id);
+
+          clientSocket.on('message:new', (message) => {
+            receivedMessages.push(message);
+          });
+
+          // Wait for joins to complete
+          setTimeout(() => {
+            // Send message to channel 1
+            clientSocket.emit('message:send', {
+              channelId,
+              content: 'Message to channel 1',
+            });
+
+            // Send message to channel 2
+            clientSocket.emit('message:send', {
+              channelId: channel2Id,
+              content: 'Message to channel 2',
+            });
+
+            // Wait and check results
+            setTimeout(() => {
+              expect(receivedMessages.length).toBe(2);
+              const channelIds = receivedMessages.map((m) => m.channelId);
+              expect(channelIds).toContain(channelId);
+              expect(channelIds).toContain(channel2Id);
+              done();
+            }, 200);
+          }, 100);
+        });
+      });
+  });
 });
