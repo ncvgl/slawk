@@ -1,0 +1,188 @@
+import { Router, Response } from 'express';
+import { z } from 'zod';
+import prisma from '../db.js';
+import { authMiddleware } from '../middleware/auth.js';
+import { AuthRequest } from '../types.js';
+
+const router = Router();
+
+const createChannelSchema = z.object({
+  name: z.string().min(1).max(80),
+  isPrivate: z.boolean().optional().default(false),
+});
+
+// POST /channels - Create channel
+router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { name, isPrivate } = createChannelSchema.parse(req.body);
+    const userId = req.user!.userId;
+
+    const channel = await prisma.channel.create({
+      data: {
+        name,
+        isPrivate,
+        members: {
+          create: {
+            userId,
+          },
+        },
+      },
+      include: {
+        members: {
+          include: {
+            user: {
+              select: { id: true, name: true, email: true },
+            },
+          },
+        },
+      },
+    });
+
+    res.status(201).json(channel);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: error.issues });
+      return;
+    }
+    console.error('Create channel error:', error);
+    res.status(500).json({ error: 'Failed to create channel' });
+  }
+});
+
+// GET /channels - List all channels
+router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const channels = await prisma.channel.findMany({
+      where: {
+        OR: [
+          { isPrivate: false },
+          { members: { some: { userId: req.user!.userId } } },
+        ],
+      },
+      include: {
+        _count: {
+          select: { members: true, messages: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json(channels);
+  } catch (error) {
+    console.error('List channels error:', error);
+    res.status(500).json({ error: 'Failed to list channels' });
+  }
+});
+
+// GET /channels/:id - Get single channel
+router.get('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const channelId = parseInt(req.params.id);
+
+    const channel = await prisma.channel.findUnique({
+      where: { id: channelId },
+      include: {
+        members: {
+          include: {
+            user: {
+              select: { id: true, name: true, email: true },
+            },
+          },
+        },
+        _count: {
+          select: { messages: true },
+        },
+      },
+    });
+
+    if (!channel) {
+      res.status(404).json({ error: 'Channel not found' });
+      return;
+    }
+
+    res.json(channel);
+  } catch (error) {
+    console.error('Get channel error:', error);
+    res.status(500).json({ error: 'Failed to get channel' });
+  }
+});
+
+// POST /channels/:id/join - Join a channel
+router.post('/:id/join', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const channelId = parseInt(req.params.id);
+    const userId = req.user!.userId;
+
+    const channel = await prisma.channel.findUnique({
+      where: { id: channelId },
+    });
+
+    if (!channel) {
+      res.status(404).json({ error: 'Channel not found' });
+      return;
+    }
+
+    const existingMembership = await prisma.channelMember.findUnique({
+      where: {
+        userId_channelId: { userId, channelId },
+      },
+    });
+
+    if (existingMembership) {
+      res.status(400).json({ error: 'Already a member of this channel' });
+      return;
+    }
+
+    await prisma.channelMember.create({
+      data: { userId, channelId },
+    });
+
+    res.json({ message: 'Joined channel successfully' });
+  } catch (error) {
+    console.error('Join channel error:', error);
+    res.status(500).json({ error: 'Failed to join channel' });
+  }
+});
+
+// POST /channels/:id/leave - Leave a channel
+router.post('/:id/leave', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const channelId = parseInt(req.params.id);
+    const userId = req.user!.userId;
+
+    await prisma.channelMember.delete({
+      where: {
+        userId_channelId: { userId, channelId },
+      },
+    });
+
+    res.json({ message: 'Left channel successfully' });
+  } catch (error) {
+    console.error('Leave channel error:', error);
+    res.status(500).json({ error: 'Failed to leave channel' });
+  }
+});
+
+// GET /channels/:id/members - List channel members
+router.get('/:id/members', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const channelId = parseInt(req.params.id);
+
+    const members = await prisma.channelMember.findMany({
+      where: { channelId },
+      include: {
+        user: {
+          select: { id: true, name: true, email: true, createdAt: true },
+        },
+      },
+      orderBy: { joinedAt: 'asc' },
+    });
+
+    res.json(members);
+  } catch (error) {
+    console.error('List members error:', error);
+    res.status(500).json({ error: 'Failed to list members' });
+  }
+});
+
+export default router;

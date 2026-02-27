@@ -1,0 +1,55 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  name      String
+  createdAt DateTime @default(now())
+
+  messages  Message[]
+  channels  ChannelMember[]
+}
+
+model Channel {
+  id        Int      @id @default(autoincrement())
+  name      String
+  isPrivate Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  messages  Message[]
+  members   ChannelMember[]
+}
+
+model ChannelMember {
+  userId    Int
+  channelId Int
+  joinedAt  DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+  channel   Channel  @relation(fields: [channelId], references: [id])
+
+  @@id([userId, channelId])
+}
+
+model Message {
+  id        Int      @id @default(autoincrement())
+  content   String
+  userId    Int
+  channelId Int
+  threadId  Int?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+  channel   Channel  @relation(fields: [channelId], references: [id])
+
+  @@index([channelId, createdAt])
+  @@index([threadId])
+}
