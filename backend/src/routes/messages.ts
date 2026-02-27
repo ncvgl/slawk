@@ -69,7 +69,17 @@ router.get('/:id/messages', authMiddleware, async (req: AuthRequest, res: Respon
       },
       include: {
         user: {
-          select: { id: true, name: true, email: true },
+          select: { id: true, name: true, email: true, avatar: true },
+        },
+        reactions: {
+          include: {
+            user: {
+              select: { id: true, name: true },
+            },
+          },
+        },
+        files: {
+          select: { id: true, filename: true, mimetype: true, size: true, url: true },
         },
       },
       orderBy: { createdAt: 'desc' },

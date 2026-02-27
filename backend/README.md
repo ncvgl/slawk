@@ -10,6 +10,7 @@ Backend API for Slawk - a self-hosted Slack alternative.
 - **Real-time:** Socket.io
 - **Authentication:** JWT + bcrypt
 - **Validation:** Zod
+- **File Uploads:** Multer
 
 ## Quick Start
 
@@ -48,6 +49,13 @@ Server runs on http://localhost:3000
 - `POST /auth/register` - Create user account
 - `POST /auth/login` - Login and get JWT token
 
+### Users
+- `GET /users/me` - Get current user profile
+- `PATCH /users/me` - Update profile (name, avatar, bio)
+- `PUT /users/me/status` - Update status (online/away/busy/offline)
+- `GET /users/:id` - Get user by ID
+- `GET /users` - List/search users
+
 ### Channels
 - `POST /channels` - Create channel
 - `GET /channels` - List all channels
@@ -63,6 +71,17 @@ Server runs on http://localhost:3000
 ### Threads
 - `POST /messages/:id/reply` - Reply to message
 - `GET /messages/:id/thread` - Get thread messages
+
+### Reactions
+- `POST /messages/:id/reactions` - Add reaction (emoji)
+- `DELETE /messages/:id/reactions/:emoji` - Remove reaction
+- `GET /messages/:id/reactions` - Get reactions (grouped by emoji)
+
+### Files
+- `POST /files` - Upload file (multipart/form-data)
+- `GET /files` - List user's files
+- `GET /files/:id` - Get file info
+- `DELETE /files/:id` - Delete file
 
 ### Search
 - `GET /search?q=query` - Search messages
@@ -85,7 +104,7 @@ Server runs on http://localhost:3000
 ## Scripts
 
 - `npm run dev` - Start development server
-- `npm test` - Run tests
+- `npm test` - Run tests (68 tests)
 - `npm run build` - Build for production
 - `npm run db:migrate` - Run database migrations
 - `npm run db:studio` - Open Prisma Studio
@@ -98,3 +117,15 @@ JWT_SECRET="your-secret-key-change-in-production"
 PORT=3000
 NODE_ENV=development
 ```
+
+## Features
+
+- ✅ Authentication (register/login with JWT)
+- ✅ User Profiles (avatar, status, bio)
+- ✅ Channels (public/private, join/leave)
+- ✅ Messages (send, paginated retrieval)
+- ✅ Threads (reply to messages)
+- ✅ Reactions (emoji reactions on messages)
+- ✅ File Uploads (images, PDFs, etc. up to 10MB)
+- ✅ Search (message search across channels)
+- ✅ Real-time (WebSocket with Socket.io)

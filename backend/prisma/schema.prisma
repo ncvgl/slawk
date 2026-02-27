@@ -12,10 +12,16 @@ model User {
   email     String   @unique
   password  String
   name      String
+  avatar    String?
+  status    String?  @default("online")
+  bio       String?
   createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   messages  Message[]
   channels  ChannelMember[]
+  reactions Reaction[]
+  files     File[]
 }
 
 model Channel {
@@ -46,10 +52,44 @@ model Message {
   channelId Int
   threadId  Int?
   createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
-  user      User     @relation(fields: [userId], references: [id])
-  channel   Channel  @relation(fields: [channelId], references: [id])
+  user      User       @relation(fields: [userId], references: [id])
+  channel   Channel    @relation(fields: [channelId], references: [id])
+  reactions Reaction[]
+  files     File[]
 
   @@index([channelId, createdAt])
   @@index([threadId])
+}
+
+model Reaction {
+  id        Int      @id @default(autoincrement())
+  emoji     String
+  userId    Int
+  messageId Int
+  createdAt DateTime @default(now())
+
+  user      User    @relation(fields: [userId], references: [id])
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, messageId, emoji])
+  @@index([messageId])
+}
+
+model File {
+  id        Int      @id @default(autoincrement())
+  filename  String
+  mimetype  String
+  size      Int
+  url       String
+  userId    Int
+  messageId Int?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+  message   Message? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([messageId])
 }

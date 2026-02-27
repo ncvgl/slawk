@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slawk WebSocket Test</title>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+    .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
+    input, button { padding: 8px 12px; margin: 5px; }
+    button { cursor: pointer; background: #4CAF50; color: white; border: none; border-radius: 4px; }
+    button:disabled { background: #ccc; }
+    #messages { height: 300px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background: #f9f9f9; }
+    .message { padding: 5px 0; border-bottom: 1px solid #eee; }
+    .system { color: #666; font-style: italic; }
+    .error { color: red; }
+    .typing { color: #999; font-size: 12px; }
+    #status { padding: 5px 10px; border-radius: 4px; display: inline-block; }
+    .connected { background: #4CAF50; color: white; }
+    .disconnected { background: #f44336; color: white; }
+  </style>
+</head>
+<body>
+  <h1>Slawk WebSocket Test</h1>
+
+  <div class="section">
+    <h3>1. Register/Login</h3>
+    <input type="email" id="email" placeholder="Email" value="test@example.com">
+    <input type="password" id="password" placeholder="Password" value="password123">
+    <input type="text" id="name" placeholder="Name" value="Test User">
+    <br>
+    <button onclick="register()">Register</button>
+    <button onclick="login()">Login</button>
+    <p>Token: <span id="tokenDisplay">Not logged in</span></p>
+  </div>
+
+  <div class="section">
+    <h3>2. Connect WebSocket</h3>
+    <button onclick="connectSocket()" id="connectBtn" disabled>Connect</button>
+    <button onclick="disconnectSocket()" id="disconnectBtn" disabled>Disconnect</button>
+    <span id="status" class="disconnected">Disconnected</span>
+  </div>
+
+  <div class="section">
+    <h3>3. Join Channel</h3>
+    <input type="number" id="channelId" placeholder="Channel ID" value="124">
+    <button onclick="joinChannel()" id="joinBtn" disabled>Join Channel</button>
+    <button onclick="leaveChannel()" id="leaveBtn" disabled>Leave Channel</button>
+  </div>
+
+  <div class="section">
+    <h3>4. Send Message</h3>
+    <input type="text" id="messageContent" placeholder="Type a message..." style="width: 60%">
+    <button onclick="sendMessage()" id="sendBtn" disabled>Send</button>
+    <p id="typingIndicator" class="typing"></p>
+  </div>
+
+  <div class="section">
+    <h3>Messages</h3>
+    <div id="messages"></div>
+  </div>
+
+  <script>
+    const API_URL = 'http://localhost:3000';
+    let token = null;
+    let socket = null;
+    let currentChannelId = null;
+    let typingTimeout = null;
+
+    function log(msg, type = 'message') {
+      const div = document.createElement('div');
+      div.className = type;
+      div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+      document.getElementById('messages').appendChild(div);
+      document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+    }
+
+    async function register() {
+      try {
+        const res = await fetch(`${API_URL}/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: document.getElementById('email').value,
+            password: document.getElementById('password').value,
+            name: document.getElementById('name').value
+          })
+        });
+        const data = await res.json();
+        if (data.token) {
+          token = data.token;
+          document.getElementById('tokenDisplay').textContent = token.substring(0, 20) + '...';
+          document.getElementById('connectBtn').disabled = false;
+          log('Registered successfully!', 'system');
+        } else {
+          log('Registration failed: ' + JSON.stringify(data.error), 'error');
+        }
+      } catch (e) {
+        log('Error: ' + e.message, 'error');
+      }
+    }
+
+    async function login() {
+      try {
+        const res = await fetch(`${API_URL}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: document.getElementById('email').value,
+            password: document.getElementById('password').value
+          })
+        });
+        const data = await res.json();
+        if (data.token) {
+          token = data.token;
+          document.getElementById('tokenDisplay').textContent = token.substring(0, 20) + '...';
+          document.getElementById('connectBtn').disabled = false;
+          log('Logged in successfully!', 'system');
+        } else {
+          log('Login failed: ' + JSON.stringify(data.error), 'error');
+        }
+      } catch (e) {
+        log('Error: ' + e.message, 'error');
+      }
+    }
+
+    function connectSocket() {
+      if (!token) return log('Please login first', 'error');
+
+      socket = io(API_URL, { auth: { token } });
+
+      socket.on('connect', () => {
+        document.getElementById('status').textContent = 'Connected';
+        document.getElementById('status').className = 'connected';
+        document.getElementById('connectBtn').disabled = true;
+        document.getElementById('disconnectBtn').disabled = false;
+        document.getElementById('joinBtn').disabled = false;
+        log('WebSocket connected!', 'system');
+      });
+
+      socket.on('disconnect', () => {
+        document.getElementById('status').textContent = 'Disconnected';
+        document.getElementById('status').className = 'disconnected';
+        document.getElementById('connectBtn').disabled = false;
+        document.getElementById('disconnectBtn').disabled = true;
+        document.getElementById('joinBtn').disabled = true;
+        document.getElementById('leaveBtn').disabled = true;
+        document.getElementById('sendBtn').disabled = true;
+        log('WebSocket disconnected', 'system');
+      });
+
+      socket.on('connect_error', (err) => {
+        log('Connection error: ' + err.message, 'error');
+      });
+
+      socket.on('message:new', (msg) => {
+        log(`${msg.user.name}: ${msg.content}`);
+      });
+
+      socket.on('typing:start', (data) => {
+        document.getElementById('typingIndicator').textContent = `${data.email} is typing...`;
+      });
+
+      socket.on('typing:stop', () => {
+        document.getElementById('typingIndicator').textContent = '';
+      });
+
+      socket.on('error', (err) => {
+        log('Error: ' + err.message, 'error');
+      });
+    }
+
+    function disconnectSocket() {
+      if (socket) {
+        socket.disconnect();
+        socket = null;
+      }
+    }
+
+    function joinChannel() {
+      const channelId = parseInt(document.getElementById('channelId').value);
+      if (!channelId) return log('Please enter a channel ID', 'error');
+
+      currentChannelId = channelId;
+      socket.emit('join:channel', channelId);
+      document.getElementById('leaveBtn').disabled = false;
+      document.getElementById('sendBtn').disabled = false;
+      log(`Joined channel ${channelId}`, 'system');
+    }
+
+    function leaveChannel() {
+      if (currentChannelId) {
+        socket.emit('leave:channel', currentChannelId);
+        log(`Left channel ${currentChannelId}`, 'system');
+        currentChannelId = null;
+        document.getElementById('leaveBtn').disabled = true;
+        document.getElementById('sendBtn').disabled = true;
+      }
+    }
+
+    function sendMessage() {
+      const content = document.getElementById('messageContent').value.trim();
+      if (!content) return;
+      if (!currentChannelId) return log('Please join a channel first', 'error');
+
+      socket.emit('message:send', { channelId: currentChannelId, content });
+      document.getElementById('messageContent').value = '';
+    }
+
+    // Typing indicator
+    document.getElementById('messageContent').addEventListener('input', () => {
+      if (!currentChannelId || !socket) return;
+
+      socket.emit('typing:start', currentChannelId);
+
+      clearTimeout(typingTimeout);
+      typingTimeout = setTimeout(() => {
+        socket.emit('typing:stop', currentChannelId);
+      }, 1000);
+    });
+
+    // Send on Enter
+    document.getElementById('messageContent').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') sendMessage();
+    });
+  </script>
+</body>
+</html>
