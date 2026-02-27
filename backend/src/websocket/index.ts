@@ -10,6 +10,48 @@ interface AuthenticatedSocket extends Socket {
   user?: JwtPayload;
 }
 
+// Track online users: Map<userId, Set<socketId>>
+const onlineUsers = new Map<number, Set<string>>();
+
+// Get users who share channels or DMs with the given user
+async function getSharedUsers(userId: number): Promise<number[]> {
+  // Get channel members from user's channels
+  const userChannels = await prisma.channelMember.findMany({
+    where: { userId },
+    select: { channelId: true },
+  });
+  const channelIds = userChannels.map((c) => c.channelId);
+
+  const channelMembers = await prisma.channelMember.findMany({
+    where: {
+      channelId: { in: channelIds },
+      userId: { not: userId },
+    },
+    select: { userId: true },
+  });
+
+  // Get DM participants
+  const dmUsers = await prisma.directMessage.findMany({
+    where: {
+      OR: [{ fromUserId: userId }, { toUserId: userId }],
+    },
+    select: { fromUserId: true, toUserId: true },
+    distinct: ['fromUserId', 'toUserId'],
+  });
+
+  const dmUserIds = dmUsers.flatMap((dm) =>
+    [dm.fromUserId, dm.toUserId].filter((id) => id !== userId)
+  );
+
+  // Combine and dedupe
+  const allUserIds = new Set([
+    ...channelMembers.map((m) => m.userId),
+    ...dmUserIds,
+  ]);
+
+  return Array.from(allUserIds);
+}
+
 export function initializeWebSocket(httpServer: HttpServer) {
   const io = new Server(httpServer, {
     cors: {
@@ -35,8 +77,36 @@ export function initializeWebSocket(httpServer: HttpServer) {
     }
   });
 
-  io.on('connection', (socket: AuthenticatedSocket) => {
+  io.on('connection', async (socket: AuthenticatedSocket) => {
     console.log(`User ${socket.user?.email} connected`);
+
+    // Track user presence
+    if (socket.user) {
+      const userId = socket.user.userId;
+
+      // Add socket to user's connections
+      if (!onlineUsers.has(userId)) {
+        onlineUsers.set(userId, new Set());
+      }
+      onlineUsers.get(userId)!.add(socket.id);
+
+      // If this is the first connection, mark user online and broadcast
+      if (onlineUsers.get(userId)!.size === 1) {
+        await prisma.user.update({
+          where: { id: userId },
+          data: { status: 'online' },
+        });
+
+        // Broadcast presence to shared users
+        const sharedUsers = await getSharedUsers(userId);
+        for (const sharedUserId of sharedUsers) {
+          io.to(`user:${sharedUserId}`).emit('presence:update', {
+            userId,
+            status: 'online',
+          });
+        }
+      }
+    }
 
     // Join channel room
     socket.on('join:channel', async (channelId: number) => {
@@ -65,7 +135,7 @@ export function initializeWebSocket(httpServer: HttpServer) {
     });
 
     // Send message
-    socket.on('message:send', async (data: { channelId: number; content: string; threadId?: number }) => {
+    socket.on('message:send', async (data: { channelId: number; content: string; threadId?: number; fileIds?: number[] }) => {
       if (!socket.user) return;
 
       try {
@@ -81,6 +151,22 @@ export function initializeWebSocket(httpServer: HttpServer) {
           return;
         }
 
+        // Validate fileIds if provided
+        if (data.fileIds && data.fileIds.length > 0) {
+          const files = await prisma.file.findMany({
+            where: {
+              id: { in: data.fileIds },
+              userId: socket.user.userId,
+              messageId: null,
+            },
+          });
+
+          if (files.length !== data.fileIds.length) {
+            socket.emit('error', { message: 'Invalid file IDs or files already attached' });
+            return;
+          }
+        }
+
         const message = await prisma.message.create({
           data: {
             content: data.content,
@@ -92,11 +178,35 @@ export function initializeWebSocket(httpServer: HttpServer) {
             user: {
               select: { id: true, name: true, email: true },
             },
+            files: {
+              select: { id: true, filename: true, originalName: true, mimetype: true, size: true, url: true },
+            },
+          },
+        });
+
+        // Attach files to the message
+        if (data.fileIds && data.fileIds.length > 0) {
+          await prisma.file.updateMany({
+            where: { id: { in: data.fileIds }, userId: socket.user.userId },
+            data: { messageId: message.id },
+          });
+        }
+
+        // Fetch final message with files
+        const finalMessage = await prisma.message.findUnique({
+          where: { id: message.id },
+          include: {
+            user: {
+              select: { id: true, name: true, email: true },
+            },
+            files: {
+              select: { id: true, filename: true, originalName: true, mimetype: true, size: true, url: true },
+            },
           },
         });
 
         // Broadcast to all users in the channel
-        io.to(`channel:${data.channelId}`).emit('message:new', message);
+        io.to(`channel:${data.channelId}`).emit('message:new', finalMessage);
       } catch (error) {
         console.error('WebSocket message error:', error);
         socket.emit('error', { message: 'Failed to send message' });
@@ -273,10 +383,52 @@ export function initializeWebSocket(httpServer: HttpServer) {
       });
     });
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', async () => {
       console.log(`User ${socket.user?.email} disconnected`);
+
+      if (socket.user) {
+        const userId = socket.user.userId;
+
+        // Remove socket from user's connections
+        const userSockets = onlineUsers.get(userId);
+        if (userSockets) {
+          userSockets.delete(socket.id);
+
+          // If no more connections, mark user offline
+          if (userSockets.size === 0) {
+            onlineUsers.delete(userId);
+
+            await prisma.user.update({
+              where: { id: userId },
+              data: {
+                status: 'offline',
+                lastSeen: new Date(),
+              },
+            });
+
+            // Broadcast presence to shared users
+            const sharedUsers = await getSharedUsers(userId);
+            for (const sharedUserId of sharedUsers) {
+              io.to(`user:${sharedUserId}`).emit('presence:update', {
+                userId,
+                status: 'offline',
+                lastSeen: new Date(),
+              });
+            }
+          }
+        }
+      }
     });
   });
 
   return io;
+}
+
+// Export for use in REST endpoints
+export function isUserOnline(userId: number): boolean {
+  return onlineUsers.has(userId) && onlineUsers.get(userId)!.size > 0;
+}
+
+export function getOnlineUserIds(): number[] {
+  return Array.from(onlineUsers.keys());
 }

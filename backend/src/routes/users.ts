@@ -3,6 +3,7 @@ import { z } from 'zod';
 import prisma from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { AuthRequest } from '../types.js';
+import { isUserOnline } from '../websocket/index.js';
 
 const router = Router();
 
@@ -177,6 +178,45 @@ router.put('/me/status', authMiddleware, async (req: AuthRequest, res: Response)
     }
     console.error('Update status error:', error);
     res.status(500).json({ error: 'Failed to update status' });
+  }
+});
+
+// GET /users/:id/presence - Get user presence status
+router.get('/:id/presence', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = parseInt(req.params.id);
+
+    if (isNaN(userId)) {
+      res.status(400).json({ error: 'Invalid user ID' });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        status: true,
+        lastSeen: true,
+      },
+    });
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    // Check real-time online status from WebSocket connections
+    const isOnline = isUserOnline(userId);
+
+    res.json({
+      userId: user.id,
+      status: isOnline ? 'online' : user.status,
+      lastSeen: user.lastSeen,
+      isOnline,
+    });
+  } catch (error) {
+    console.error('Get presence error:', error);
+    res.status(500).json({ error: 'Failed to get presence' });
   }
 });
 

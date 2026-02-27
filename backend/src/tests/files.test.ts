@@ -68,10 +68,11 @@ describe('File Uploads', () => {
         .attach('file', testFilePath);
 
       expect(res.status).toBe(201);
-      expect(res.body.filename).toBe('test-file.txt');
+      expect(res.body.originalName).toBe('test-file.txt');
       expect(res.body.mimetype).toBe('text/plain');
       expect(res.body).toHaveProperty('url');
       expect(res.body).toHaveProperty('size');
+      expect(res.body).toHaveProperty('filename');
     });
 
     it('should upload file with message association', async () => {
@@ -121,7 +122,7 @@ describe('File Uploads', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.id).toBe(fileId);
-      expect(res.body.filename).toBe('test-file.txt');
+      expect(res.body.originalName).toBe('test-file.txt');
     });
 
     it('should return 404 for non-existent file', async () => {

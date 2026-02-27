@@ -15,6 +15,7 @@ model User {
   avatar    String?
   status    String?  @default("online")
   bio       String?
+  lastSeen  DateTime @default(now())
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
@@ -81,14 +82,16 @@ model Reaction {
 }
 
 model File {
-  id        Int      @id @default(autoincrement())
-  filename  String
-  mimetype  String
-  size      Int
-  url       String
-  userId    Int
-  messageId Int?
-  createdAt DateTime @default(now())
+  id           Int      @id @default(autoincrement())
+  filename     String
+  originalName String
+  mimetype     String
+  size         Int
+  url          String
+  gcsPath      String?
+  userId       Int
+  messageId    Int?
+  createdAt    DateTime @default(now())
 
   user      User     @relation(fields: [userId], references: [id])
   message   Message? @relation(fields: [messageId], references: [id], onDelete: SetNull)

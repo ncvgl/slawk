@@ -9,6 +9,7 @@ const router = Router();
 const createMessageSchema = z.object({
   content: z.string().min(1).max(4000),
   threadId: z.number().optional(),
+  fileIds: z.array(z.number()).optional(),
 });
 
 // POST /channels/:id/messages - Send message
@@ -16,7 +17,7 @@ router.post('/:id/messages', authMiddleware, async (req: AuthRequest, res: Respo
   try {
     const channelId = parseInt(req.params.id);
     const userId = req.user!.userId;
-    const { content, threadId } = createMessageSchema.parse(req.body);
+    const { content, threadId, fileIds } = createMessageSchema.parse(req.body);
 
     // Check if user is a member of the channel
     const membership = await prisma.channelMember.findUnique({
@@ -30,6 +31,22 @@ router.post('/:id/messages', authMiddleware, async (req: AuthRequest, res: Respo
       return;
     }
 
+    // Validate fileIds belong to the user and are not already attached
+    if (fileIds && fileIds.length > 0) {
+      const files = await prisma.file.findMany({
+        where: {
+          id: { in: fileIds },
+          userId,
+          messageId: null, // Only unattached files
+        },
+      });
+
+      if (files.length !== fileIds.length) {
+        res.status(400).json({ error: 'Invalid file IDs or files already attached' });
+        return;
+      }
+    }
+
     const message = await prisma.message.create({
       data: {
         content,
@@ -41,8 +58,35 @@ router.post('/:id/messages', authMiddleware, async (req: AuthRequest, res: Respo
         user: {
           select: { id: true, name: true, email: true },
         },
+        files: {
+          select: { id: true, filename: true, originalName: true, mimetype: true, size: true, url: true },
+        },
       },
     });
+
+    // Attach files to the message
+    if (fileIds && fileIds.length > 0) {
+      await prisma.file.updateMany({
+        where: { id: { in: fileIds }, userId },
+        data: { messageId: message.id },
+      });
+
+      // Fetch updated message with files
+      const updatedMessage = await prisma.message.findUnique({
+        where: { id: message.id },
+        include: {
+          user: {
+            select: { id: true, name: true, email: true },
+          },
+          files: {
+            select: { id: true, filename: true, originalName: true, mimetype: true, size: true, url: true },
+          },
+        },
+      });
+
+      res.status(201).json(updatedMessage);
+      return;
+    }
 
     res.status(201).json(message);
   } catch (error) {

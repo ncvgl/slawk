@@ -2,9 +2,15 @@ import { Router, Response } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { Storage } from '@google-cloud/storage';
 import prisma from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { AuthRequest } from '../types.js';
+
+// GCS setup - only initialize if bucket name is configured
+const GCS_BUCKET_NAME = process.env.GCS_BUCKET_NAME;
+const gcsStorage = GCS_BUCKET_NAME ? new Storage() : null;
+const bucket = gcsStorage && GCS_BUCKET_NAME ? gcsStorage.bucket(GCS_BUCKET_NAME) : null;
 
 const router = Router();
 
@@ -51,6 +57,28 @@ const upload = multer({
   },
 });
 
+// Helper to upload to GCS and get signed URL
+async function uploadToGCS(localPath: string, filename: string, mimetype: string): Promise<{ gcsPath: string; signedUrl: string }> {
+  if (!bucket) throw new Error('GCS not configured');
+
+  const gcsPath = `uploads/${Date.now()}-${filename}`;
+  await bucket.upload(localPath, {
+    destination: gcsPath,
+    metadata: { contentType: mimetype },
+  });
+
+  // Generate signed URL valid for 7 days
+  const [signedUrl] = await bucket.file(gcsPath).getSignedUrl({
+    action: 'read',
+    expires: Date.now() + 7 * 24 * 60 * 60 * 1000,
+  });
+
+  // Delete local temp file after GCS upload
+  fs.unlinkSync(localPath);
+
+  return { gcsPath, signedUrl };
+}
+
 // POST /files - Upload a file
 router.post('/', authMiddleware, upload.single('file'), async (req: AuthRequest, res: Response) => {
   try {
@@ -90,12 +118,26 @@ router.post('/', authMiddleware, upload.single('file'), async (req: AuthRequest,
       }
     }
 
+    let url: string;
+    let gcsPath: string | null = null;
+
+    // Upload to GCS if configured, otherwise use local storage
+    if (bucket) {
+      const gcsResult = await uploadToGCS(file.path, file.originalname, file.mimetype);
+      url = gcsResult.signedUrl;
+      gcsPath = gcsResult.gcsPath;
+    } else {
+      url = `/uploads/${file.filename}`;
+    }
+
     const fileRecord = await prisma.file.create({
       data: {
-        filename: file.originalname,
+        filename: file.filename,
+        originalName: file.originalname,
         mimetype: file.mimetype,
         size: file.size,
-        url: `/uploads/${file.filename}`,
+        url,
+        gcsPath,
         userId,
         messageId,
       },
@@ -113,7 +155,7 @@ router.post('/', authMiddleware, upload.single('file'), async (req: AuthRequest,
   }
 });
 
-// GET /files/:id - Get file info
+// GET /files/:id - Get file info (refreshes signed URL for GCS files)
 router.get('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const fileId = parseInt(req.params.id);
@@ -134,6 +176,16 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
 
     if (!file) {
       res.status(404).json({ error: 'File not found' });
+      return;
+    }
+
+    // Generate fresh signed URL for GCS files
+    if (file.gcsPath && bucket) {
+      const [signedUrl] = await bucket.file(file.gcsPath).getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 7 * 24 * 60 * 60 * 1000,
+      });
+      res.json({ ...file, url: signedUrl });
       return;
     }
 
@@ -169,10 +221,20 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response) =>
       return;
     }
 
-    // Delete physical file
-    const filePath = path.join(uploadDir, path.basename(file.url));
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+    // Delete from storage
+    if (file.gcsPath && bucket) {
+      // Delete from GCS
+      try {
+        await bucket.file(file.gcsPath).delete();
+      } catch (err) {
+        console.error('Failed to delete from GCS:', err);
+      }
+    } else {
+      // Delete local file
+      const filePath = path.join(uploadDir, file.filename);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
     }
 
     // Delete database record

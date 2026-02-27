@@ -205,7 +205,7 @@ describe('Multi-User Scenarios', () => {
         .set('Authorization', `Bearer ${aliceToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body).toHaveLength(2);
+      expect(res.body.results).toHaveLength(2);
     });
 
     it('should not find messages from channels user has not joined', async () => {
@@ -226,7 +226,7 @@ describe('Multi-User Scenarios', () => {
         .set('Authorization', `Bearer ${bobToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body).toHaveLength(0);
+      expect(res.body.results).toHaveLength(0);
     });
   });
 });

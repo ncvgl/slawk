@@ -201,7 +201,7 @@ describe('Messages', () => {
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body).toHaveLength(2);
+      expect(res.body.results).toHaveLength(2);
     });
 
     it('should be case insensitive', async () => {
@@ -210,7 +210,7 @@ describe('Messages', () => {
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body).toHaveLength(2);
+      expect(res.body.results).toHaveLength(2);
     });
 
     it('should require minimum query length', async () => {
@@ -245,7 +245,7 @@ describe('Messages', () => {
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body).toHaveLength(2); // Only messages from user 1's channel
+      expect(res.body.results).toHaveLength(2); // Only messages from user 1's channel
     });
   });
 });
