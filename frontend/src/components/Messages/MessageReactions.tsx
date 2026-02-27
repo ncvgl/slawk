@@ -21,7 +21,7 @@ export function MessageReactions({ reactions, messageId }: MessageReactionsProps
   };
 
   return (
-    <div className="mt-[4px] inline-flex flex-wrap items-center gap-1">
+    <div className="mt-[4px] inline-flex flex-wrap items-center gap-[4px]">
       {reactions.map((reaction) => {
         const hasReacted = reaction.userIds.includes(currentUser.id);
         return (
@@ -29,19 +29,19 @@ export function MessageReactions({ reactions, messageId }: MessageReactionsProps
             key={reaction.emoji}
             onClick={() => handleReactionClick(reaction.emoji, hasReacted)}
             className={cn(
-              'inline-flex items-center gap-[4px] rounded-full border h-[24px] px-[6px] text-[12px] transition-colors',
+              'inline-flex items-center gap-[3px] rounded-full border h-[20px] px-[5px] text-[11px] transition-colors',
               hasReacted
-                ? 'border-[#1264A3] bg-[#e8f5fa] text-[#1264A3]'
-                : 'border-[rgba(29,28,29,0.13)] bg-white text-[#1D1C1D] hover:bg-[#F8F8F8]'
+                ? 'border-[#1264A3]/50 bg-[#e8f5fa] text-[#1264A3]'
+                : 'border-[rgba(29,28,29,0.1)] bg-[#F8F8F8] text-[#1D1C1D] hover:border-[rgba(29,28,29,0.2)]'
             )}
           >
-            <span className="text-[15px] leading-none">{reaction.emoji}</span>
-            <span className="font-normal text-[12px]">{reaction.count}</span>
+            <span className="text-[13px] leading-none">{reaction.emoji}</span>
+            <span className="font-normal">{reaction.count}</span>
           </button>
         );
       })}
-      <button className="inline-flex h-[24px] w-[24px] items-center justify-center rounded-full border border-[rgba(29,28,29,0.13)] bg-white text-[#616061] hover:bg-[#F8F8F8]">
-        <Plus className="h-3 w-3" />
+      <button className="inline-flex h-[20px] w-[20px] items-center justify-center rounded-full border border-[rgba(29,28,29,0.1)] bg-[#F8F8F8] text-[#616061] hover:border-[rgba(29,28,29,0.2)]">
+        <Plus className="h-[10px] w-[10px]" />
       </button>
     </div>
   );

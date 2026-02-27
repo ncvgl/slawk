@@ -20,8 +20,8 @@ export function Message({ message, showAvatar, isCompact }: MessageProps) {
   return (
     <div
       className={cn(
-        'group relative flex gap-2 px-5 py-[8px] hover:bg-[#F8F8F8]',
-        isCompact && 'pl-[56px]'
+        'group relative flex gap-2 px-5 py-[4px] hover:bg-[#F8F8F8]',
+        isCompact && 'pl-[56px] py-[2px]'
       )}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -48,7 +48,7 @@ export function Message({ message, showAvatar, isCompact }: MessageProps) {
             <button className="text-[15px] font-black text-[#1D1C1D] hover:underline">
               {message.user.displayName || message.user.name}
             </button>
-            <span className="text-[12px] font-normal text-[#616061] ml-2">{formattedTime}</span>
+            <span className="text-[12px] font-normal text-[#616061] ml-1">{formattedTime}</span>
             {message.isEdited && (
               <span className="text-[12px] text-[#616061]">(edited)</span>
             )}
