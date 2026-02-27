@@ -66,6 +66,7 @@ router.get('/:id/messages', authMiddleware, async (req: AuthRequest, res: Respon
       where: {
         channelId,
         threadId: null, // Only get top-level messages
+        deletedAt: null, // Exclude deleted messages
       },
       include: {
         user: {

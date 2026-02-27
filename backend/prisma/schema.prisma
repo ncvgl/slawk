@@ -18,10 +18,12 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
-  messages  Message[]
-  channels  ChannelMember[]
-  reactions Reaction[]
-  files     File[]
+  messages    Message[]
+  channels    ChannelMember[]
+  reactions   Reaction[]
+  files       File[]
+  sentDMs     DirectMessage[] @relation("SentMessages")
+  receivedDMs DirectMessage[] @relation("ReceivedMessages")
 }
 
 model Channel {
@@ -46,13 +48,14 @@ model ChannelMember {
 }
 
 model Message {
-  id        Int      @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   content   String
   userId    Int
   channelId Int
   threadId  Int?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now()) @updatedAt
+  deletedAt DateTime?
 
   user      User       @relation(fields: [userId], references: [id])
   channel   Channel    @relation(fields: [channelId], references: [id])
@@ -92,4 +95,21 @@ model File {
 
   @@index([userId])
   @@index([messageId])
+}
+
+model DirectMessage {
+  id         Int       @id @default(autoincrement())
+  content    String
+  fromUserId Int
+  toUserId   Int
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @default(now()) @updatedAt
+  deletedAt  DateTime?
+  readAt     DateTime?
+
+  fromUser   User      @relation("SentMessages", fields: [fromUserId], references: [id])
+  toUser     User      @relation("ReceivedMessages", fields: [toUserId], references: [id])
+
+  @@index([fromUserId, toUserId])
+  @@index([toUserId, fromUserId])
 }

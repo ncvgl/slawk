@@ -13,6 +13,7 @@ import searchRoutes from './routes/search.js';
 import reactionRoutes from './routes/reactions.js';
 import fileRoutes from './routes/files.js';
 import userRoutes from './routes/users.js';
+import dmRoutes from './routes/dms.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 const app = express();
@@ -32,6 +33,7 @@ app.use('/messages', reactionRoutes);
 app.use('/search', searchRoutes);
 app.use('/files', fileRoutes);
 app.use('/users', userRoutes);
+app.use('/dms', dmRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

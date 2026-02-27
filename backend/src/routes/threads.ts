@@ -10,6 +10,10 @@ const replySchema = z.object({
   content: z.string().min(1).max(4000),
 });
 
+const editMessageSchema = z.object({
+  content: z.string().min(1).max(4000),
+});
+
 // POST /messages/:id/reply - Reply to message (creates thread)
 router.post('/:id/reply', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
@@ -87,13 +91,13 @@ router.get('/:id/thread', authMiddleware, async (req: AuthRequest, res: Response
       },
     });
 
-    if (!parentMessage) {
+    if (!parentMessage || parentMessage.deletedAt) {
       res.status(404).json({ error: 'Message not found' });
       return;
     }
 
     const replies = await prisma.message.findMany({
-      where: { threadId: parentId },
+      where: { threadId: parentId, deletedAt: null },
       include: {
         user: {
           select: { id: true, name: true, email: true },
@@ -109,6 +113,107 @@ router.get('/:id/thread', authMiddleware, async (req: AuthRequest, res: Response
   } catch (error) {
     console.error('Get thread error:', error);
     res.status(500).json({ error: 'Failed to get thread' });
+  }
+});
+
+// PATCH /messages/:id - Edit message
+router.patch('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const messageId = parseInt(req.params.id);
+    const userId = req.user!.userId;
+    const { content } = editMessageSchema.parse(req.body);
+
+    if (isNaN(messageId)) {
+      res.status(400).json({ error: 'Invalid message ID' });
+      return;
+    }
+
+    const message = await prisma.message.findUnique({
+      where: { id: messageId },
+    });
+
+    if (!message) {
+      res.status(404).json({ error: 'Message not found' });
+      return;
+    }
+
+    if (message.deletedAt) {
+      res.status(404).json({ error: 'Message not found' });
+      return;
+    }
+
+    if (message.userId !== userId) {
+      res.status(403).json({ error: 'You can only edit your own messages' });
+      return;
+    }
+
+    const updatedMessage = await prisma.message.update({
+      where: { id: messageId },
+      data: { content },
+      include: {
+        user: {
+          select: { id: true, name: true, email: true, avatar: true },
+        },
+        reactions: {
+          include: {
+            user: {
+              select: { id: true, name: true },
+            },
+          },
+        },
+      },
+    });
+
+    res.json(updatedMessage);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: error.issues });
+      return;
+    }
+    console.error('Edit message error:', error);
+    res.status(500).json({ error: 'Failed to edit message' });
+  }
+});
+
+// DELETE /messages/:id - Soft delete message
+router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const messageId = parseInt(req.params.id);
+    const userId = req.user!.userId;
+
+    if (isNaN(messageId)) {
+      res.status(400).json({ error: 'Invalid message ID' });
+      return;
+    }
+
+    const message = await prisma.message.findUnique({
+      where: { id: messageId },
+    });
+
+    if (!message) {
+      res.status(404).json({ error: 'Message not found' });
+      return;
+    }
+
+    if (message.deletedAt) {
+      res.status(404).json({ error: 'Message not found' });
+      return;
+    }
+
+    if (message.userId !== userId) {
+      res.status(403).json({ error: 'You can only delete your own messages' });
+      return;
+    }
+
+    await prisma.message.update({
+      where: { id: messageId },
+      data: { deletedAt: new Date() },
+    });
+
+    res.json({ message: 'Message deleted successfully' });
+  } catch (error) {
+    console.error('Delete message error:', error);
+    res.status(500).json({ error: 'Failed to delete message' });
   }
 });
 
