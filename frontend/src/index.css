@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+/* Custom CSS Variables for Slack theme */
+:root {
+  /* Sidebar Colors (Aubergine) */
+  --slack-sidebar-bg: #611f69;
+  --slack-sidebar-hover: #4a154b;
+  --slack-sidebar-active: #f9edff;
+  --slack-sidebar-text: rgba(249, 237, 255, 0.8);
+  --slack-sidebar-text-active: #1d1c1d;
+  --slack-nav-rail-bg: #4a154b;
+
+  /* Text Colors */
+  --slack-text-primary: #1d1c1d;
+  --slack-text-secondary: #616061;
+  --slack-text-link: #1264a3;
+
+  /* Buttons */
+  --slack-btn-primary: #007a5a;
+  --slack-btn-primary-hover: #005e46;
+}
+
+/* Base styles */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: 'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.46668;
+  color: #1d1c1d;
+  background-color: #ffffff;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
