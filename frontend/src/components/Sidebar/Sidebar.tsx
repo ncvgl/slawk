@@ -37,28 +37,29 @@ export function Sidebar() {
 
   return (
     <div className="flex h-full">
-      {/* Nav Rail */}
-      <div className="flex w-[70px] flex-col items-center bg-[#350d36] py-3 gap-1">
-        {/* Workspace Icon */}
-        <button className="mb-4 flex h-9 w-9 items-center justify-center rounded-lg bg-white text-[#3F0E40] font-bold text-lg hover:rounded-xl transition-all">
+      {/* Nav Rail - 70px wide, dark purple */}
+      <div className="flex w-[70px] flex-col items-center bg-[#350d36] pt-2 gap-0">
+        {/* Workspace Icon - 36x36px */}
+        <button className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-white text-[#3F0E40] font-bold text-lg hover:rounded-xl transition-all">
           S
         </button>
 
-        {/* Nav Items */}
+        {/* Nav Items - 52x68px each with icon + label */}
         {navItems.map((item) => (
           <button
             key={item.id}
             onClick={() => setActiveNav(item.id)}
             className={cn(
-              'relative flex h-9 w-9 items-center justify-center rounded-lg transition-colors',
+              'relative flex flex-col h-[68px] w-[52px] items-center justify-center gap-1 rounded-lg transition-colors',
               activeNav === item.id
-                ? 'bg-[#3F0E40] text-white'
+                ? 'bg-[#58427C]/50 text-white'
                 : 'text-white/70 hover:bg-white/10 hover:text-white'
             )}
           >
             <item.icon className="h-5 w-5" />
+            <span className="text-[11px] font-medium">{item.label}</span>
             {item.badge && (
-              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">
+              <span className="absolute top-2 right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] text-white">
                 {item.badge}
               </span>
             )}
@@ -70,14 +71,16 @@ export function Sidebar() {
 
         {/* User Avatar */}
         {user && (
-          <Avatar
-            src={user.avatar}
-            alt={user.name}
-            fallback={user.name}
-            size="md"
-            status={user.status}
-            className="cursor-pointer"
-          />
+          <div className="mb-3">
+            <Avatar
+              src={user.avatar}
+              alt={user.name}
+              fallback={user.name}
+              size="md"
+              status={user.status}
+              className="cursor-pointer"
+            />
+          </div>
         )}
       </div>
 
@@ -97,10 +100,10 @@ export function Sidebar() {
         {/* Scrollable Content - 0 0 16px 0 padding */}
         <div className="flex-1 overflow-y-auto pb-4">
           {/* Channels Section */}
-          <div className="mb-3">
+          <div className="mb-3 mt-3">
             <button
               onClick={() => setChannelsExpanded(!channelsExpanded)}
-              className="flex w-full items-center gap-1 px-4 py-1 text-[13px] font-medium hover:bg-[rgba(88,66,124,1)]"
+              className="flex w-full items-center gap-1.5 pl-4 pr-2 py-[6px] text-[15px] hover:bg-[rgba(88,66,124,0.7)]"
             >
               {channelsExpanded ? (
                 <ChevronDown className="h-3 w-3" />
@@ -111,7 +114,7 @@ export function Sidebar() {
             </button>
 
             {channelsExpanded && (
-              <div className="mt-1">
+              <div>
                 {publicChannels.map((channel) => (
                   <ChannelItem
                     key={channel.id}
@@ -129,7 +132,7 @@ export function Sidebar() {
                     isPrivate
                   />
                 ))}
-                <button className="flex w-full items-center gap-2 px-4 h-[28px] text-[15px] hover:bg-[rgba(88,66,124,1)]">
+                <button className="flex w-full items-center gap-2 ml-2 mr-2 w-[calc(100%-16px)] pl-[24px] pr-[8px] h-[28px] text-[15px] rounded-[6px] hover:bg-[rgba(88,66,124,0.7)]">
                   <Plus className="h-4 w-4" />
                   <span>Add channels</span>
                 </button>
@@ -141,7 +144,7 @@ export function Sidebar() {
           <div>
             <button
               onClick={() => setDmsExpanded(!dmsExpanded)}
-              className="flex w-full items-center gap-1 px-4 py-1 text-[13px] font-medium hover:bg-[rgba(88,66,124,1)]"
+              className="flex w-full items-center gap-1.5 pl-4 pr-2 py-[6px] text-[15px] hover:bg-[rgba(88,66,124,0.7)]"
             >
               {dmsExpanded ? (
                 <ChevronDown className="h-3 w-3" />
@@ -152,7 +155,7 @@ export function Sidebar() {
             </button>
 
             {dmsExpanded && (
-              <div className="mt-1">
+              <div>
                 {directMessages.map((dm) => (
                   <DirectMessageItem
                     key={dm.id}
@@ -161,7 +164,7 @@ export function Sidebar() {
                     onClick={() => setActiveDM(dm.id)}
                   />
                 ))}
-                <button className="flex w-full items-center gap-2 px-4 h-[28px] text-[15px] hover:bg-[rgba(88,66,124,1)]">
+                <button className="flex w-full items-center gap-2 ml-2 mr-2 w-[calc(100%-16px)] pl-[24px] pr-[8px] h-[28px] text-[15px] rounded-[6px] hover:bg-[rgba(88,66,124,0.7)]">
                   <Plus className="h-4 w-4" />
                   <span>Add teammates</span>
                 </button>

@@ -21,7 +21,7 @@ export function MessageReactions({ reactions, messageId }: MessageReactionsProps
   };
 
   return (
-    <div className="mt-1 inline-flex flex-wrap items-center gap-1">
+    <div className="mt-[4px] inline-flex flex-wrap items-center gap-1">
       {reactions.map((reaction) => {
         const hasReacted = reaction.userIds.includes(currentUser.id);
         return (
@@ -29,18 +29,18 @@ export function MessageReactions({ reactions, messageId }: MessageReactionsProps
             key={reaction.emoji}
             onClick={() => handleReactionClick(reaction.emoji, hasReacted)}
             className={cn(
-              'inline-flex items-center gap-1 rounded-[12px] border px-1.5 py-0.5 text-[12px] transition-colors',
+              'inline-flex items-center gap-[4px] rounded-full border h-[24px] px-[6px] text-[12px] transition-colors',
               hasReacted
                 ? 'border-[#1264A3] bg-[#e8f5fa] text-[#1264A3]'
-                : 'border-[#E0E0E0] bg-white text-gray-700 hover:bg-[#F8F8F8]'
+                : 'border-[rgba(29,28,29,0.13)] bg-white text-[#1D1C1D] hover:bg-[#F8F8F8]'
             )}
           >
-            <span className="text-[16px]">{reaction.emoji}</span>
-            <span className="font-medium">{reaction.count}</span>
+            <span className="text-[15px] leading-none">{reaction.emoji}</span>
+            <span className="font-normal text-[12px]">{reaction.count}</span>
           </button>
         );
       })}
-      <button className="inline-flex h-6 w-6 items-center justify-center rounded-[12px] border border-[#E0E0E0] bg-white text-gray-500 hover:bg-[#F8F8F8]">
+      <button className="inline-flex h-[24px] w-[24px] items-center justify-center rounded-full border border-[rgba(29,28,29,0.13)] bg-white text-[#616061] hover:bg-[#F8F8F8]">
         <Plus className="h-3 w-3" />
       </button>
     </div>

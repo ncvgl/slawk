@@ -17,10 +17,11 @@ export function DirectMessageItem({
     <button
       onClick={onClick}
       className={cn(
-        'flex w-full items-center gap-2 px-4 py-1 text-[15px] transition-colors',
+        'flex w-full items-center gap-2 h-[28px] text-[15px] transition-colors rounded-[6px]',
+        'ml-2 mr-2 w-[calc(100%-16px)] pl-[24px] pr-[8px]',
         isActive
-          ? 'bg-[#f9edff] text-[#1d1c1d] font-medium'
-          : 'hover:bg-white/10'
+          ? 'bg-[#F9EDFF] text-[#39063A] font-normal'
+          : 'text-[rgba(255,255,255,0.7)] hover:bg-[rgba(88,66,124,0.7)] hover:text-white'
       )}
     >
       <Avatar

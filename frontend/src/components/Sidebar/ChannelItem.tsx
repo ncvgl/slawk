@@ -21,14 +21,14 @@ export function ChannelItem({
     <button
       onClick={onClick}
       className={cn(
-        'flex w-full items-center gap-2 px-4 h-[28px] text-[15px] font-normal transition-colors mx-2 rounded-md',
-        'w-[calc(100%-16px)]',
+        'flex w-full items-center gap-2 h-[28px] text-[15px] font-normal transition-colors rounded-[6px]',
+        'ml-2 mr-2 w-[calc(100%-16px)] pl-[24px] pr-[8px]',
         isActive
-          ? 'bg-[rgba(88,66,124,1)] text-white font-medium'
-          : 'text-[rgba(255,255,255,0.7)] hover:bg-[rgba(88,66,124,1)] hover:text-white'
+          ? 'bg-[#F9EDFF] text-[#39063A] font-normal'
+          : 'text-[rgba(255,255,255,0.7)] hover:bg-[rgba(88,66,124,0.7)] hover:text-white'
       )}
     >
-      <Icon className="h-4 w-4 flex-shrink-0" />
+      <Icon className="h-[18px] w-[18px] flex-shrink-0 opacity-70" />
       <span className="truncate">{channel.name}</span>
       {channel.unreadCount > 0 && (
         <span

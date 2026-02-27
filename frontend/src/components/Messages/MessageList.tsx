@@ -69,11 +69,11 @@ export function MessageList({ channelId }: MessageListProps) {
           <div key={message.id}>
             {showDateSeparator && (
               <div className="relative my-4 flex items-center px-5">
-                <div className="flex-1 border-t border-[#E0E0E0]" />
-                <span className="mx-4 flex-shrink-0 rounded-full border border-[#E0E0E0] bg-white px-3 py-1 text-[12px] font-medium text-[#616061]">
+                <div className="flex-1 border-t border-[#DDDDDD]" />
+                <span className="mx-4 flex-shrink-0 rounded-[24px] border border-[#DDDDDD] bg-white px-4 py-0.5 text-[13px] font-bold text-[#1D1C1D]">
                   {formatDateSeparator(message.createdAt)}
                 </span>
-                <div className="flex-1 border-t border-[#E0E0E0]" />
+                <div className="flex-1 border-t border-[#DDDDDD]" />
               </div>
             )}
             <Message

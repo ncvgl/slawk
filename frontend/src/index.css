@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Import Lato font - Slack uses Slack-Lato which is based on Lato */
+@import url('https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap');
+
 /* Custom CSS Variables for Slack theme - Exact Slack Production Colors */
 :root {
   /* Slack Official Colors */
@@ -53,9 +56,9 @@ html, body, #root {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", sans-serif;
+  font-family: "Lato", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 15px;
-  line-height: 22px;
+  line-height: 1.46668;
   color: #1D1C1D;
   background-color: #ffffff;
   -webkit-font-smoothing: antialiased;

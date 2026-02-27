@@ -20,8 +20,8 @@ export function Message({ message, showAvatar, isCompact }: MessageProps) {
   return (
     <div
       className={cn(
-        'group relative flex gap-2 px-5 py-2 hover:bg-[#F8F8F8]',
-        isCompact && 'pl-[52px]'
+        'group relative flex gap-2 px-5 py-[8px] hover:bg-[#F8F8F8]',
+        isCompact && 'pl-[56px]'
       )}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -33,10 +33,10 @@ export function Message({ message, showAvatar, isCompact }: MessageProps) {
           alt={message.user.name}
           fallback={message.user.name}
           size="md"
-          className="mt-0.5 flex-shrink-0"
+          className="mt-[2px] flex-shrink-0 mr-2"
         />
       ) : (
-        <span className="absolute left-5 top-2 hidden text-[12px] text-[#616061] group-hover:inline">
+        <span className="absolute left-5 top-[9px] hidden text-[12px] text-[#616061] group-hover:inline">
           {format(message.createdAt, 'h:mm')}
         </span>
       )}
@@ -54,7 +54,7 @@ export function Message({ message, showAvatar, isCompact }: MessageProps) {
             )}
           </div>
         )}
-        <div className="text-[15px] font-normal text-[#1D1C1D] leading-[22px] mt-1 whitespace-pre-wrap break-words">
+        <div className="text-[15px] font-normal text-[#1D1C1D] leading-[1.46668] whitespace-pre-wrap break-words">
           {message.content}
         </div>
 
@@ -66,11 +66,17 @@ export function Message({ message, showAvatar, isCompact }: MessageProps) {
           />
         )}
 
-        {/* Thread indicator - 13px, Slack blue */}
+        {/* Thread indicator - 13px, Slack blue, with mini avatars */}
         {message.threadCount > 0 && (
-          <button className="mt-1 flex items-center gap-1 rounded px-2 py-1 text-[13px] font-normal text-[#1264A3] hover:bg-[#e8f5fa]">
-            <MessageSquare className="h-4 w-4" />
-            <span>
+          <button className="mt-1 flex items-center gap-2 rounded px-1 py-0.5 text-[13px] text-[#1264A3] hover:bg-[#e8f5fa] -ml-1">
+            {/* Mini avatar stack */}
+            <div className="flex -space-x-1">
+              <div className="h-5 w-5 rounded-[4px] bg-[#e8e8e8] border border-white" />
+              {message.threadCount > 1 && (
+                <div className="h-5 w-5 rounded-[4px] bg-[#d8d8d8] border border-white" />
+              )}
+            </div>
+            <span className="font-normal">
               {message.threadCount} {message.threadCount === 1 ? 'reply' : 'replies'}
             </span>
           </button>
