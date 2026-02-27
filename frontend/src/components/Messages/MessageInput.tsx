@@ -67,28 +67,28 @@ export function MessageInput({ channelId, channelName }: MessageInputProps) {
   const canSend = message.trim().length > 0;
 
   return (
-    <div className="border-t border-gray-200 px-4 py-3">
+    <div className="border-t border-[#E0E0E0] px-5 py-5 bg-white">
       <div
         className={cn(
-          'rounded-lg border transition-colors',
-          isFocused ? 'border-[#1264a3]' : 'border-gray-300'
+          'rounded-[8px] border transition-colors',
+          isFocused ? 'border-[#1264A3] border-2' : 'border-[#8D8D8D] border'
         )}
       >
         {/* Formatting Toolbar */}
-        <div className="flex items-center gap-0.5 border-b border-gray-200 px-2 py-1">
+        <div className="flex items-center gap-0.5 border-b border-[#E0E0E0] px-2 py-1">
           {formatButtons.map((button) => (
             <button
               key={button.label}
-              className="flex h-7 w-7 items-center justify-center rounded text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+              className="flex h-7 w-7 items-center justify-center rounded text-[#616061] hover:bg-[#F8F8F8] hover:text-[#1D1C1D]"
               title={button.label}
             >
-              <button.icon className="h-4 w-4" />
+              <button.icon className="h-[18px] w-[18px]" />
             </button>
           ))}
         </div>
 
-        {/* Input Area */}
-        <div className="px-3 py-2">
+        {/* Input Area - 9px 12px padding */}
+        <div className="px-3 py-[9px]">
           <textarea
             ref={textareaRef}
             value={message}
@@ -97,28 +97,28 @@ export function MessageInput({ channelId, channelName }: MessageInputProps) {
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             placeholder={`Message #${channelName}`}
-            className="w-full resize-none bg-transparent text-[15px] placeholder:text-gray-500 focus:outline-none"
+            className="w-full resize-none bg-transparent text-[15px] leading-[22px] placeholder:text-[#616061] focus:outline-none"
             rows={1}
           />
         </div>
 
-        {/* Bottom Toolbar */}
-        <div className="flex items-center justify-between border-t border-gray-200 px-2 py-1">
-          <div className="flex items-center gap-0.5">
-            <button className="flex h-7 w-7 items-center justify-center rounded text-gray-500 hover:bg-gray-100 hover:text-gray-700">
-              <Plus className="h-4 w-4" />
+        {/* Bottom Toolbar - 8px margin-top, 18px icons, 12px gap */}
+        <div className="flex items-center justify-between border-t border-[#E0E0E0] px-2 py-1 mt-2">
+          <div className="flex items-center gap-3">
+            <button className="flex h-7 w-7 items-center justify-center rounded text-[#616061] hover:bg-[#F8F8F8] hover:text-[#1D1C1D]">
+              <Plus className="h-[18px] w-[18px]" />
             </button>
-            <button className="flex h-7 w-7 items-center justify-center rounded text-gray-500 hover:bg-gray-100 hover:text-gray-700">
-              <Smile className="h-4 w-4" />
+            <button className="flex h-7 w-7 items-center justify-center rounded text-[#616061] hover:bg-[#F8F8F8] hover:text-[#1D1C1D]">
+              <Smile className="h-[18px] w-[18px]" />
             </button>
-            <button className="flex h-7 w-7 items-center justify-center rounded text-gray-500 hover:bg-gray-100 hover:text-gray-700">
-              <AtSign className="h-4 w-4" />
+            <button className="flex h-7 w-7 items-center justify-center rounded text-[#616061] hover:bg-[#F8F8F8] hover:text-[#1D1C1D]">
+              <AtSign className="h-[18px] w-[18px]" />
             </button>
-            <button className="flex h-7 w-7 items-center justify-center rounded text-gray-500 hover:bg-gray-100 hover:text-gray-700">
-              <Video className="h-4 w-4" />
+            <button className="flex h-7 w-7 items-center justify-center rounded text-[#616061] hover:bg-[#F8F8F8] hover:text-[#1D1C1D]">
+              <Video className="h-[18px] w-[18px]" />
             </button>
-            <button className="flex h-7 w-7 items-center justify-center rounded text-gray-500 hover:bg-gray-100 hover:text-gray-700">
-              <Mic className="h-4 w-4" />
+            <button className="flex h-7 w-7 items-center justify-center rounded text-[#616061] hover:bg-[#F8F8F8] hover:text-[#1D1C1D]">
+              <Mic className="h-[18px] w-[18px]" />
             </button>
           </div>
 

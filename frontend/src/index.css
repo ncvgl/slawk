@@ -1,23 +1,43 @@
 @import "tailwindcss";
 
-/* Custom CSS Variables for Slack theme */
+/* Custom CSS Variables for Slack theme - Exact Slack Production Colors */
 :root {
-  /* Sidebar Colors (Aubergine) */
-  --slack-sidebar-bg: #611f69;
-  --slack-sidebar-hover: #4a154b;
-  --slack-sidebar-active: #f9edff;
-  --slack-sidebar-text: rgba(249, 237, 255, 0.8);
-  --slack-sidebar-text-active: #1d1c1d;
-  --slack-nav-rail-bg: #4a154b;
-
-  /* Text Colors */
-  --slack-text-primary: #1d1c1d;
-  --slack-text-secondary: #616061;
-  --slack-text-link: #1264a3;
+  /* Slack Official Colors */
+  --slack-aubergine: #3F0E40;        /* Sidebar background */
+  --slack-active-item: #1164A3;      /* Active/hover items */
+  --slack-hover-bg: rgba(88, 66, 124, 1); /* Sidebar hover */
+  --slack-text-primary: #1D1C1D;     /* Main text */
+  --slack-text-secondary: #616061;   /* Timestamps, meta */
+  --slack-link-blue: #1264A3;        /* Links, threads */
+  --slack-border: #E0E0E0;           /* Borders */
+  --slack-hover-message: #F8F8F8;    /* Message hover */
+  --slack-white-text: #FFFFFF;       /* Sidebar text */
+  --slack-white-text-muted: rgba(255, 255, 255, 0.7); /* Inactive channels */
 
   /* Buttons */
   --slack-btn-primary: #007a5a;
   --slack-btn-primary-hover: #005e46;
+
+  /* Font Sizes */
+  --font-workspace: 18px;     /* Workspace name */
+  --font-channel: 18px;       /* Channel header */
+  --font-message: 15px;       /* Message content */
+  --font-name: 15px;          /* Sender name */
+  --font-timestamp: 12px;     /* Time */
+  --font-reaction: 12px;      /* Reaction text */
+  --font-thread: 13px;        /* Thread indicator */
+  --font-channel-item: 15px;  /* Sidebar channels */
+
+  /* Font Weights */
+  --weight-black: 900;        /* Channel names, user names */
+  --weight-bold: 700;         /* Emphasis */
+  --weight-normal: 400;       /* Regular text */
+
+  /* Z-Index Layers */
+  --z-sidebar: 10;
+  --z-header: 20;
+  --z-input: 30;
+  --z-modal: 100;
 }
 
 /* Base styles */
@@ -33,10 +53,10 @@ html, body, #root {
 }
 
 body {
-  font-family: 'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", sans-serif;
   font-size: 15px;
-  line-height: 1.46668;
-  color: #1d1c1d;
+  line-height: 22px;
+  color: #1D1C1D;
   background-color: #ffffff;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

@@ -20,23 +20,23 @@ export function Message({ message, showAvatar, isCompact }: MessageProps) {
   return (
     <div
       className={cn(
-        'group relative flex gap-2 rounded px-2 py-1 hover:bg-gray-50',
-        isCompact && 'pl-12'
+        'group relative flex gap-2 px-5 py-2 hover:bg-[#F8F8F8]',
+        isCompact && 'pl-[52px]'
       )}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Avatar or Time placeholder */}
+      {/* Avatar or Time placeholder - Avatar is 36x36 with 8px margin-right */}
       {showAvatar ? (
         <Avatar
           src={message.user.avatar}
           alt={message.user.name}
           fallback={message.user.name}
           size="md"
-          className="mt-1 flex-shrink-0"
+          className="mt-0.5 flex-shrink-0"
         />
       ) : (
-        <span className="absolute left-2 top-1.5 hidden text-[11px] text-gray-500 group-hover:inline">
+        <span className="absolute left-5 top-2 hidden text-[12px] text-[#616061] group-hover:inline">
           {format(message.createdAt, 'h:mm')}
         </span>
       )}
@@ -45,16 +45,16 @@ export function Message({ message, showAvatar, isCompact }: MessageProps) {
       <div className="min-w-0 flex-1">
         {showAvatar && (
           <div className="flex items-baseline gap-2">
-            <button className="font-bold text-[#1d1c1d] hover:underline">
+            <button className="text-[15px] font-black text-[#1D1C1D] hover:underline">
               {message.user.displayName || message.user.name}
             </button>
-            <span className="text-xs text-gray-500">{formattedTime}</span>
+            <span className="text-[12px] font-normal text-[#616061] ml-2">{formattedTime}</span>
             {message.isEdited && (
-              <span className="text-xs text-gray-400">(edited)</span>
+              <span className="text-[12px] text-[#616061]">(edited)</span>
             )}
           </div>
         )}
-        <div className="text-[15px] text-[#1d1c1d] whitespace-pre-wrap break-words">
+        <div className="text-[15px] font-normal text-[#1D1C1D] leading-[22px] mt-1 whitespace-pre-wrap break-words">
           {message.content}
         </div>
 
@@ -66,9 +66,9 @@ export function Message({ message, showAvatar, isCompact }: MessageProps) {
           />
         )}
 
-        {/* Thread indicator */}
+        {/* Thread indicator - 13px, Slack blue */}
         {message.threadCount > 0 && (
-          <button className="mt-1 flex items-center gap-1 rounded px-2 py-1 text-[13px] text-[#1264a3] hover:bg-[#e8f5fa]">
+          <button className="mt-1 flex items-center gap-1 rounded px-2 py-1 text-[13px] font-normal text-[#1264A3] hover:bg-[#e8f5fa]">
             <MessageSquare className="h-4 w-4" />
             <span>
               {message.threadCount} {message.threadCount === 1 ? 'reply' : 'replies'}

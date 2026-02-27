@@ -59,7 +59,7 @@ export function MessageList({ channelId }: MessageListProps) {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-2">
+    <div className="flex-1 overflow-y-auto pt-5 pb-2 bg-white">
       {messages.map((message, index) => {
         const previousMessage = messages[index - 1];
         const showDateSeparator = shouldShowDateSeparator(message, previousMessage);
@@ -68,12 +68,12 @@ export function MessageList({ channelId }: MessageListProps) {
         return (
           <div key={message.id}>
             {showDateSeparator && (
-              <div className="relative my-4 flex items-center">
-                <div className="flex-1 border-t border-gray-200" />
-                <span className="mx-4 flex-shrink-0 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-600">
+              <div className="relative my-4 flex items-center px-5">
+                <div className="flex-1 border-t border-[#E0E0E0]" />
+                <span className="mx-4 flex-shrink-0 rounded-full border border-[#E0E0E0] bg-white px-3 py-1 text-[12px] font-medium text-[#616061]">
                   {formatDateSeparator(message.createdAt)}
                 </span>
-                <div className="flex-1 border-t border-gray-200" />
+                <div className="flex-1 border-t border-[#E0E0E0]" />
               </div>
             )}
             <Message

@@ -11,7 +11,7 @@ interface AvatarProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const sizeClasses = {
   sm: 'h-5 w-5 text-xs',
-  md: 'h-9 w-9 text-sm',
+  md: 'h-[36px] w-[36px] text-sm',
   lg: 'h-12 w-12 text-base',
 };
 
@@ -39,7 +39,7 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
       <div className="relative inline-block" ref={ref} {...props}>
         <div
           className={cn(
-            'relative flex shrink-0 overflow-hidden rounded bg-gray-200',
+            'relative flex shrink-0 overflow-hidden rounded-[4px] bg-gray-200',
             sizeClasses[size],
             className
           )}
@@ -52,7 +52,7 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
               onError={() => setImageError(true)}
             />
           ) : (
-            <span className="flex h-full w-full items-center justify-center bg-[#611f69] text-white font-medium">
+            <span className="flex h-full w-full items-center justify-center bg-[#3F0E40] text-white font-medium">
               {initials}
             </span>
           )}

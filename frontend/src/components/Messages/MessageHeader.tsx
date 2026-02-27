@@ -7,43 +7,43 @@ interface MessageHeaderProps {
 
 export function MessageHeader({ channel }: MessageHeaderProps) {
   return (
-    <header className="flex h-[49px] items-center justify-between border-b border-gray-200 px-4">
+    <header className="flex h-[49px] items-center justify-between border-b border-[#E0E0E0] px-4 bg-white">
       {/* Left Section */}
       <div className="flex items-center gap-2">
-        <button className="flex items-center gap-1 rounded px-2 py-1 hover:bg-gray-100">
-          <Hash className="h-4 w-4 text-gray-600" />
-          <span className="text-lg font-bold text-[#1d1c1d]">{channel.name}</span>
-          <ChevronDown className="h-4 w-4 text-gray-600" />
+        <button className="flex items-center gap-1 rounded px-2 py-1 hover:bg-[#F8F8F8]">
+          <Hash className="h-[18px] w-[18px] text-[#616061]" />
+          <span className="text-[18px] font-black text-[#1D1C1D]">{channel.name}</span>
+          <ChevronDown className="h-[18px] w-[18px] text-[#616061]" />
         </button>
-        <button className="flex h-7 w-7 items-center justify-center rounded hover:bg-gray-100">
-          <Star className="h-4 w-4 text-gray-500" />
+        <button className="flex h-7 w-7 items-center justify-center rounded hover:bg-[#F8F8F8]">
+          <Star className="h-[18px] w-[18px] text-[#616061]" />
         </button>
       </div>
 
-      {/* Right Section */}
-      <div className="flex items-center gap-1">
-        <button className="flex items-center gap-1 rounded px-2 py-1 text-sm text-gray-600 hover:bg-gray-100">
-          <Users className="h-4 w-4" />
+      {/* Right Section - 18px icons, 12px spacing */}
+      <div className="flex items-center gap-3">
+        <button className="flex items-center gap-1 rounded px-2 py-1 text-sm text-[#616061] hover:bg-[#F8F8F8]">
+          <Users className="h-[18px] w-[18px]" />
           <span>{channel.memberCount}</span>
         </button>
-        <div className="mx-2 h-5 w-px bg-gray-200" />
-        <button className="flex h-7 w-7 items-center justify-center rounded hover:bg-gray-100">
-          <Bell className="h-4 w-4 text-gray-500" />
+        <div className="h-5 w-px bg-[#E0E0E0]" />
+        <button className="flex h-7 w-7 items-center justify-center rounded hover:bg-[#F8F8F8]">
+          <Bell className="h-[18px] w-[18px] text-[#616061]" />
         </button>
-        <button className="flex h-7 w-7 items-center justify-center rounded hover:bg-gray-100">
-          <Pin className="h-4 w-4 text-gray-500" />
+        <button className="flex h-7 w-7 items-center justify-center rounded hover:bg-[#F8F8F8]">
+          <Pin className="h-[18px] w-[18px] text-[#616061]" />
         </button>
-        <div className="mx-2 h-5 w-px bg-gray-200" />
+        <div className="h-5 w-px bg-[#E0E0E0]" />
         <div className="relative">
-          <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <Search className="absolute left-2 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#616061]" />
           <input
             type="text"
             placeholder="Search"
-            className="h-7 w-32 rounded bg-gray-100 pl-8 pr-2 text-sm placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-[#1264a3]"
+            className="h-7 w-32 rounded bg-[#F8F8F8] pl-8 pr-2 text-sm placeholder:text-[#616061] focus:outline-none focus:ring-2 focus:ring-[#1264A3]"
           />
         </div>
-        <button className="flex h-7 w-7 items-center justify-center rounded hover:bg-gray-100">
-          <MoreVertical className="h-4 w-4 text-gray-500" />
+        <button className="flex h-7 w-7 items-center justify-center rounded hover:bg-[#F8F8F8]">
+          <MoreVertical className="h-[18px] w-[18px] text-[#616061]" />
         </button>
       </div>
     </header>

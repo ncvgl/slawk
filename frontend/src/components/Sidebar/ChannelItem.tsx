@@ -21,10 +21,11 @@ export function ChannelItem({
     <button
       onClick={onClick}
       className={cn(
-        'flex w-full items-center gap-2 px-4 py-1 text-[15px] transition-colors',
+        'flex w-full items-center gap-2 px-4 h-[28px] text-[15px] font-normal transition-colors mx-2 rounded-md',
+        'w-[calc(100%-16px)]',
         isActive
-          ? 'bg-[#f9edff] text-[#1d1c1d] font-medium'
-          : 'hover:bg-white/10'
+          ? 'bg-[rgba(88,66,124,1)] text-white font-medium'
+          : 'text-[rgba(255,255,255,0.7)] hover:bg-[rgba(88,66,124,1)] hover:text-white'
       )}
     >
       <Icon className="h-4 w-4 flex-shrink-0" />
@@ -33,7 +34,7 @@ export function ChannelItem({
         <span
           className={cn(
             'ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-xs font-medium',
-            isActive ? 'bg-[#611f69] text-white' : 'bg-red-500 text-white'
+            isActive ? 'bg-[#3F0E40] text-white' : 'bg-red-500 text-white'
           )}
         >
           {channel.unreadCount}
