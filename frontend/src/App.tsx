@@ -1,7 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useChannelStore } from '@/stores/useChannelStore';
+import { useMessageStore } from '@/stores/useMessageStore';
+import { connectSocket, disconnectSocket, getSocket } from '@/lib/socket';
 import { AppLayout } from '@/components/Layout/AppLayout';
 import { LoginPage } from '@/components/Auth/LoginPage';
 import { RegisterPage } from '@/components/Auth/RegisterPage';
@@ -28,10 +30,72 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 
 function AppShell() {
   const fetchChannels = useChannelStore((s) => s.fetchChannels);
+  const channels = useChannelStore((s) => s.channels);
+  const activeChannelId = useChannelStore((s) => s.activeChannelId);
+  const { onMessageNew, onMessageUpdated, onMessageDeleted } = useMessageStore();
+  const joinedChannelsRef = useRef<Set<number>>(new Set());
 
   useEffect(() => {
     fetchChannels();
   }, [fetchChannels]);
+
+  // Connect socket and set up event listeners
+  useEffect(() => {
+    const socket = connectSocket();
+
+    const handleNewMessage = (msg: import('@/lib/api').ApiMessage) => {
+      const { onMessageNew } = useMessageStore.getState();
+      const { activeChannelId, incrementUnread } = useChannelStore.getState();
+      onMessageNew(msg);
+      // If the message is for a channel we're not viewing, increment unread
+      if (msg.channelId !== activeChannelId) {
+        incrementUnread(msg.channelId);
+      }
+    };
+
+    const handleUpdatedMessage = (msg: import('@/lib/api').ApiMessage) => {
+      useMessageStore.getState().onMessageUpdated(msg);
+    };
+
+    const handleDeletedMessage = (data: { messageId: number }) => {
+      useMessageStore.getState().onMessageDeleted(data);
+    };
+
+    socket.on('message:new', handleNewMessage);
+    socket.on('message:updated', handleUpdatedMessage);
+    socket.on('message:deleted', handleDeletedMessage);
+
+    return () => {
+      socket.off('message:new', handleNewMessage);
+      socket.off('message:updated', handleUpdatedMessage);
+      socket.off('message:deleted', handleDeletedMessage);
+      disconnectSocket();
+    };
+  }, []);
+
+  // Join channel rooms as they become available
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return;
+
+    const joinChannels = () => {
+      for (const ch of channels) {
+        if (!joinedChannelsRef.current.has(ch.id)) {
+          socket.emit('join:channel', ch.id);
+          joinedChannelsRef.current.add(ch.id);
+        }
+      }
+    };
+
+    if (socket.connected) {
+      joinChannels();
+    }
+    // Also join when socket reconnects
+    socket.on('connect', joinChannels);
+    return () => {
+      socket.off('connect', joinChannels);
+    };
+  }, [channels]);
 
   return <AppLayout />;
 }

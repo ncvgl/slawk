@@ -21,12 +21,14 @@ const navItems = [
 ];
 
 export function Sidebar() {
-  const { channels, directMessages, activeChannelId, setActiveChannel, setActiveDM } =
+  const { channels, directMessages, activeChannelId, setActiveChannel, setActiveDM, createChannel } =
     useChannelStore();
   const { user } = useAuthStore();
   const [channelsExpanded, setChannelsExpanded] = useState(true);
   const [dmsExpanded, setDmsExpanded] = useState(true);
   const [activeNav, setActiveNav] = useState('home');
+  const [showCreateChannel, setShowCreateChannel] = useState(false);
+  const [newChannelName, setNewChannelName] = useState('');
 
   const publicChannels = channels.filter((ch) => !ch.isPrivate);
   const privateChannels = channels.filter((ch) => ch.isPrivate);
@@ -128,7 +130,10 @@ export function Sidebar() {
                     isPrivate
                   />
                 ))}
-                <button className="flex items-center gap-2 mx-2 w-[calc(100%-16px)] px-4 h-[28px] text-[15px] rounded-[6px] text-left text-white/70 hover:bg-[rgba(88,66,124,1)] hover:text-white">
+                <button
+                  onClick={() => setShowCreateChannel(true)}
+                  className="flex items-center gap-2 mx-2 w-[calc(100%-16px)] px-4 h-[28px] text-[15px] rounded-[6px] text-left text-white/70 hover:bg-[rgba(88,66,124,1)] hover:text-white"
+                >
                   <Plus className="w-4 h-4 flex-shrink-0" />
                   <span>Add channels</span>
                 </button>
@@ -169,6 +174,56 @@ export function Sidebar() {
           </div>
         </div>
       </div>
+
+      {/* Create Channel Dialog */}
+      {showCreateChannel && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-[480px] rounded-lg bg-white p-6 shadow-xl">
+            <h2 className="text-[22px] font-bold text-[#1D1C1D] mb-4">Create a channel</h2>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const name = newChannelName.trim();
+                if (!name) return;
+                await createChannel(name);
+                setNewChannelName('');
+                setShowCreateChannel(false);
+              }}
+            >
+              <label className="block text-[14px] font-medium text-[#1D1C1D] mb-1">
+                Channel name
+              </label>
+              <input
+                type="text"
+                value={newChannelName}
+                onChange={(e) => setNewChannelName(e.target.value)}
+                placeholder="e.g. plan-budget"
+                autoFocus
+                className="w-full rounded border border-gray-300 px-3 py-2 text-[15px] text-[#1D1C1D] outline-none focus:border-[#1264A3] focus:ring-1 focus:ring-[#1264A3]"
+              />
+              <div className="mt-4 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCreateChannel(false);
+                    setNewChannelName('');
+                  }}
+                  className="rounded px-4 py-2 text-[14px] font-medium text-[#1D1C1D] hover:bg-gray-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!newChannelName.trim()}
+                  className="rounded bg-[#007a5a] px-4 py-2 text-[14px] font-medium text-white hover:bg-[#005e46] disabled:opacity-50"
+                >
+                  Create
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

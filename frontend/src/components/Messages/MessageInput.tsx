@@ -56,6 +56,9 @@ export function MessageInput({ channelId, channelName }: MessageInputProps) {
     await sendMessage(channelId, text);
   }, [channelId, sendMessage]);
 
+  const handleSendRef = useRef(handleSend);
+  handleSendRef.current = handleSend;
+
   useEffect(() => {
     if (!editorRef.current || quillRef.current) return;
 
@@ -68,7 +71,7 @@ export function MessageInput({ channelId, channelName }: MessageInputProps) {
             enter: {
               key: 'Enter',
               handler: () => {
-                handleSend();
+                handleSendRef.current();
                 return false;
               },
             },
@@ -86,7 +89,13 @@ export function MessageInput({ channelId, channelName }: MessageInputProps) {
     quill.root.addEventListener('blur', () => setIsFocused(false));
 
     quillRef.current = quill;
-  }, [channelName, handleSend]);
+  }, [channelName]);
+
+  useEffect(() => {
+    if (quillRef.current) {
+      quillRef.current.root.dataset.placeholder = `Message #${channelName}`;
+    }
+  }, [channelName]);
 
   const handleEmojiSelect = useCallback((emoji: { native: string }) => {
     const quill = quillRef.current;

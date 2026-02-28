@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import * as api from '@/lib/api';
+import { getSocket } from '@/lib/socket';
 import type { Message, Reaction } from '@/lib/types';
 
 function transformApiMessage(msg: api.ApiMessage): Message {
@@ -46,8 +47,14 @@ interface MessageState {
   fetchMessages: (channelId: number) => Promise<void>;
   getMessagesForChannel: (channelId: number) => Message[];
   sendMessage: (channelId: number, content: string) => Promise<void>;
+  editMessage: (messageId: number, content: string) => Promise<void>;
+  deleteMessage: (messageId: number) => Promise<void>;
   addReaction: (messageId: number, emoji: string) => void;
   removeReaction: (messageId: number, emoji: string) => void;
+  // Socket event handlers
+  onMessageNew: (msg: api.ApiMessage) => void;
+  onMessageUpdated: (msg: api.ApiMessage) => void;
+  onMessageDeleted: (data: { messageId: number }) => void;
 }
 
 export const useMessageStore = create<MessageState>((set, get) => ({
@@ -74,15 +81,71 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   },
 
   sendMessage: async (channelId: number, content: string) => {
-    try {
-      const apiMsg = await api.sendMessage(channelId, content);
-      const message = transformApiMessage(apiMsg);
-      set((state) => ({
-        messages: [...state.messages, message],
-      }));
-    } catch (err) {
-      console.error('Failed to send message:', err);
+    const socket = getSocket();
+    if (socket?.connected) {
+      // Send via socket so the backend broadcasts to all users in the channel
+      socket.emit('message:send', { channelId, content });
+    } else {
+      // Fallback to REST if socket not connected
+      try {
+        const apiMsg = await api.sendMessage(channelId, content);
+        const message = transformApiMessage(apiMsg);
+        set((state) => ({
+          messages: [...state.messages, message],
+        }));
+      } catch (err) {
+        console.error('Failed to send message:', err);
+      }
     }
+  },
+
+  editMessage: async (messageId: number, content: string) => {
+    try {
+      const apiMsg = await api.editMessage(messageId, content);
+      const updated = transformApiMessage(apiMsg);
+      set({
+        messages: get().messages.map((msg) =>
+          msg.id === messageId ? updated : msg,
+        ),
+      });
+    } catch (err) {
+      console.error('Failed to edit message:', err);
+    }
+  },
+
+  deleteMessage: async (messageId: number) => {
+    try {
+      await api.deleteMessage(messageId);
+      set({
+        messages: get().messages.filter((msg) => msg.id !== messageId),
+      });
+    } catch (err) {
+      console.error('Failed to delete message:', err);
+    }
+  },
+
+  // Socket event handlers — called when we receive a broadcast from the server
+  onMessageNew: (msg: api.ApiMessage) => {
+    // Avoid duplicates (we already added it locally when we sent via REST)
+    if (get().messages.some((m) => m.id === msg.id)) return;
+    const message = transformApiMessage(msg);
+    // Only add to messages list if it belongs to the currently loaded channel
+    if (message.channelId === get().loadedChannelId) {
+      set((state) => ({ messages: [...state.messages, message] }));
+    }
+  },
+
+  onMessageUpdated: (msg: api.ApiMessage) => {
+    const updated = transformApiMessage(msg);
+    set({
+      messages: get().messages.map((m) => (m.id === updated.id ? updated : m)),
+    });
+  },
+
+  onMessageDeleted: (data: { messageId: number }) => {
+    set({
+      messages: get().messages.filter((m) => m.id !== data.messageId),
+    });
   },
 
   addReaction: async (messageId: number, emoji: string) => {
