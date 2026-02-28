@@ -19,30 +19,29 @@ export function Message({ message, showAvatar, isCompact }: MessageProps) {
 
   return (
     <div
-      className={cn(
-        'group relative flex gap-2 px-5 py-[4px] hover:bg-[#F8F8F8]',
-        isCompact && 'pl-[56px] py-[2px]'
-      )}
+      className="group relative flex px-5 py-[4px] hover:bg-[#F8F8F8]"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Avatar or Time placeholder - Avatar is 36x36 with 8px margin-right */}
-      {showAvatar ? (
-        <Avatar
-          src={message.user.avatar}
-          alt={message.user.name}
-          fallback={message.user.name}
-          size="md"
-          className="mt-[2px] flex-shrink-0 mr-2"
-        />
-      ) : (
-        <span className="absolute left-5 top-[9px] hidden text-[12px] text-[#616061] group-hover:inline">
-          {format(message.createdAt, 'h:mm')}
-        </span>
-      )}
+      {/* Fixed 36px left gutter column */}
+      <div className="w-[36px] flex-shrink-0 mr-2">
+        {showAvatar ? (
+          <Avatar
+            src={message.user.avatar}
+            alt={message.user.name}
+            fallback={message.user.name}
+            size="md"
+            className="mt-[2px]"
+          />
+        ) : (
+          <span className="hidden text-[12px] text-[#616061] group-hover:inline leading-[22px]">
+            {format(message.createdAt, 'h:mm')}
+          </span>
+        )}
+      </div>
 
-      {/* Message Content */}
-      <div className="min-w-0 flex-1">
+      {/* Flex-grow right content column */}
+      <div className="flex-1 min-w-0">
         {showAvatar && (
           <div className="flex items-baseline gap-2">
             <button className="text-[15px] font-black text-[#1D1C1D] hover:underline">
@@ -54,7 +53,7 @@ export function Message({ message, showAvatar, isCompact }: MessageProps) {
             )}
           </div>
         )}
-        <div className="text-[15px] font-normal text-[#1D1C1D] leading-[1.46668] whitespace-pre-wrap break-words">
+        <div className="text-[15px] font-normal text-[#1D1C1D] leading-[22px] whitespace-pre-wrap break-words">
           {message.content}
         </div>
 
@@ -85,18 +84,18 @@ export function Message({ message, showAvatar, isCompact }: MessageProps) {
 
       {/* Hover Actions */}
       {isHovered && (
-        <div className="absolute -top-4 right-2 flex items-center gap-0.5 rounded-lg border border-gray-200 bg-white p-0.5 shadow-md">
-          <button className="flex h-7 w-7 items-center justify-center rounded hover:bg-gray-100">
-            <Smile className="h-4 w-4 text-gray-600" />
+        <div className="absolute -top-4 right-5 flex items-center gap-0.5 rounded-lg border border-[#E0E0E0] bg-white p-0.5 shadow-sm">
+          <button className="flex h-7 w-7 items-center justify-center rounded hover:bg-[#F8F8F8]">
+            <Smile className="h-4 w-4 text-[#616061]" />
           </button>
-          <button className="flex h-7 w-7 items-center justify-center rounded hover:bg-gray-100">
-            <MessageSquare className="h-4 w-4 text-gray-600" />
+          <button className="flex h-7 w-7 items-center justify-center rounded hover:bg-[#F8F8F8]">
+            <MessageSquare className="h-4 w-4 text-[#616061]" />
           </button>
-          <button className="flex h-7 w-7 items-center justify-center rounded hover:bg-gray-100">
-            <Bookmark className="h-4 w-4 text-gray-600" />
+          <button className="flex h-7 w-7 items-center justify-center rounded hover:bg-[#F8F8F8]">
+            <Bookmark className="h-4 w-4 text-[#616061]" />
           </button>
-          <button className="flex h-7 w-7 items-center justify-center rounded hover:bg-gray-100">
-            <MoreHorizontal className="h-4 w-4 text-gray-600" />
+          <button className="flex h-7 w-7 items-center justify-center rounded hover:bg-[#F8F8F8]">
+            <MoreHorizontal className="h-4 w-4 text-[#616061]" />
           </button>
         </div>
       )}

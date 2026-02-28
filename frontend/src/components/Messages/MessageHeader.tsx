@@ -18,9 +18,9 @@ export function MessageHeader({ channel }: MessageHeaderProps) {
   const [activeTab, setActiveTab] = useState('messages');
 
   return (
-    <header className="flex flex-col border-b border-[rgba(29,28,29,0.13)] bg-white">
+    <header className="flex flex-col border-b border-[#E0E0E0] bg-white">
       {/* Top Row - Channel name and actions */}
-      <div className="flex h-[44px] items-center justify-between px-4">
+      <div className="flex h-[49px] items-center justify-between px-4">
         {/* Left Section */}
         <div className="flex items-center gap-1">
           <button className="flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-[#F8F8F8]">
@@ -39,17 +39,17 @@ export function MessageHeader({ channel }: MessageHeaderProps) {
             <Users className="h-4 w-4" />
             <span>{channel.memberCount}</span>
           </button>
-          <div className="h-4 w-px bg-[rgba(29,28,29,0.13)]" />
+          <div className="h-4 w-px bg-[#E0E0E0]" />
           <button className="flex h-6 w-6 items-center justify-center rounded hover:bg-[#F8F8F8]">
             <Bell className="h-4 w-4 text-[#616061]" />
           </button>
-          <div className="h-4 w-px bg-[rgba(29,28,29,0.13)]" />
+          <div className="h-4 w-px bg-[#E0E0E0]" />
           <div className="relative">
             <Search className="absolute left-2 top-1/2 h-[14px] w-[14px] -translate-y-1/2 text-[#616061]" />
             <input
               type="text"
               placeholder="Search"
-              className="h-[26px] w-[140px] rounded-md border border-[rgba(29,28,29,0.13)] bg-white pl-7 pr-2 text-[13px] placeholder:text-[#616061] focus:outline-none focus:border-[#1264A3]"
+              className="h-[26px] w-[140px] rounded-md border border-[#E0E0E0] bg-white pl-7 pr-2 text-[13px] placeholder:text-[#616061] focus:outline-none focus:border-[#1264A3]"
             />
           </div>
           <button className="flex h-6 w-6 items-center justify-center rounded hover:bg-[#F8F8F8]">

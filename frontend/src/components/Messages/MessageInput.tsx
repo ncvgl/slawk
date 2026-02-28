@@ -67,15 +67,15 @@ export function MessageInput({ channelId, channelName }: MessageInputProps) {
   const canSend = message.trim().length > 0;
 
   return (
-    <div className="px-5 pb-4 pt-2 bg-white">
+    <div className="px-5 pb-5 pt-2 bg-white">
       <div
         className={cn(
           'rounded-[8px] border transition-all',
-          isFocused ? 'border-[#1264A3] shadow-sm' : 'border-[rgba(29,28,29,0.2)]'
+          isFocused ? 'border-[#1264A3] border-2' : 'border-[#8D8D8D]'
         )}
       >
-        {/* Formatting Toolbar - subtle */}
-        <div className="flex items-center gap-0.5 border-b border-[rgba(29,28,29,0.08)] px-2 py-1">
+        {/* Formatting Toolbar */}
+        <div className="flex items-center gap-0.5 border-b border-[#E0E0E0] px-2 py-1">
           {formatButtons.map((button) => (
             <button
               key={button.label}
@@ -102,8 +102,8 @@ export function MessageInput({ channelId, channelName }: MessageInputProps) {
           />
         </div>
 
-        {/* Bottom Toolbar - subtle */}
-        <div className="flex items-center justify-between border-t border-[rgba(29,28,29,0.08)] px-2 py-1">
+        {/* Bottom Toolbar */}
+        <div className="flex items-center justify-between border-t border-[#E0E0E0] px-2 py-1">
           <div className="flex items-center gap-3">
             <button className="flex h-7 w-7 items-center justify-center rounded text-[#616061] hover:bg-[#F8F8F8] hover:text-[#1D1C1D]">
               <Plus className="h-[18px] w-[18px]" />

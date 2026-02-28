@@ -16,12 +16,13 @@ export function DirectMessageItem({
   return (
     <button
       onClick={onClick}
+      data-active={isActive}
       className={cn(
-        'flex w-full items-center gap-2 h-[28px] text-[15px] transition-all rounded-md',
-        'ml-[8px] mr-[8px] w-[calc(100%-16px)] pl-[20px] pr-[8px]',
+        'flex w-full items-center gap-2 h-[28px] text-[15px] font-normal transition-all rounded-[6px]',
+        'mx-2 w-[calc(100%-16px)] px-4',
         isActive
-          ? 'bg-[#F9EDFF]/95 text-[#3D0E3F]'
-          : 'text-[rgba(255,255,255,0.85)] hover:bg-[rgba(255,255,255,0.1)] hover:text-white'
+          ? 'bg-[rgba(88,66,124,1)] text-white'
+          : 'text-white/70 hover:bg-[rgba(88,66,124,1)] hover:text-white'
       )}
     >
       <Avatar
@@ -31,14 +32,9 @@ export function DirectMessageItem({
         size="sm"
         status={dm.userStatus}
       />
-      <span className="truncate">{dm.userName}</span>
+      <span className="truncate flex-1">{dm.userName}</span>
       {dm.unreadCount > 0 && (
-        <span
-          className={cn(
-            'ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-xs font-medium',
-            isActive ? 'bg-[#611f69] text-white' : 'bg-red-500 text-white'
-          )}
-        >
+        <span className="text-[12px] px-[6px] py-[2px] bg-white/20 rounded-full">
           {dm.unreadCount}
         </span>
       )}

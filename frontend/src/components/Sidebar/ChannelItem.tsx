@@ -20,23 +20,19 @@ export function ChannelItem({
   return (
     <button
       onClick={onClick}
+      data-active={isActive}
       className={cn(
-        'flex w-full items-center gap-2 h-[28px] text-[15px] font-normal transition-all rounded-md',
-        'ml-[8px] mr-[8px] w-[calc(100%-16px)] pl-[20px] pr-[8px]',
+        'flex w-full items-center gap-2 h-[28px] text-[15px] font-normal transition-all rounded-[6px]',
+        'mx-2 w-[calc(100%-16px)] px-4',
         isActive
-          ? 'bg-[#F9EDFF]/95 text-[#3D0E3F]'
-          : 'text-[rgba(255,255,255,0.85)] hover:bg-[rgba(255,255,255,0.1)] hover:text-white'
+          ? 'bg-[rgba(88,66,124,1)] text-white'
+          : 'text-white/70 hover:bg-[rgba(88,66,124,1)] hover:text-white'
       )}
     >
-      <Icon className="h-[18px] w-[18px] flex-shrink-0 opacity-70" />
-      <span className="truncate">{channel.name}</span>
+      <Icon className="w-4 h-4 flex-shrink-0" />
+      <span className="truncate flex-1">{channel.name}</span>
       {channel.unreadCount > 0 && (
-        <span
-          className={cn(
-            'ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-xs font-medium',
-            isActive ? 'bg-[#3F0E40] text-white' : 'bg-red-500 text-white'
-          )}
-        >
+        <span className="text-[12px] px-[6px] py-[2px] bg-white/20 rounded-full">
           {channel.unreadCount}
         </span>
       )}
