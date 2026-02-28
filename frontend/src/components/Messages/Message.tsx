@@ -21,7 +21,7 @@ export function Message({ message, showAvatar, isCompact }: MessageProps) {
     <div
       className={cn(
         'group relative flex px-5 hover:bg-[#F8F8F8]',
-        showAvatar ? 'pt-2 pb-2 mt-4' : 'py-0.5'
+        showAvatar ? 'pt-4 pb-2' : 'py-0.5'
       )}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -34,7 +34,6 @@ export function Message({ message, showAvatar, isCompact }: MessageProps) {
             alt={message.user.name}
             fallback={message.user.name}
             size="md"
-            className="mt-[2px]"
           />
         ) : (
           <span className="hidden text-[12px] text-[#616061] group-hover:inline leading-[22px]">
