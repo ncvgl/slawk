@@ -132,7 +132,7 @@ export function Sidebar() {
                     isPrivate
                   />
                 ))}
-                <button className="flex items-center gap-2 mx-2 w-[calc(100%-16px)] px-4 h-[28px] text-[15px] rounded-[6px] text-white/70 hover:bg-[rgba(88,66,124,1)] hover:text-white">
+                <button className="flex items-center gap-2 mx-2 w-[calc(100%-16px)] px-4 h-[28px] text-[15px] rounded-[6px] text-left text-white/70 hover:bg-[rgba(88,66,124,1)] hover:text-white">
                   <Plus className="w-4 h-4 flex-shrink-0" />
                   <span>Add channels</span>
                 </button>
@@ -164,7 +164,7 @@ export function Sidebar() {
                     onClick={() => setActiveDM(dm.id)}
                   />
                 ))}
-                <button className="flex items-center gap-2 mx-2 w-[calc(100%-16px)] px-4 h-[28px] text-[15px] rounded-[6px] text-white/70 hover:bg-[rgba(88,66,124,1)] hover:text-white">
+                <button className="flex items-center gap-2 mx-2 w-[calc(100%-16px)] px-4 h-[28px] text-[15px] rounded-[6px] text-left text-white/70 hover:bg-[rgba(88,66,124,1)] hover:text-white">
                   <Plus className="w-4 h-4 flex-shrink-0" />
                   <span>Add teammates</span>
                 </button>

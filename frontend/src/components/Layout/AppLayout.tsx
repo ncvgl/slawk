@@ -8,7 +8,7 @@ export function AppLayout() {
       <Sidebar />
 
       {/* Main Message Area */}
-      <main className="flex flex-1 flex-col min-w-0">
+      <main className="flex flex-1 flex-col min-w-0 border-l border-[#E0E0E0]">
         <MessageArea />
       </main>
 
