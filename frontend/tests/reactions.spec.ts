@@ -28,7 +28,11 @@ test.describe('Reactions', () => {
   test.beforeEach(async ({ page }) => {
     const email = uniqueEmail();
     await register(page, 'Reaction Tester', email, 'password123');
+    // Explicitly click general to ensure channel is loaded and socket has joined
+    await page.locator('button').filter({ hasText: 'general' }).first().click();
     await expect(page.locator('.ql-editor')).toBeVisible({ timeout: 10_000 });
+    // Give socket time to join the channel room
+    await page.waitForTimeout(500);
   });
 
   test('user can add emoji reaction to a message', async ({ page }) => {
