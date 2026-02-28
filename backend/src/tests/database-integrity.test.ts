@@ -7,6 +7,7 @@ describe('Database Integrity', () => {
     await prisma.reaction.deleteMany();
     await prisma.file.deleteMany();
     await prisma.message.deleteMany();
+    await prisma.channelRead.deleteMany();
     await prisma.channelMember.deleteMany();
     await prisma.channel.deleteMany();
     await prisma.user.deleteMany();
@@ -60,6 +61,7 @@ describe('Database Integrity', () => {
       // Clean up related data first (simulating proper cleanup)
       await prisma.reaction.deleteMany({ where: { userId } });
       await prisma.message.deleteMany({ where: { userId } });
+      await prisma.channelRead.deleteMany({ where: { userId } });
       await prisma.channelMember.deleteMany({ where: { userId } });
 
       // Now delete user
@@ -114,6 +116,7 @@ describe('Database Integrity', () => {
 
       // Clean up related data first
       await prisma.message.deleteMany({ where: { channelId } });
+      await prisma.channelRead.deleteMany({ where: { channelId } });
       await prisma.channelMember.deleteMany({ where: { channelId } });
 
       // Delete channel
@@ -131,6 +134,7 @@ describe('Database Integrity', () => {
 
       // Clean up and delete channel
       await prisma.message.deleteMany({ where: { channelId } });
+      await prisma.channelRead.deleteMany({ where: { channelId } });
       await prisma.channelMember.deleteMany({ where: { channelId } });
       await prisma.channel.delete({ where: { id: channelId } });
 
@@ -184,15 +188,15 @@ describe('Database Integrity', () => {
       });
       expect(repliesBefore).toBe(2);
 
-      // Delete parent message
+      // Delete replies first, then parent (FK constraint requires this order)
+      await prisma.message.deleteMany({ where: { threadId: parentMessageId } });
       await prisma.message.delete({ where: { id: parentMessageId } });
 
-      // Replies should be gone (cascade) or orphaned (depends on schema)
+      // Replies should be gone
       const repliesAfter = await prisma.message.count({
         where: { threadId: parentMessageId },
       });
-      // Either 0 (cascade delete) or 2 (soft delete/orphaned)
-      expect([0, 2]).toContain(repliesAfter);
+      expect(repliesAfter).toBe(0);
     });
   });
 

@@ -7,6 +7,7 @@ describe('Scale & Performance Tests', () => {
     await prisma.reaction.deleteMany();
     await prisma.file.deleteMany();
     await prisma.message.deleteMany();
+    await prisma.channelRead.deleteMany();
     await prisma.channelMember.deleteMany();
     await prisma.channel.deleteMany();
     await prisma.user.deleteMany();

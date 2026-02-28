@@ -149,6 +149,9 @@ router.get('/:id/messages', authMiddleware, async (req: AuthRequest, res: Respon
         files: {
           select: { id: true, filename: true, mimetype: true, size: true, url: true },
         },
+        _count: {
+          select: { replies: true },
+        },
       },
       orderBy: { createdAt: 'desc' },
       take: limit + 1,

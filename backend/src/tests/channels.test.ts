@@ -14,6 +14,7 @@ describe('Channels', () => {
 
   beforeEach(async () => {
     await prisma.message.deleteMany();
+    await prisma.channelRead.deleteMany();
     await prisma.channelMember.deleteMany();
     await prisma.channel.deleteMany();
     await prisma.user.deleteMany();

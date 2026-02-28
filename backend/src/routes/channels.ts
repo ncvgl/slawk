@@ -68,11 +68,13 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
 // GET /channels - List all channels
 router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
+    const userId = req.user!.userId;
+
     const channels = await prisma.channel.findMany({
       where: {
         OR: [
           { isPrivate: false },
-          { members: { some: { userId: req.user!.userId } } },
+          { members: { some: { userId } } },
         ],
       },
       include: {
@@ -83,7 +85,41 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       orderBy: { createdAt: 'desc' },
     });
 
-    res.json(channels);
+    // Compute unread counts for channels the user is a member of
+    const memberChannelIds = channels
+      .filter(c => c.members !== undefined)
+      .map(c => c.id);
+
+    const memberships = await prisma.channelMember.findMany({
+      where: { userId, channelId: { in: channels.map(c => c.id) } },
+      select: { channelId: true },
+    });
+    const memberSet = new Set(memberships.map(m => m.channelId));
+
+    const reads = await prisma.channelRead.findMany({
+      where: { userId, channelId: { in: channels.map(c => c.id) } },
+    });
+    const readMap = new Map(reads.map(r => [r.channelId, r.lastReadMessageId]));
+
+    const channelsWithUnread = await Promise.all(
+      channels.map(async (channel) => {
+        let unreadCount = 0;
+        if (memberSet.has(channel.id)) {
+          const lastReadId = readMap.get(channel.id);
+          unreadCount = await prisma.message.count({
+            where: {
+              channelId: channel.id,
+              threadId: null,
+              deletedAt: null,
+              ...(lastReadId != null ? { id: { gt: lastReadId } } : {}),
+            },
+          });
+        }
+        return { ...channel, unreadCount };
+      })
+    );
+
+    res.json(channelsWithUnread);
   } catch (error) {
     console.error('List channels error:', error);
     res.status(500).json({ error: 'Failed to list channels' });
@@ -169,6 +205,13 @@ router.post('/:id/join', authMiddleware, async (req: AuthRequest, res: Response)
       data: { userId, channelId },
     });
 
+    // Auto-create ChannelRead so all existing messages count as unread
+    await prisma.channelRead.upsert({
+      where: { userId_channelId: { userId, channelId } },
+      create: { userId, channelId, lastReadMessageId: null },
+      update: {},
+    });
+
     res.json({ message: 'Joined channel successfully' });
   } catch (error) {
     console.error('Join channel error:', error);
@@ -224,6 +267,54 @@ router.get('/:id/members', authMiddleware, async (req: AuthRequest, res: Respons
   } catch (error) {
     console.error('List members error:', error);
     res.status(500).json({ error: 'Failed to list members' });
+  }
+});
+
+// POST /channels/:id/read - Mark channel as read
+const markReadSchema = z.object({
+  messageId: z.number().int().positive(),
+});
+
+router.post('/:id/read', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const channelId = parseInt(req.params.id);
+    const userId = req.user!.userId;
+    const { messageId } = markReadSchema.parse(req.body);
+
+    // Verify membership
+    const membership = await prisma.channelMember.findUnique({
+      where: { userId_channelId: { userId, channelId } },
+    });
+
+    if (!membership) {
+      res.status(403).json({ error: 'You must be a member of this channel' });
+      return;
+    }
+
+    // Verify the message exists in this channel
+    const message = await prisma.message.findFirst({
+      where: { id: messageId, channelId, deletedAt: null },
+    });
+
+    if (!message) {
+      res.status(404).json({ error: 'Message not found in this channel' });
+      return;
+    }
+
+    await prisma.channelRead.upsert({
+      where: { userId_channelId: { userId, channelId } },
+      create: { userId, channelId, lastReadMessageId: messageId },
+      update: { lastReadMessageId: messageId },
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: error.issues });
+      return;
+    }
+    console.error('Mark channel read error:', error);
+    res.status(500).json({ error: 'Failed to mark channel as read' });
   }
 });
 
