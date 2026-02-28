@@ -29,10 +29,10 @@ describe('Channels', () => {
       const res = await request(app)
         .post('/channels')
         .set('Authorization', `Bearer ${authToken}`)
-        .send({ name: 'general' });
+        .send({ name: 'test-new-channel' });
 
       expect(res.status).toBe(201);
-      expect(res.body.name).toBe('general');
+      expect(res.body.name).toBe('test-new-channel');
       expect(res.body.isPrivate).toBe(false);
       expect(res.body.members).toHaveLength(1);
       expect(res.body.members[0].user.id).toBe(userId);

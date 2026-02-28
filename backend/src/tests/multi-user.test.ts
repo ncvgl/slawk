@@ -51,7 +51,7 @@ describe('Multi-User Scenarios', () => {
     const channelRes = await request(app)
       .post('/channels')
       .set('Authorization', `Bearer ${aliceToken}`)
-      .send({ name: 'general' });
+      .send({ name: 'multi-user-test' });
     channelId = channelRes.body.id;
 
     // Bob joins the channel
