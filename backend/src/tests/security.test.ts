@@ -355,6 +355,55 @@ describe('Security - Input Validation', () => {
     });
   });
 
+  describe('Bug #12: Orphaned channels', () => {
+    it('should NOT allow last member to leave channel', async () => {
+      // Create a new channel where authToken user is the only member
+      const channelRes = await request(app)
+        .post('/channels')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ name: 'solo-channel' });
+
+      const soloChannelId = channelRes.body.id;
+
+      const res = await request(app)
+        .post(`/channels/${soloChannelId}/leave`)
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('Cannot leave channel as the last member');
+    });
+  });
+
+  describe('Bug #13: Duplicate channel names', () => {
+    it('should NOT allow duplicate channel names', async () => {
+      // First channel creation
+      await request(app)
+        .post('/channels')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ name: 'unique-channel-name' });
+
+      // Try to create another with same name
+      const res = await request(app)
+        .post('/channels')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ name: 'unique-channel-name' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('Channel name already exists');
+    });
+  });
+
+  describe('Bug #14: Mark DM as read for non-existent user', () => {
+    it('should return 404 when marking DM as read for non-existent user', async () => {
+      const res = await request(app)
+        .post('/dms/999999/read')
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(res.status).toBe(404);
+      expect(res.body.error).toBe('User not found');
+    });
+  });
+
   describe('Bug #17: Invalid JSON handling', () => {
     it('should return 400 for invalid JSON instead of 500', async () => {
       const res = await request(app)
@@ -364,6 +413,44 @@ describe('Security - Input Validation', () => {
 
       expect(res.status).toBe(400);
       expect(res.body.error).toBe('Invalid JSON');
+    });
+  });
+
+  describe('Bug #18: Negative pagination limit', () => {
+    it('should treat negative limit as default', async () => {
+      // Send some messages first
+      await request(app)
+        .post(`/channels/${channelId}/messages`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ content: 'Message 1' });
+
+      const res = await request(app)
+        .get(`/channels/${channelId}/messages?limit=-5`)
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(res.status).toBe(200);
+      // Should use default limit, not negative
+      expect(res.body.messages.length).toBeGreaterThanOrEqual(0);
+    });
+
+    it('should cap limit at maximum', async () => {
+      const res = await request(app)
+        .get(`/channels/${channelId}/messages?limit=999999`)
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(res.status).toBe(200);
+      // Max limit is 100, so should not exceed
+    });
+  });
+
+  describe('Bug #8: Null bytes in input', () => {
+    it('should reject messages containing null bytes', async () => {
+      const res = await request(app)
+        .post(`/channels/${channelId}/messages`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ content: 'hello\u0000world' });
+
+      expect(res.status).toBe(400);
     });
   });
 

@@ -230,6 +230,16 @@ router.post('/:userId/read', authMiddleware, async (req: AuthRequest, res: Respo
       return;
     }
 
+    // Check if user exists
+    const user = await prisma.user.findUnique({
+      where: { id: otherUserId },
+    });
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
     // Mark all unread messages from the other user as read
     const result = await prisma.directMessage.updateMany({
       where: {

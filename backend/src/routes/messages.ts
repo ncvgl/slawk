@@ -7,10 +7,17 @@ import { AuthRequest } from '../types.js';
 const router = Router();
 
 const createMessageSchema = z.object({
-  content: z.string().min(1).max(4000).refine(
-    (val) => val.trim().length > 0,
-    { message: 'Message content cannot be empty or whitespace only' }
-  ),
+  content: z.string()
+    .min(1)
+    .max(4000)
+    .refine(
+      (val) => val.trim().length > 0,
+      { message: 'Message content cannot be empty or whitespace only' }
+    )
+    .refine(
+      (val) => !val.includes('\u0000'),
+      { message: 'Message content cannot contain null bytes' }
+    ),
   threadId: z.number().optional(),
   fileIds: z.array(z.number()).optional(),
 });

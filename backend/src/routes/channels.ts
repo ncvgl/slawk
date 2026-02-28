@@ -23,6 +23,16 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     const { name, isPrivate } = createChannelSchema.parse(req.body);
     const userId = req.user!.userId;
 
+    // Check for duplicate channel name
+    const existingChannel = await prisma.channel.findFirst({
+      where: { name },
+    });
+
+    if (existingChannel) {
+      res.status(400).json({ error: 'Channel name already exists' });
+      return;
+    }
+
     const channel = await prisma.channel.create({
       data: {
         name,
@@ -171,6 +181,16 @@ router.post('/:id/leave', authMiddleware, async (req: AuthRequest, res: Response
   try {
     const channelId = parseInt(req.params.id);
     const userId = req.user!.userId;
+
+    // Check if user is the last member
+    const memberCount = await prisma.channelMember.count({
+      where: { channelId },
+    });
+
+    if (memberCount <= 1) {
+      res.status(400).json({ error: 'Cannot leave channel as the last member' });
+      return;
+    }
 
     await prisma.channelMember.delete({
       where: {
