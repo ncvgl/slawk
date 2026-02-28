@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useMessageStore } from '@/stores/useMessageStore';
-import { currentUser } from '@/mocks/users';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { EmojiPicker } from '@/components/ui/emoji-picker';
-import type { Reaction } from '@/mocks/messages';
+import type { Reaction } from '@/lib/types';
 
 interface MessageReactionsProps {
   reactions: Reaction[];
@@ -13,7 +13,9 @@ interface MessageReactionsProps {
 
 export function MessageReactions({ reactions, messageId }: MessageReactionsProps) {
   const { addReaction, removeReaction } = useMessageStore();
+  const user = useAuthStore((s) => s.user);
   const [showPicker, setShowPicker] = useState(false);
+  const currentUserId = user?.id ?? -1;
 
   const handleReactionClick = (emoji: string, hasReacted: boolean) => {
     if (hasReacted) {
@@ -31,7 +33,7 @@ export function MessageReactions({ reactions, messageId }: MessageReactionsProps
   return (
     <div className="relative mt-[6px] inline-flex flex-wrap items-center gap-[4px]">
       {reactions.map((reaction) => {
-        const hasReacted = reaction.userIds.includes(currentUser.id);
+        const hasReacted = reaction.userIds.includes(currentUserId);
         return (
           <button
             key={reaction.emoji}

@@ -46,14 +46,14 @@ export function MessageInput({ channelId, channelName }: MessageInputProps) {
   const emojiButtonRef = useRef<HTMLButtonElement>(null);
   const { sendMessage } = useMessageStore();
 
-  const handleSend = useCallback(() => {
+  const handleSend = useCallback(async () => {
     const quill = quillRef.current;
     if (!quill) return;
     const text = quill.getText().trim();
     if (!text) return;
-    sendMessage(channelId, text);
     quill.setText('');
     setCanSend(false);
+    await sendMessage(channelId, text);
   }, [channelId, sendMessage]);
 
   useEffect(() => {

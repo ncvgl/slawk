@@ -1,6 +1,6 @@
 import { Hash, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Channel } from '@/mocks/channels';
+import type { Channel } from '@/lib/types';
 
 interface ChannelItemProps {
   channel: Channel;

@@ -4,7 +4,7 @@ import { Smile, MessageSquare, MoreHorizontal, Bookmark } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/ui/avatar';
 import { MessageReactions } from './MessageReactions';
-import type { Message as MessageType } from '@/mocks/messages';
+import type { Message as MessageType } from '@/lib/types';
 
 interface MessageProps {
   message: MessageType;

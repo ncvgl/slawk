@@ -1,35 +1,80 @@
 import { create } from 'zustand';
-import { currentUser, type User } from '@/mocks/users';
+import * as api from '@/lib/api';
+import type { User } from '@/lib/types';
 
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  error: string | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   register: (name: string, email: string, password: string) => Promise<void>;
+  hydrate: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  user: currentUser, // Start authenticated for demo
-  isAuthenticated: true,
+  user: null,
+  isAuthenticated: !!localStorage.getItem('token'),
   isLoading: false,
+  error: null,
 
-  login: async (_email: string, _password: string) => {
-    set({ isLoading: true });
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    set({ user: currentUser, isAuthenticated: true, isLoading: false });
+  login: async (email: string, password: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const { user, token } = await api.login(email, password);
+      localStorage.setItem('token', token);
+      set({
+        user: { ...user, status: 'online' },
+        isAuthenticated: true,
+        isLoading: false,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Login failed';
+      set({ isLoading: false, error: message });
+      throw err;
+    }
   },
 
   logout: () => {
+    localStorage.removeItem('token');
     set({ user: null, isAuthenticated: false });
   },
 
-  register: async (_name: string, _email: string, _password: string) => {
-    set({ isLoading: true });
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    set({ user: currentUser, isAuthenticated: true, isLoading: false });
+  register: async (name: string, email: string, password: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const { user, token } = await api.register(name, email, password);
+      localStorage.setItem('token', token);
+      set({
+        user: { ...user, status: 'online' },
+        isAuthenticated: true,
+        isLoading: false,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Registration failed';
+      set({ isLoading: false, error: message });
+      throw err;
+    }
+  },
+
+  hydrate: () => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        set({
+          user: {
+            id: payload.userId,
+            email: payload.email,
+            name: payload.email.split('@')[0],
+          },
+          isAuthenticated: true,
+        });
+      } catch {
+        localStorage.removeItem('token');
+        set({ user: null, isAuthenticated: false });
+      }
+    }
   },
 }));

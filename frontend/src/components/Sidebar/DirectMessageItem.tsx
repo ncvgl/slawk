@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/ui/avatar';
-import type { DirectMessage } from '@/mocks/channels';
+import type { DirectMessage } from '@/lib/types';
 
 interface DirectMessageItemProps {
   dm: DirectMessage;

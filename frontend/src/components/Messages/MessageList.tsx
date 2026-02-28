@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { format, isToday, isYesterday, isSameDay } from 'date-fns';
 import { useMessageStore } from '@/stores/useMessageStore';
 import { Message } from './Message';
-import type { Message as MessageType } from '@/mocks/messages';
+import type { Message as MessageType } from '@/lib/types';
 
 interface MessageListProps {
   channelId: number;
@@ -40,14 +40,27 @@ function shouldShowAvatar(
 }
 
 export function MessageList({ channelId }: MessageListProps) {
-  const { getMessagesForChannel } = useMessageStore();
+  const { getMessagesForChannel, fetchMessages, isLoading } = useMessageStore();
   const messages = getMessagesForChannel(channelId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Fetch messages when channel changes
+  useEffect(() => {
+    fetchMessages(channelId);
+  }, [channelId, fetchMessages]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
+
+  if (isLoading && messages.length === 0) {
+    return (
+      <div className="flex flex-1 items-center justify-center text-gray-500">
+        <p className="text-sm">Loading messages...</p>
+      </div>
+    );
+  }
 
   if (messages.length === 0) {
     return (

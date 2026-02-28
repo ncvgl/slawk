@@ -1,17 +1,15 @@
 import { create } from 'zustand';
-import {
-  mockChannels,
-  mockDirectMessages,
-  type Channel,
-  type DirectMessage,
-} from '@/mocks/channels';
+import * as api from '@/lib/api';
+import type { Channel, DirectMessage } from '@/lib/types';
 
 interface ChannelState {
   channels: Channel[];
   directMessages: DirectMessage[];
   activeChannelId: number | null;
   activeDMId: number | null;
+  isLoading: boolean;
 
+  fetchChannels: () => Promise<void>;
   setActiveChannel: (channelId: number) => void;
   setActiveDM: (dmId: number) => void;
   markChannelAsRead: (channelId: number) => void;
@@ -21,14 +19,37 @@ interface ChannelState {
 }
 
 export const useChannelStore = create<ChannelState>((set, get) => ({
-  channels: mockChannels,
-  directMessages: mockDirectMessages,
-  activeChannelId: 1, // Default to general channel
+  channels: [],
+  directMessages: [],
+  activeChannelId: null,
   activeDMId: null,
+  isLoading: false,
+
+  fetchChannels: async () => {
+    set({ isLoading: true });
+    try {
+      const apiChannels = await api.getChannels();
+      const channels: Channel[] = apiChannels.map((ch) => ({
+        id: ch.id,
+        name: ch.name,
+        isPrivate: ch.isPrivate,
+        memberCount: ch._count.members,
+        unreadCount: ch.unreadCount,
+      }));
+      set((state) => ({
+        channels,
+        isLoading: false,
+        // Auto-select first channel if none selected
+        activeChannelId: state.activeChannelId ?? channels[0]?.id ?? null,
+      }));
+    } catch (err) {
+      console.error('Failed to fetch channels:', err);
+      set({ isLoading: false });
+    }
+  },
 
   setActiveChannel: (channelId: number) => {
     set({ activeChannelId: channelId, activeDMId: null });
-    // Auto mark as read when switching
     get().markChannelAsRead(channelId);
   },
 
@@ -40,7 +61,7 @@ export const useChannelStore = create<ChannelState>((set, get) => ({
   markChannelAsRead: (channelId: number) => {
     set((state) => ({
       channels: state.channels.map((ch) =>
-        ch.id === channelId ? { ...ch, unreadCount: 0 } : ch
+        ch.id === channelId ? { ...ch, unreadCount: 0 } : ch,
       ),
     }));
   },
@@ -48,7 +69,7 @@ export const useChannelStore = create<ChannelState>((set, get) => ({
   markDMAsRead: (dmId: number) => {
     set((state) => ({
       directMessages: state.directMessages.map((dm) =>
-        dm.id === dmId ? { ...dm, unreadCount: 0 } : dm
+        dm.id === dmId ? { ...dm, unreadCount: 0 } : dm,
       ),
     }));
   },

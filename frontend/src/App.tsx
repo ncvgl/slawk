@@ -1,5 +1,7 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useChannelStore } from '@/stores/useChannelStore';
 import { AppLayout } from '@/components/Layout/AppLayout';
 import { LoginPage } from '@/components/Auth/LoginPage';
 import { RegisterPage } from '@/components/Auth/RegisterPage';
@@ -24,7 +26,23 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function AppShell() {
+  const fetchChannels = useChannelStore((s) => s.fetchChannels);
+
+  useEffect(() => {
+    fetchChannels();
+  }, [fetchChannels]);
+
+  return <AppLayout />;
+}
+
 function App() {
+  const hydrate = useAuthStore((s) => s.hydrate);
+
+  useEffect(() => {
+    hydrate();
+  }, [hydrate]);
+
   return (
     <BrowserRouter>
       <Routes>
@@ -48,7 +66,7 @@ function App() {
           path="/*"
           element={
             <ProtectedRoute>
-              <AppLayout />
+              <AppShell />
             </ProtectedRoute>
           }
         />

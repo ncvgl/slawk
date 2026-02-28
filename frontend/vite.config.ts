@@ -13,15 +13,16 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
-      },
-      '/socket.io': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
-        ws: true,
-      },
+      '/auth': { target: 'http://localhost:3000', changeOrigin: true },
+      '/channels': { target: 'http://localhost:3000', changeOrigin: true },
+      '/messages': { target: 'http://localhost:3000', changeOrigin: true },
+      '/search': { target: 'http://localhost:3000', changeOrigin: true },
+      '/files': { target: 'http://localhost:3000', changeOrigin: true },
+      '/users': { target: 'http://localhost:3000', changeOrigin: true },
+      '/dms': { target: 'http://localhost:3000', changeOrigin: true },
+      '/uploads': { target: 'http://localhost:3000', changeOrigin: true },
+      '/health': { target: 'http://localhost:3000', changeOrigin: true },
+      '/socket.io': { target: 'http://localhost:3000', changeOrigin: true, ws: true },
     },
   },
 })

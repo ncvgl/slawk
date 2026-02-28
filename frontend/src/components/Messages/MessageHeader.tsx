@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Hash, Star, ChevronDown, Users, Bell, Pin, Search, MoreVertical, MessageSquare, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Channel } from '@/mocks/channels';
+import type { Channel } from '@/lib/types';
 
 interface MessageHeaderProps {
   channel: Channel;
