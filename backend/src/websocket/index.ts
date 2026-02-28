@@ -92,18 +92,22 @@ export function initializeWebSocket(httpServer: HttpServer) {
 
       // If this is the first connection, mark user online and broadcast
       if (onlineUsers.get(userId)!.size === 1) {
-        await prisma.user.update({
-          where: { id: userId },
-          data: { status: 'online' },
-        });
-
-        // Broadcast presence to shared users
-        const sharedUsers = await getSharedUsers(userId);
-        for (const sharedUserId of sharedUsers) {
-          io.to(`user:${sharedUserId}`).emit('presence:update', {
-            userId,
-            status: 'online',
+        try {
+          await prisma.user.update({
+            where: { id: userId },
+            data: { status: 'online' },
           });
+
+          // Broadcast presence to shared users
+          const sharedUsers = await getSharedUsers(userId);
+          for (const sharedUserId of sharedUsers) {
+            io.to(`user:${sharedUserId}`).emit('presence:update', {
+              userId,
+              status: 'online',
+            });
+          }
+        } catch (err) {
+          console.error('Failed to update user presence:', err);
         }
       }
     }
@@ -398,22 +402,26 @@ export function initializeWebSocket(httpServer: HttpServer) {
           if (userSockets.size === 0) {
             onlineUsers.delete(userId);
 
-            await prisma.user.update({
-              where: { id: userId },
-              data: {
-                status: 'offline',
-                lastSeen: new Date(),
-              },
-            });
-
-            // Broadcast presence to shared users
-            const sharedUsers = await getSharedUsers(userId);
-            for (const sharedUserId of sharedUsers) {
-              io.to(`user:${sharedUserId}`).emit('presence:update', {
-                userId,
-                status: 'offline',
-                lastSeen: new Date(),
+            try {
+              await prisma.user.update({
+                where: { id: userId },
+                data: {
+                  status: 'offline',
+                  lastSeen: new Date(),
+                },
               });
+
+              // Broadcast presence to shared users
+              const sharedUsers = await getSharedUsers(userId);
+              for (const sharedUserId of sharedUsers) {
+                io.to(`user:${sharedUserId}`).emit('presence:update', {
+                  userId,
+                  status: 'offline',
+                  lastSeen: new Date(),
+                });
+              }
+            } catch (err) {
+              console.error('Failed to update user presence on disconnect:', err);
             }
           }
         }

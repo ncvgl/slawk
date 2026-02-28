@@ -21,6 +21,7 @@ export function Message({ message, showAvatar, isCompact }: MessageProps) {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
+  const [isBookmarked, setIsBookmarked] = useState(false);
   const editInputRef = useRef<HTMLTextAreaElement>(null);
   const { addReaction, editMessage, deleteMessage } = useMessageStore();
   const currentUser = useAuthStore((s) => s.user);
@@ -185,8 +186,12 @@ export function Message({ message, showAvatar, isCompact }: MessageProps) {
           <button className="flex h-7 w-7 items-center justify-center rounded hover:bg-[#F8F8F8]">
             <MessageSquare className="h-4 w-4 text-[#616061]" />
           </button>
-          <button className="flex h-7 w-7 items-center justify-center rounded hover:bg-[#F8F8F8]">
-            <Bookmark className="h-4 w-4 text-[#616061]" />
+          <button
+            onClick={() => setIsBookmarked(!isBookmarked)}
+            className="flex h-7 w-7 items-center justify-center rounded hover:bg-[#F8F8F8]"
+            title={isBookmarked ? 'Remove bookmark' : 'Bookmark this message'}
+          >
+            <Bookmark className={cn('h-4 w-4', isBookmarked ? 'text-yellow-500 fill-current' : 'text-[#616061]')} />
           </button>
           <button
             onClick={() => setShowMoreMenu(!showMoreMenu)}

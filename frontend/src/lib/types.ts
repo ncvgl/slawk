@@ -14,6 +14,7 @@ export interface Channel {
   isPrivate: boolean;
   memberCount: number;
   unreadCount: number;
+  isMember: boolean;
   isMuted?: boolean;
 }
 

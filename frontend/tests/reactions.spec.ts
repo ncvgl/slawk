@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login, sendMessage, waitForMessage } from './helpers';
+import { register, sendMessage, waitForMessage, uniqueEmail } from './helpers';
 
 /**
  * Helper: open emoji picker from hover toolbar, search for an emoji, and click it.
@@ -20,14 +20,15 @@ async function addReactionViaHover(page: import('@playwright/test').Page, messag
   await searchBox.fill('thumbsup');
   await page.waitForTimeout(500);
 
-  // Click the 👍 button from search results
-  await page.getByRole('button', { name: '👍' }).click();
+  // Click the 👍 button from search results (use exact match to avoid matching reaction pills)
+  await page.getByRole('button', { name: '👍', exact: true }).click();
 }
 
 test.describe('Reactions', () => {
   test.beforeEach(async ({ page }) => {
-    await login(page);
-    await expect(page.locator('.ql-editor')).toBeVisible();
+    const email = uniqueEmail();
+    await register(page, 'Reaction Tester', email, 'password123');
+    await expect(page.locator('.ql-editor')).toBeVisible({ timeout: 10_000 });
   });
 
   test('user can add emoji reaction to a message', async ({ page }) => {

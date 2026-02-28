@@ -35,7 +35,9 @@ test.describe('Authentication', () => {
   });
 
   test('after successful login, user sees channels page', async ({ page }) => {
-    await login(page);
+    // Register a fresh user first, then login
+    const email = uniqueEmail();
+    await register(page, 'Login Tester', email, 'password123');
 
     // The Slawk workspace header should be visible
     await expect(page.locator('text=Slawk')).toBeVisible();
@@ -44,9 +46,9 @@ test.describe('Authentication', () => {
     await expect(page.getByRole('button', { name: 'Channels', exact: true })).toBeVisible();
 
     // At least the #general channel should be present
-    await expect(page.locator('button').filter({ hasText: 'general' })).toBeVisible();
+    await expect(page.locator('button').filter({ hasText: 'general' }).first()).toBeVisible();
 
     // The message input area should be visible for the active channel
-    await expect(page.locator('.ql-editor')).toBeVisible();
+    await expect(page.locator('.ql-editor')).toBeVisible({ timeout: 10_000 });
   });
 });

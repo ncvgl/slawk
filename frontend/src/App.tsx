@@ -80,7 +80,7 @@ function AppShell() {
 
     const joinChannels = () => {
       for (const ch of channels) {
-        if (!joinedChannelsRef.current.has(ch.id)) {
+        if (ch.isMember && !joinedChannelsRef.current.has(ch.id)) {
           socket.emit('join:channel', ch.id);
           joinedChannelsRef.current.add(ch.id);
         }

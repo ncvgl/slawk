@@ -9,17 +9,24 @@ export function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
   const { register, isLoading } = useAuthStore();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
     if (password !== confirmPassword) {
-      alert('Passwords do not match');
+      setError('Passwords do not match');
       return;
     }
-    await register(name, email, password);
-    navigate('/');
+    try {
+      await register(name, email, password);
+      navigate('/');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Registration failed';
+      setError(message);
+    }
   };
 
   return (
@@ -81,6 +88,11 @@ export function RegisterPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="rounded-md bg-red-50 border border-red-200 p-3 text-sm text-red-700" role="alert">
+              {error}
+            </div>
+          )}
           <div>
             <Input
               type="text"

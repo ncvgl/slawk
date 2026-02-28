@@ -45,6 +45,36 @@ router.post('/register', async (req: Request, res: Response) => {
       },
     });
 
+    // Auto-join default channels (general, random) - create if they don't exist
+    for (const channelName of ['general', 'random']) {
+      try {
+        let channel = await prisma.channel.findFirst({
+          where: { name: channelName, isPrivate: false },
+        });
+        if (!channel) {
+          try {
+            channel = await prisma.channel.create({
+              data: { name: channelName, isPrivate: false },
+            });
+          } catch {
+            // Race condition: another request created it concurrently
+            channel = await prisma.channel.findFirst({
+              where: { name: channelName, isPrivate: false },
+            });
+          }
+        }
+        if (channel) {
+          await prisma.channelMember.create({
+            data: { userId: user.id, channelId: channel.id },
+          }).catch(() => {
+            // Ignore if already a member
+          });
+        }
+      } catch {
+        // Non-critical: don't fail registration if auto-join fails
+      }
+    }
+
     const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, {
       expiresIn: '7d',
     });

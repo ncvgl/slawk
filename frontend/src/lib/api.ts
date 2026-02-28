@@ -65,6 +65,7 @@ export interface ApiChannel {
   isPrivate: boolean;
   createdAt: string;
   unreadCount: number;
+  isMember: boolean;
   _count: { members: number; messages: number };
 }
 
@@ -187,6 +188,30 @@ export function deleteMessage(messageId: number) {
   return request<{ message: string }>(`/messages/${messageId}`, {
     method: 'DELETE',
   });
+}
+
+// ---- Search ----
+
+export interface SearchResult {
+  id: number;
+  type: 'message' | 'dm';
+  content: string;
+  createdAt: string;
+  user: { id: number; name: string; email: string; avatar?: string | null };
+  channel?: { id: number; name: string };
+  participant?: { id: number; name: string; email: string };
+}
+
+export interface SearchResponse {
+  results: SearchResult[];
+  query: string;
+  counts: { messages: number; dms: number; total: number };
+}
+
+export function searchMessages(query: string, channelId?: number) {
+  const params = new URLSearchParams({ q: query });
+  if (channelId) params.set('channelId', String(channelId));
+  return request<SearchResponse>(`/search?${params}`);
 }
 
 // ---- Users ----

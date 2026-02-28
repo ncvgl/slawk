@@ -11,6 +11,7 @@ interface ChannelState {
 
   fetchChannels: () => Promise<void>;
   createChannel: (name: string, isPrivate?: boolean) => Promise<void>;
+  joinChannel: (channelId: number) => Promise<void>;
   setActiveChannel: (channelId: number) => void;
   setActiveDM: (dmId: number) => void;
   incrementUnread: (channelId: number) => void;
@@ -37,12 +38,14 @@ export const useChannelStore = create<ChannelState>((set, get) => ({
         isPrivate: ch.isPrivate,
         memberCount: ch._count.members,
         unreadCount: ch.unreadCount,
+        isMember: ch.isMember,
       }));
+      const memberChannels = channels.filter((ch) => ch.isMember);
       set((state) => ({
         channels,
         isLoading: false,
-        // Auto-select first channel if none selected
-        activeChannelId: state.activeChannelId ?? channels[0]?.id ?? null,
+        // Auto-select first member channel if none selected
+        activeChannelId: state.activeChannelId ?? memberChannels[0]?.id ?? null,
       }));
     } catch (err) {
       console.error('Failed to fetch channels:', err);
@@ -59,6 +62,7 @@ export const useChannelStore = create<ChannelState>((set, get) => ({
         isPrivate: ch.isPrivate,
         memberCount: ch._count?.members ?? 1,
         unreadCount: 0,
+        isMember: true,
       };
       set((state) => ({
         channels: [...state.channels, channel],
@@ -67,6 +71,22 @@ export const useChannelStore = create<ChannelState>((set, get) => ({
       }));
     } catch (err) {
       console.error('Failed to create channel:', err);
+    }
+  },
+
+  joinChannel: async (channelId: number) => {
+    try {
+      await api.joinChannel(channelId);
+      set((state) => ({
+        channels: state.channels.map((ch) =>
+          ch.id === channelId ? { ...ch, isMember: true, memberCount: ch.memberCount + 1 } : ch,
+        ),
+        activeChannelId: channelId,
+        activeDMId: null,
+      }));
+    } catch (err) {
+      console.error('Failed to join channel:', err);
+      throw err;
     }
   },
 

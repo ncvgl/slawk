@@ -115,7 +115,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
             },
           });
         }
-        return { ...channel, unreadCount };
+        return { ...channel, unreadCount, isMember: memberSet.has(channel.id) };
       })
     );
 

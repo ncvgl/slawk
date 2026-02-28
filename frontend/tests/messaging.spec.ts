@@ -3,9 +3,11 @@ import { login, sendMessage, waitForMessage, uniqueEmail, register } from './hel
 
 test.describe('Messaging', () => {
   test.beforeEach(async ({ page }) => {
-    await login(page);
+    // Register a fresh user who will be auto-joined to #general and #random
+    const email = uniqueEmail();
+    await register(page, 'Msg Tester', email, 'password123');
     // Make sure we're on a channel (general should be auto-selected)
-    await expect(page.locator('.ql-editor')).toBeVisible();
+    await expect(page.locator('.ql-editor')).toBeVisible({ timeout: 10_000 });
   });
 
   test('user can send a message in a channel', async ({ page }) => {
