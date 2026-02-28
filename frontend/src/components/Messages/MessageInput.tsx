@@ -67,7 +67,7 @@ export function MessageInput({ channelId, channelName }: MessageInputProps) {
   const canSend = message.trim().length > 0;
 
   return (
-    <div className="px-5 pb-5 pt-2 bg-white">
+    <div className="px-5 pb-6 pt-4 bg-white">
       <div
         className={cn(
           'rounded-[8px] border transition-all',

@@ -21,7 +21,7 @@ export function MessageReactions({ reactions, messageId }: MessageReactionsProps
   };
 
   return (
-    <div className="mt-[4px] inline-flex flex-wrap items-center gap-[4px]">
+    <div className="mt-[6px] inline-flex flex-wrap items-center gap-[4px]">
       {reactions.map((reaction) => {
         const hasReacted = reaction.userIds.includes(currentUser.id);
         return (

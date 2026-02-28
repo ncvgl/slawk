@@ -43,11 +43,9 @@
   --z-modal: 100;
 }
 
-/* Base styles */
+/* Base styles - Tailwind v4 handles resets via preflight */
 *, *::before, *::after {
   box-sizing: border-box;
-  margin: 0;
-  padding: 0;
 }
 
 html, body, #root {

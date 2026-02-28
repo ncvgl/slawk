@@ -19,12 +19,15 @@ export function Message({ message, showAvatar, isCompact }: MessageProps) {
 
   return (
     <div
-      className="group relative flex px-5 py-[4px] hover:bg-[#F8F8F8]"
+      className={cn(
+        'group relative flex px-5 hover:bg-[#F8F8F8]',
+        showAvatar ? 'pt-2 pb-2 mt-4' : 'py-0.5'
+      )}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Fixed 36px left gutter column */}
-      <div className="w-[36px] flex-shrink-0 mr-2">
+      {/* Fixed 36px left gutter column with 8px gap to content */}
+      <div className="w-9 flex-shrink-0 mr-2">
         {showAvatar ? (
           <Avatar
             src={message.user.avatar}
@@ -67,7 +70,7 @@ export function Message({ message, showAvatar, isCompact }: MessageProps) {
 
         {/* Thread indicator - 13px, Slack blue, with mini avatars */}
         {message.threadCount > 0 && (
-          <button className="mt-1 flex items-center gap-2 rounded px-1 py-0.5 text-[13px] text-[#1264A3] hover:bg-[#e8f5fa] -ml-1">
+          <button className="mt-[6px] flex items-center gap-2 rounded px-1 py-0.5 text-[13px] text-[#1264A3] hover:bg-[#e8f5fa] -ml-1">
             {/* Mini avatar stack */}
             <div className="flex -space-x-1">
               <div className="h-5 w-5 rounded-[4px] bg-[#e8e8e8] border border-white" />
