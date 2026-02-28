@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useMessageStore } from '@/stores/useMessageStore';
 import { currentUser } from '@/mocks/users';
+import { EmojiPicker } from '@/components/ui/emoji-picker';
 import type { Reaction } from '@/mocks/messages';
 
 interface MessageReactionsProps {
@@ -11,6 +13,7 @@ interface MessageReactionsProps {
 
 export function MessageReactions({ reactions, messageId }: MessageReactionsProps) {
   const { addReaction, removeReaction } = useMessageStore();
+  const [showPicker, setShowPicker] = useState(false);
 
   const handleReactionClick = (emoji: string, hasReacted: boolean) => {
     if (hasReacted) {
@@ -20,8 +23,13 @@ export function MessageReactions({ reactions, messageId }: MessageReactionsProps
     }
   };
 
+  const handleEmojiSelect = (emoji: { native: string }) => {
+    addReaction(messageId, emoji.native);
+    setShowPicker(false);
+  };
+
   return (
-    <div className="mt-[6px] inline-flex flex-wrap items-center gap-[4px]">
+    <div className="relative mt-[6px] inline-flex flex-wrap items-center gap-[4px]">
       {reactions.map((reaction) => {
         const hasReacted = reaction.userIds.includes(currentUser.id);
         return (
@@ -40,9 +48,20 @@ export function MessageReactions({ reactions, messageId }: MessageReactionsProps
           </button>
         );
       })}
-      <button className="inline-flex h-[22px] w-[22px] items-center justify-center rounded-[12px] border border-[#E0E0E0] bg-white text-[#616061] hover:bg-[#F8F8F8]">
+      <button
+        onClick={() => setShowPicker(!showPicker)}
+        className="inline-flex h-[22px] w-[22px] items-center justify-center rounded-[12px] border border-[#E0E0E0] bg-white text-[#616061] hover:bg-[#F8F8F8]"
+      >
         <Plus className="h-[12px] w-[12px]" />
       </button>
+      {showPicker && (
+        <div className="absolute bottom-full left-0 mb-2 z-50">
+          <EmojiPicker
+            onEmojiSelect={handleEmojiSelect}
+            onClickOutside={() => setShowPicker(false)}
+          />
+        </div>
+      )}
     </div>
   );
 }

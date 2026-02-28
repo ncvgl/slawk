@@ -82,3 +82,76 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.3);
 }
+
+/* Quill editor overrides for Slack-style composer */
+.slawk-editor .ql-snow {
+  border: none !important;
+  font-family: inherit;
+}
+
+.slawk-editor .ql-editor {
+  padding: 8px 12px;
+  font-size: 15px;
+  line-height: 22px;
+  color: #1D1C1D;
+  min-height: 38px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.slawk-editor .ql-editor.ql-blank::before {
+  color: #616061;
+  font-style: normal;
+  left: 12px;
+  right: 12px;
+}
+
+.slawk-editor .ql-container {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.slawk-editor .ql-editor p {
+  margin: 0;
+}
+
+.slawk-editor .ql-editor strong {
+  font-weight: 700;
+}
+
+.slawk-editor .ql-editor blockquote {
+  border-left: 4px solid #E0E0E0;
+  padding-left: 12px;
+  margin: 4px 0;
+}
+
+.slawk-editor .ql-editor pre.ql-syntax,
+.slawk-editor .ql-editor .ql-code-block-container {
+  background: #F8F8F8;
+  border: 1px solid #E0E0E0;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-family: Monaco, Menlo, Consolas, monospace;
+  font-size: 13px;
+  color: #1D1C1D;
+  margin: 4px 0;
+}
+
+.slawk-editor .ql-editor code {
+  background: #F8F8F8;
+  border: 1px solid #E0E0E0;
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-family: Monaco, Menlo, Consolas, monospace;
+  font-size: 13px;
+  color: #E01E5A;
+}
+
+.slawk-editor .ql-editor a {
+  color: #1264A3;
+  text-decoration: none;
+}
+
+.slawk-editor .ql-editor a:hover {
+  text-decoration: underline;
+}

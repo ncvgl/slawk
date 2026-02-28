@@ -1,4 +1,6 @@
-import { useState, useRef, useEffect, type KeyboardEvent } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
+import Quill from 'quill';
+import 'quill/dist/quill.snow.css';
 import {
   Bold,
   Italic,
@@ -17,6 +19,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useMessageStore } from '@/stores/useMessageStore';
+import { EmojiPicker } from '@/components/ui/emoji-picker';
 
 interface MessageInputProps {
   channelId: number;
@@ -24,62 +27,126 @@ interface MessageInputProps {
 }
 
 const formatButtons = [
-  { icon: Bold, label: 'Bold' },
-  { icon: Italic, label: 'Italic' },
-  { icon: Strikethrough, label: 'Strikethrough' },
-  { icon: Link, label: 'Link' },
-  { icon: ListOrdered, label: 'Ordered List' },
-  { icon: List, label: 'Bullet List' },
-  { icon: Code, label: 'Code' },
-  { icon: Quote, label: 'Quote' },
+  { icon: Bold, label: 'Bold', format: 'bold' },
+  { icon: Italic, label: 'Italic', format: 'italic' },
+  { icon: Strikethrough, label: 'Strikethrough', format: 'strike' },
+  { icon: Link, label: 'Link', format: 'link' },
+  { icon: ListOrdered, label: 'Ordered List', format: 'list', value: 'ordered' },
+  { icon: List, label: 'Bullet List', format: 'list', value: 'bullet' },
+  { icon: Code, label: 'Code', format: 'code-block' },
+  { icon: Quote, label: 'Quote', format: 'blockquote' },
 ];
 
 export function MessageInput({ channelId, channelName }: MessageInputProps) {
-  const [message, setMessage] = useState('');
+  const editorRef = useRef<HTMLDivElement>(null);
+  const quillRef = useRef<Quill | null>(null);
+  const [canSend, setCanSend] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const emojiButtonRef = useRef<HTMLButtonElement>(null);
   const { sendMessage } = useMessageStore();
 
-  // Auto-resize textarea
+  const handleSend = useCallback(() => {
+    const quill = quillRef.current;
+    if (!quill) return;
+    const text = quill.getText().trim();
+    if (!text) return;
+    sendMessage(channelId, text);
+    quill.setText('');
+    setCanSend(false);
+  }, [channelId, sendMessage]);
+
   useEffect(() => {
-    const textarea = textareaRef.current;
-    if (textarea) {
-      textarea.style.height = 'auto';
-      textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
+    if (!editorRef.current || quillRef.current) return;
+
+    const quill = new Quill(editorRef.current, {
+      theme: 'snow',
+      modules: {
+        toolbar: false,
+        keyboard: {
+          bindings: {
+            enter: {
+              key: 'Enter',
+              handler: () => {
+                handleSend();
+                return false;
+              },
+            },
+          },
+        },
+      },
+      placeholder: `Message #${channelName}`,
+    });
+
+    quill.on('text-change', () => {
+      setCanSend(quill.getText().trim().length > 0);
+    });
+
+    quill.root.addEventListener('focus', () => setIsFocused(true));
+    quill.root.addEventListener('blur', () => setIsFocused(false));
+
+    quillRef.current = quill;
+  }, [channelName, handleSend]);
+
+  const handleEmojiSelect = useCallback((emoji: { native: string }) => {
+    const quill = quillRef.current;
+    if (!quill) return;
+    const range = quill.getSelection(true);
+    quill.insertText(range.index, emoji.native);
+    quill.setSelection(range.index + emoji.native.length);
+    setShowEmojiPicker(false);
+    quill.focus();
+  }, []);
+
+  const applyFormat = (format: string, value?: string) => {
+    const quill = quillRef.current;
+    if (!quill) return;
+
+    if (format === 'link') {
+      const range = quill.getSelection();
+      if (range && range.length > 0) {
+        const currentFormat = quill.getFormat(range);
+        if (currentFormat.link) {
+          quill.format('link', false);
+        } else {
+          const url = prompt('Enter URL:');
+          if (url) quill.format('link', url);
+        }
+      }
+      return;
     }
-  }, [message]);
 
-  const handleSend = () => {
-    const trimmedMessage = message.trim();
-    if (!trimmedMessage) return;
-
-    sendMessage(channelId, trimmedMessage);
-    setMessage('');
-  };
-
-  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
+    if (value) {
+      const range = quill.getSelection();
+      if (range) {
+        const currentFormat = quill.getFormat(range);
+        quill.format(format, currentFormat[format] === value ? false : value);
+      }
+    } else {
+      const range = quill.getSelection();
+      if (range) {
+        const currentFormat = quill.getFormat(range);
+        quill.format(format, !currentFormat[format]);
+      }
     }
+    quill.focus();
   };
-
-  const canSend = message.trim().length > 0;
 
   return (
-    <div className="px-5 pb-6 pt-4 bg-white">
+    <div className="relative px-5 pb-6 pt-4 bg-white">
       <div
         className={cn(
-          'rounded-[8px] border transition-all',
-          isFocused ? 'border-[#1264A3] border-2' : 'border-[#8D8D8D]'
+          'slawk-editor rounded-[8px] border transition-all',
+          isFocused ? 'border-[#1264A3] border-2' : 'border-[rgba(29,28,29,0.13)]'
         )}
       >
         {/* Formatting Toolbar */}
-        <div className="flex items-center gap-0.5 border-b border-[#E0E0E0] px-2 py-1">
+        <div className="flex items-center gap-0.5 bg-[#F8F8F8] rounded-t-[8px] px-1 py-1">
           {formatButtons.map((button) => (
             <button
               key={button.label}
-              className="flex h-7 w-7 items-center justify-center rounded text-[#616061] hover:bg-[#F8F8F8] hover:text-[#1D1C1D]"
+              onClick={() => applyFormat(button.format, button.value)}
+              className="flex h-7 w-7 items-center justify-center rounded text-[#616061] hover:bg-[#e8e8e8] hover:text-[#1D1C1D]"
               title={button.label}
             >
               <button.icon className="h-[18px] w-[18px]" />
@@ -87,28 +154,30 @@ export function MessageInput({ channelId, channelName }: MessageInputProps) {
           ))}
         </div>
 
-        {/* Input Area - 9px 12px padding */}
-        <div className="px-3 py-[9px]">
-          <textarea
-            ref={textareaRef}
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
-            placeholder={`Message #${channelName}`}
-            className="w-full resize-none bg-transparent text-[15px] leading-[22px] placeholder:text-[#616061] focus:outline-none"
-            rows={1}
-          />
-        </div>
+        {/* Quill Editor */}
+        <div ref={editorRef} />
+
+        {/* Emoji Picker */}
+        {showEmojiPicker && (
+          <div className="absolute bottom-full left-0 mb-2 z-50">
+            <EmojiPicker
+              onEmojiSelect={handleEmojiSelect}
+              onClickOutside={() => setShowEmojiPicker(false)}
+            />
+          </div>
+        )}
 
         {/* Bottom Toolbar */}
-        <div className="flex items-center justify-between border-t border-[#E0E0E0] px-2 py-1">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between px-[6px] py-1">
+          <div className="flex items-center">
             <button className="flex h-7 w-7 items-center justify-center rounded text-[#616061] hover:bg-[#F8F8F8] hover:text-[#1D1C1D]">
               <Plus className="h-[18px] w-[18px]" />
             </button>
-            <button className="flex h-7 w-7 items-center justify-center rounded text-[#616061] hover:bg-[#F8F8F8] hover:text-[#1D1C1D]">
+            <button
+              ref={emojiButtonRef}
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              className="flex h-7 w-7 items-center justify-center rounded text-[#616061] hover:bg-[#F8F8F8] hover:text-[#1D1C1D]"
+            >
               <Smile className="h-[18px] w-[18px]" />
             </button>
             <button className="flex h-7 w-7 items-center justify-center rounded text-[#616061] hover:bg-[#F8F8F8] hover:text-[#1D1C1D]">

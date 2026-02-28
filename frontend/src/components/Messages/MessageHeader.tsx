@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Hash, Star, ChevronDown, Users, Bell, Pin, Search, MoreVertical, MessageSquare, FileText, StickyNote } from 'lucide-react';
+import { Hash, Star, ChevronDown, Users, Bell, Pin, Search, MoreVertical, MessageSquare, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Channel } from '@/mocks/channels';
 
@@ -9,7 +9,6 @@ interface MessageHeaderProps {
 
 const headerTabs = [
   { id: 'messages', label: 'Messages', icon: MessageSquare },
-  { id: 'canvas', label: 'Canvas', icon: StickyNote },
   { id: 'files', label: 'Files', icon: FileText },
   { id: 'pins', label: 'Pins', icon: Pin },
 ];

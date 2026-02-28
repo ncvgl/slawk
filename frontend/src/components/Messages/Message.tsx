@@ -34,6 +34,7 @@ export function Message({ message, showAvatar, isCompact }: MessageProps) {
             alt={message.user.name}
             fallback={message.user.name}
             size="md"
+            className="mt-[5px]"
           />
         ) : (
           <span className="hidden text-[12px] text-[#616061] group-hover:inline leading-[22px]">

@@ -2,8 +2,6 @@ import { useState } from 'react';
 import {
   Home,
   MessageSquare,
-  Bell,
-  MoreHorizontal,
   FileText,
   ChevronDown,
   ChevronRight,
@@ -19,9 +17,7 @@ import { DirectMessageItem } from './DirectMessageItem';
 const navItems = [
   { icon: Home, label: 'Home', id: 'home' },
   { icon: MessageSquare, label: 'DMs', id: 'dms' },
-  { icon: Bell, label: 'Activity', id: 'activity', badge: 1 },
   { icon: FileText, label: 'Files', id: 'files' },
-  { icon: MoreHorizontal, label: 'More', id: 'more' },
 ];
 
 export function Sidebar() {
@@ -37,8 +33,8 @@ export function Sidebar() {
 
   return (
     <div className="flex h-full">
-      {/* Nav Rail - 70px wide, dark purple with warm tones */}
-      <div className="flex w-[70px] flex-col items-center bg-[#4A154B] pt-2 gap-0">
+      {/* Nav Rail - 70px wide, darker purple */}
+      <div className="flex w-[70px] flex-col items-center bg-[#39063A] pt-2 gap-0">
         {/* Workspace Icon - 36x36px */}
         <button className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-white text-[#3F0E40] font-bold text-lg hover:rounded-xl transition-all">
           S
@@ -84,8 +80,8 @@ export function Sidebar() {
         )}
       </div>
 
-      {/* Channel Sidebar - warmer purple with subtle gradient */}
-      <div className="flex w-[260px] flex-col bg-gradient-to-b from-[#4A154B] to-[#3E103F] text-[rgba(255,255,255,0.7)]">
+      {/* Channel Sidebar - lighter/warmer purple with overlay effect */}
+      <div className="flex w-[260px] flex-col bg-[#4A154B] text-[rgba(255,255,255,0.7)]">
         {/* Workspace Header - 44px height, 6px 16px padding */}
         <div className="flex h-[44px] items-center justify-between border-b border-white/10 px-4 py-[6px]">
           <button className="flex items-center gap-1 font-bold text-white hover:bg-[rgba(88,66,124,1)] rounded px-2 py-1 -ml-2">
