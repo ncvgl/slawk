@@ -7,7 +7,10 @@ import { AuthRequest } from '../types.js';
 const router = Router();
 
 const createMessageSchema = z.object({
-  content: z.string().min(1).max(4000),
+  content: z.string().min(1).max(4000).refine(
+    (val) => val.trim().length > 0,
+    { message: 'Message content cannot be empty or whitespace only' }
+  ),
   threadId: z.number().optional(),
   fileIds: z.array(z.number()).optional(),
 });
@@ -103,8 +106,21 @@ router.post('/:id/messages', authMiddleware, async (req: AuthRequest, res: Respo
 router.get('/:id/messages', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const channelId = parseInt(req.params.id);
+    const userId = req.user!.userId;
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
     const cursor = req.query.cursor ? parseInt(req.query.cursor as string) : undefined;
+
+    // Check if user is a member of the channel
+    const membership = await prisma.channelMember.findUnique({
+      where: {
+        userId_channelId: { userId, channelId },
+      },
+    });
+
+    if (!membership) {
+      res.status(403).json({ error: 'You must be a member of this channel' });
+      return;
+    }
 
     const messages = await prisma.message.findMany({
       where: {

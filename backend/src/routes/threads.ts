@@ -35,6 +35,12 @@ router.post('/:id/reply', authMiddleware, async (req: AuthRequest, res: Response
       return;
     }
 
+    // Prevent nested threads - cannot reply to a reply
+    if (parentMessage.threadId !== null) {
+      res.status(400).json({ error: 'Cannot reply to a reply. Reply to the parent message instead.' });
+      return;
+    }
+
     // Check if user is a member of the channel
     const membership = await prisma.channelMember.findUnique({
       where: {

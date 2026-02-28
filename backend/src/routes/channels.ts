@@ -7,7 +7,13 @@ import { AuthRequest } from '../types.js';
 const router = Router();
 
 const createChannelSchema = z.object({
-  name: z.string().min(1).max(80),
+  name: z.string()
+    .min(1)
+    .max(80)
+    .refine(
+      (name) => !name.includes('..') && !name.includes('/') && !name.includes('\\'),
+      { message: 'Channel name cannot contain path traversal characters' }
+    ),
   isPrivate: z.boolean().optional().default(false),
 });
 
@@ -78,6 +84,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
 router.get('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const channelId = parseInt(req.params.id);
+    const userId = req.user!.userId;
 
     const channel = await prisma.channel.findUnique({
       where: { id: channelId },
@@ -100,6 +107,15 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
       return;
     }
 
+    // Check access for private channels
+    if (channel.isPrivate) {
+      const isMember = channel.members.some(m => m.userId === userId);
+      if (!isMember) {
+        res.status(403).json({ error: 'Access denied' });
+        return;
+      }
+    }
+
     res.json(channel);
   } catch (error) {
     console.error('Get channel error:', error);
@@ -119,6 +135,12 @@ router.post('/:id/join', authMiddleware, async (req: AuthRequest, res: Response)
 
     if (!channel) {
       res.status(404).json({ error: 'Channel not found' });
+      return;
+    }
+
+    // Prevent joining private channels without invite
+    if (channel.isPrivate) {
+      res.status(403).json({ error: 'Cannot join private channel without invite' });
       return;
     }
 

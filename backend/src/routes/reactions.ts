@@ -22,12 +22,12 @@ router.post('/:id/reactions', authMiddleware, async (req: AuthRequest, res: Resp
       return;
     }
 
-    // Check if message exists
+    // Check if message exists and is not deleted
     const message = await prisma.message.findUnique({
       where: { id: messageId },
     });
 
-    if (!message) {
+    if (!message || message.deletedAt !== null) {
       res.status(404).json({ error: 'Message not found' });
       return;
     }

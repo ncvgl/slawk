@@ -8,9 +8,9 @@ const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 const registerSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6),
-  name: z.string().min(1),
+  email: z.string().email().max(255),
+  password: z.string().min(6).max(128),
+  name: z.string().min(1).max(100),
 });
 
 const loginSchema = z.object({
