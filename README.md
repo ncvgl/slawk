@@ -1,12 +1,17 @@
-![Slawk](images/slawk.png)
+<p align="center">
+  <img src="images/slawk.png" alt="Slawk" width="400">
+</p>
 
-**Slawk** — an open-source Slack clone built in 14 days with Claude Code.
+<p align="center">
+  An open-source Slack clone built in 14 days with Claude Code.<br>
+  Slack charges $8/user/month. A 50-person org pays $5,000/year.<br>
+  This is the experiment: can any startup self-build and host an alternative for $100/year total?
+</p>
 
-Slack charges $8/user/month. A 50-person org pays $5,000/year. This is the experiment: can any startup self-host a full-featured alternative for $100/year total?
-
-**Stack:** Node.js · PostgreSQL · Prisma · Socket.io · React · Vite · Tailwind
-
-**Features:** Real-time messaging · Channels · DMs · Threads · Reactions · File uploads · Search · Presence
+<p align="center">
+  <b>Stack:</b> Node.js · PostgreSQL · Prisma · Socket.io · React · Vite · Tailwind<br>
+  <b>Features:</b> Real-time messaging · Channels · DMs · Threads · Reactions · File uploads · Search · Presence
+</p>
 
 ---
 
