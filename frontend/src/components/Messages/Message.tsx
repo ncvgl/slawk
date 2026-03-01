@@ -135,7 +135,7 @@ export function Message({ message, showAvatar, isCompact, onOpenThread }: Messag
       {/* Flex-grow right content column */}
       <div className="flex-1 min-w-0">
         {showAvatar && (
-          <div className="flex items-baseline gap-2">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => openProfile(message.userId)}
               className="text-[15px] font-black text-[#1D1C1D] hover:underline"
