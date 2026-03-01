@@ -57,7 +57,7 @@ export function MessageArea() {
 
   return (
     <div className="flex h-full">
-      <div className="flex flex-1 flex-col min-w-0">
+      <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
         <MessageHeader
           channel={activeChannel}
           showMembers={showMembers}

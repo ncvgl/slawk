@@ -73,7 +73,7 @@ export function MessageList({ channelId, onOpenThread }: MessageListProps) {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto pt-5 pb-2 bg-white">
+    <div className="flex-1 min-h-0 overflow-y-auto pt-5 pb-2 bg-white">
       {messages.map((message, index) => {
         const previousMessage = messages[index - 1];
         const showDateSeparator = shouldShowDateSeparator(message, previousMessage);
