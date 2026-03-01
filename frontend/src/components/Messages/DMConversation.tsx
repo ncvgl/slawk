@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 interface DMConversationProps {
   userId: number;
   userName: string;
+  userAvatar?: string;
 }
 
 interface DMMessage {
@@ -25,7 +26,7 @@ function formatDateSeparator(date: Date): string {
   return format(date, 'EEEE, MMMM d');
 }
 
-export function DMConversation({ userId, userName }: DMConversationProps) {
+export function DMConversation({ userId, userName, userAvatar }: DMConversationProps) {
   const [messages, setMessages] = useState<DMMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [messageText, setMessageText] = useState('');
@@ -93,6 +94,7 @@ export function DMConversation({ userId, userName }: DMConversationProps) {
       {/* Header */}
       <header className="flex h-[49px] items-center border-b border-[#E0E0E0] bg-white px-4">
         <Avatar
+          src={userAvatar || undefined}
           alt={userName}
           fallback={userName}
           size="md"
@@ -134,6 +136,7 @@ export function DMConversation({ userId, userName }: DMConversationProps) {
                     <div className="w-9 flex-shrink-0 mr-2">
                       {showAvatar && (
                         <Avatar
+                          src={msg.fromUser.avatar || undefined}
                           alt={msg.fromUser.name}
                           fallback={msg.fromUser.name}
                           size="md"
