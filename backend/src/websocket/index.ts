@@ -201,7 +201,7 @@ export function initializeWebSocket(httpServer: HttpServer) {
           where: { id: message.id },
           include: {
             user: {
-              select: { id: true, name: true, email: true },
+              select: { id: true, name: true, email: true, avatar: true },
             },
             files: {
               select: { id: true, filename: true, originalName: true, mimetype: true, size: true, url: true },

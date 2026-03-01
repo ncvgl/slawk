@@ -11,23 +11,30 @@ import { useProfileStore } from '@/stores/useProfileStore';
 import { pinMessage, unpinMessage } from '@/lib/api';
 import type { Message as MessageType } from '@/lib/types';
 
-function renderMessageContent(content: string) {
-  // Split by @mention pattern and render mentions as highlighted
-  const parts = content.split(/(@\w[\w\s]*\w|@\w+)/g);
-  if (parts.length === 1) return content;
-  return parts.map((part, i) => {
-    if (part.startsWith('@') && part.length > 1) {
-      return (
-        <span
-          key={i}
-          className="mention-highlight rounded bg-[#1d9bd11a] px-[2px] text-[#1264A3] font-medium cursor-pointer hover:bg-[#1d9bd133]"
-        >
-          {part}
-        </span>
-      );
+function renderMessageContent(content: string): React.ReactNode {
+  // Parse inline markdown: **bold**, *italic*, `code`, [text](url), @mentions
+  const TOKEN = /(\*\*(.+?)\*\*)|(\*([^*\n]+?)\*)|(`([^`\n]+?)`)|\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(@[\w][\w .'-]*[\w]|@\w+)/g;
+  const nodes: React.ReactNode[] = [];
+  let last = 0;
+  let m: RegExpExecArray | null;
+  let key = 0;
+  while ((m = TOKEN.exec(content)) !== null) {
+    if (m.index > last) nodes.push(content.slice(last, m.index));
+    if (m[1]) {
+      nodes.push(<strong key={key++} className="font-bold">{m[2]}</strong>);
+    } else if (m[3]) {
+      nodes.push(<em key={key++}>{m[4]}</em>);
+    } else if (m[5]) {
+      nodes.push(<code key={key++} className="rounded bg-[#f0f0f0] px-[5px] py-[2px] font-mono text-[13px] text-[#c0392b]">{m[6]}</code>);
+    } else if (m[7]) {
+      nodes.push(<a key={key++} href={m[8]} target="_blank" rel="noopener noreferrer" className="text-[#1264A3] underline hover:text-[#0d4f8b]">{m[7]}</a>);
+    } else if (m[9]) {
+      nodes.push(<span key={key++} className="mention-highlight rounded bg-[#1d9bd11a] px-[2px] text-[#1264A3] font-medium cursor-pointer hover:bg-[#1d9bd133]">{m[9]}</span>);
     }
-    return part;
-  });
+    last = m.index + m[0].length;
+  }
+  if (last < content.length) nodes.push(content.slice(last));
+  return nodes.length > 0 ? nodes : content;
 }
 
 interface MessageProps {
