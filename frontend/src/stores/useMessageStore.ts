@@ -97,7 +97,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     } else {
       // Fallback to REST if socket not connected
       try {
-        const apiMsg = await api.sendMessage(channelId, content);
+        const apiMsg = await api.sendMessage(channelId, content, fileIds);
         const message = transformApiMessage(apiMsg);
         set((state) => ({
           messages: [...state.messages, message],

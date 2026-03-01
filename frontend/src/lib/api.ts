@@ -140,10 +140,10 @@ export function getMessages(channelId: number, cursor?: number, limit = 50) {
   return request<MessagesResponse>(`/channels/${channelId}/messages?${params}`);
 }
 
-export function sendMessage(channelId: number, content: string) {
+export function sendMessage(channelId: number, content: string, fileIds?: number[]): Promise<ApiMessage> {
   return request<ApiMessage>(`/channels/${channelId}/messages`, {
     method: 'POST',
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({ content, ...(fileIds?.length ? { fileIds } : {}) }),
   });
 }
 
