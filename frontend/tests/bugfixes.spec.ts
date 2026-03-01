@@ -287,8 +287,8 @@ test.describe('Bug #12: Channel star/favorite', () => {
   });
 });
 
-test.describe('Bug #11: Reaction emoji larger inside pill', () => {
-  test('reaction emoji span has font-size of 16px', async ({ page }) => {
+test.describe('Bug #11: Reaction emoji size inside pill', () => {
+  test('reaction emoji span has font-size of 14px (text-sm for uniform pill height)', async ({ page }) => {
     const email = uniqueEmail();
     await register(page, 'EmojiSize User', email, 'password123');
 
@@ -316,9 +316,9 @@ test.describe('Bug #11: Reaction emoji larger inside pill', () => {
     const reactionPill = messageRow.locator('button.inline-flex.items-center.gap-1').first();
     await expect(reactionPill).toBeVisible({ timeout: 5_000 });
 
-    // The emoji span (first span in the pill, marked data-testid) must be 16px
+    // The emoji span uses text-sm (14px) to ensure uniform pill height (Bug 9 fix)
     const emojiSpan = reactionPill.locator('[data-testid="reaction-emoji"]');
-    await expect(emojiSpan).toHaveCSS('font-size', '16px');
+    await expect(emojiSpan).toHaveCSS('font-size', '14px');
   });
 });
 
