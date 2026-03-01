@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Hash, Star, ChevronDown, Users, Bell, Pin, Search, MoreVertical, MessageSquare, FileText } from 'lucide-react';
+import { Hash, Star, ChevronDown, Users, Bell, Pin, Search, MoreVertical, MessageSquare, FileText, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { searchMessages, type SearchResult } from '@/lib/api';
 import { useChannelStore } from '@/stores/useChannelStore';
@@ -21,12 +21,15 @@ const headerTabs = [
 
 export function MessageHeader({ channel, showMembers, onToggleMembers, onTogglePins, showPins }: MessageHeaderProps) {
   const toggleStar = useChannelStore((s) => s.toggleStar);
+  const leaveChannel = useChannelStore((s) => s.leaveChannel);
   const [activeTab, setActiveTab] = useState('messages');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   // Close search results when clicking outside
   useEffect(() => {
@@ -40,6 +43,24 @@ export function MessageHeader({ channel, showMembers, onToggleMembers, onToggleP
       return () => document.removeEventListener('mousedown', handleClick);
     }
   }, [showResults]);
+
+  // Close channel menu when clicking outside
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowMenu(false);
+      }
+    }
+    if (showMenu) {
+      document.addEventListener('mousedown', handleClick);
+      return () => document.removeEventListener('mousedown', handleClick);
+    }
+  }, [showMenu]);
+
+  const handleLeaveChannel = async () => {
+    setShowMenu(false);
+    await leaveChannel(channel.id);
+  };
 
   const handleSearch = async () => {
     const q = searchQuery.trim();
@@ -148,9 +169,26 @@ export function MessageHeader({ channel, showMembers, onToggleMembers, onToggleP
               </div>
             )}
           </div>
-          <button className="flex h-6 w-6 items-center justify-center rounded hover:bg-[#F8F8F8]">
-            <MoreVertical className="h-4 w-4 text-[#616061]" />
-          </button>
+          <div className="relative" ref={menuRef}>
+            <button
+              data-testid="channel-header-menu"
+              onClick={() => setShowMenu((v) => !v)}
+              className="flex h-6 w-6 items-center justify-center rounded hover:bg-[#F8F8F8]"
+            >
+              <MoreVertical className="h-4 w-4 text-[#616061]" />
+            </button>
+            {showMenu && (
+              <div className="absolute right-0 top-7 z-50 min-w-[160px] rounded-lg border border-gray-200 bg-white shadow-lg py-1">
+                <button
+                  onClick={handleLeaveChannel}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-[13px] text-red-600 hover:bg-red-50"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Leave channel
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

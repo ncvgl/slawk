@@ -184,7 +184,7 @@ export function Sidebar() {
       </div>
 
       {/* Channel Sidebar - lighter/warmer purple with overlay effect */}
-      <div className="flex w-[260px] flex-col bg-[#4A154B] text-[rgba(255,255,255,0.7)]">
+      <div data-testid="sidebar" className="flex w-[260px] flex-col bg-[#4A154B] text-[rgba(255,255,255,0.7)]">
         {/* Workspace Header - 44px height, 6px 16px padding */}
         <div className="flex h-[44px] items-center justify-between border-b border-white/10 px-4 py-[6px]">
           <button className="flex items-center gap-1 font-bold text-white hover:bg-[rgba(88,66,124,1)] rounded px-2 py-1 -ml-2">

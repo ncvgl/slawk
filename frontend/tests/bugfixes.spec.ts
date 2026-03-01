@@ -388,3 +388,62 @@ test.describe('Bug #12: Bookmark button', () => {
     await expect(hoverToolbar.locator('.text-yellow-500')).toBeVisible({ timeout: 3_000 });
   });
 });
+
+test.describe('Bug #4: Leave channel UI', () => {
+  test('user can leave a non-default channel via the channel header menu', async ({ browser }) => {
+    // User 1 creates a channel
+    const ctx1 = await browser.newContext();
+    const page1 = await ctx1.newPage();
+    const email1 = uniqueEmail();
+    await register(page1, 'LeaveOwner', email1, 'password123');
+    const channelName = `leave-test-${Date.now()}`;
+    await page1.locator('button').filter({ hasText: 'Add channels' }).click();
+    await expect(page1.getByPlaceholder(/plan-budget/i)).toBeVisible({ timeout: 3_000 });
+    await page1.getByPlaceholder(/plan-budget/i).fill(channelName);
+    const createResp = page1.waitForResponse(
+      (resp) => resp.url().includes('/channels') && resp.request().method() === 'POST'
+    );
+    await page1.getByRole('button', { name: /create$/i }).click();
+    await createResp;
+    await ctx1.close();
+
+    // User 2 registers, joins the channel, then leaves
+    const ctx2 = await browser.newContext();
+    const page2 = await ctx2.newPage();
+    const email2 = uniqueEmail();
+    await register(page2, 'LeaveJoiner', email2, 'password123');
+
+    // Browse and join the channel
+    await page2.locator('button').filter({ hasText: 'Add channels' }).click();
+    await page2.getByRole('button', { name: /browse channels/i }).click();
+    const browseItem = page2.locator(`[data-channel-name="${channelName}"]`);
+    await expect(browseItem).toBeVisible({ timeout: 5_000 });
+    await browseItem.getByRole('button', { name: /join/i }).click();
+
+    // Channel should appear in sidebar
+    await expect(
+      page2.locator('button').filter({ hasText: channelName })
+    ).toBeVisible({ timeout: 5_000 });
+
+    // Click the channel to make it active
+    await page2.locator('button').filter({ hasText: channelName }).click();
+    await expect(page2.locator('.ql-editor')).toBeVisible();
+
+    // Open the channel header menu (⋮ button)
+    await page2.locator('[data-testid="channel-header-menu"]').click();
+
+    // Should show a "Leave channel" option
+    await expect(page2.getByRole('button', { name: /leave channel/i })).toBeVisible({ timeout: 3_000 });
+
+    // Click leave
+    await page2.getByRole('button', { name: /leave channel/i }).click();
+
+    // Channel should no longer appear in the sidebar
+    const sidebar = page2.locator('[data-testid="sidebar"]');
+    await expect(
+      sidebar.locator('button').filter({ hasText: channelName })
+    ).not.toBeVisible({ timeout: 5_000 });
+
+    await ctx2.close();
+  });
+});
