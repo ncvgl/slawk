@@ -13,7 +13,6 @@ import {
   Plus,
   AtSign,
   Smile,
-  Video,
   Mic,
   SendHorizontal,
   X,
@@ -387,9 +386,6 @@ export function MessageInput({ channelId, channelName }: MessageInputProps) {
               className="flex h-7 w-7 items-center justify-center rounded text-[#616061] hover:bg-[#F8F8F8] hover:text-[#1D1C1D]"
             >
               <AtSign className="h-[18px] w-[18px]" />
-            </button>
-            <button className="flex h-7 w-7 items-center justify-center rounded text-[#616061] hover:bg-[#F8F8F8] hover:text-[#1D1C1D]">
-              <Video className="h-[18px] w-[18px]" />
             </button>
             <button className="flex h-7 w-7 items-center justify-center rounded text-[#616061] hover:bg-[#F8F8F8] hover:text-[#1D1C1D]">
               <Mic className="h-[18px] w-[18px]" />

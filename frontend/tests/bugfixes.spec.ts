@@ -204,6 +204,21 @@ test.describe('Bug #11: Add teammates button', () => {
   });
 });
 
+test.describe('Bug #10: No video icon in message composer', () => {
+  test('video camera button is not present in the composer toolbar', async ({ page }) => {
+    const email = uniqueEmail();
+    await register(page, 'NoVideo User', email, 'password123');
+
+    await expect(page.locator('button').filter({ hasText: 'general' })).toBeVisible({ timeout: 10_000 });
+    await page.locator('button').filter({ hasText: 'general' }).click();
+    await expect(page.locator('.ql-editor')).toBeVisible();
+
+    // The video button should NOT exist in the composer bottom toolbar
+    // (lucide Video icon renders as an SVG with a specific path shape)
+    await expect(page.locator('[data-testid="video-call-button"]')).toHaveCount(0);
+  });
+});
+
 test.describe('Bug #9: Pinned message has orange background', () => {
   test('pinned message row shows #FEF9ED background', async ({ page }) => {
     const email = uniqueEmail();
