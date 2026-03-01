@@ -34,6 +34,14 @@ function transformApiMessage(msg: api.ApiMessage): Message {
     createdAt: new Date(msg.createdAt),
     updatedAt: msg.updatedAt ? new Date(msg.updatedAt) : undefined,
     reactions: Array.from(reactionMap.values()),
+    files: (msg.files ?? []).map((f) => ({
+      id: f.id,
+      filename: f.filename,
+      originalName: (f as any).originalName ?? f.filename,
+      mimetype: f.mimetype,
+      size: f.size,
+      url: f.url,
+    })),
     threadCount: msg._count?.replies ?? 0,
     isEdited: msg.updatedAt !== msg.createdAt,
   };
@@ -46,7 +54,7 @@ interface MessageState {
 
   fetchMessages: (channelId: number) => Promise<void>;
   getMessagesForChannel: (channelId: number) => Message[];
-  sendMessage: (channelId: number, content: string) => Promise<void>;
+  sendMessage: (channelId: number, content: string, fileIds?: number[]) => Promise<void>;
   editMessage: (messageId: number, content: string) => Promise<void>;
   deleteMessage: (messageId: number) => Promise<void>;
   addReaction: (messageId: number, emoji: string) => void;
@@ -80,11 +88,11 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     return get().messages.filter((msg) => msg.channelId === channelId);
   },
 
-  sendMessage: async (channelId: number, content: string) => {
+  sendMessage: async (channelId: number, content: string, fileIds?: number[]) => {
     const socket = getSocket();
     if (socket?.connected) {
       // Send via socket so the backend broadcasts to all users in the channel
-      socket.emit('message:send', { channelId, content });
+      socket.emit('message:send', { channelId, content, fileIds });
     } else {
       // Fallback to REST if socket not connected
       try {

@@ -16,10 +16,13 @@ import {
   Video,
   Mic,
   SendHorizontal,
+  X,
+  FileIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useMessageStore } from '@/stores/useMessageStore';
 import { EmojiPicker } from '@/components/ui/emoji-picker';
+import { uploadFile, type ApiFile } from '@/lib/api';
 
 interface MessageInputProps {
   channelId: number;
@@ -40,9 +43,12 @@ const formatButtons = [
 export function MessageInput({ channelId, channelName }: MessageInputProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const quillRef = useRef<Quill | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [canSend, setCanSend] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<ApiFile[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
   const emojiButtonRef = useRef<HTMLButtonElement>(null);
   const { sendMessage } = useMessageStore();
 
@@ -50,11 +56,14 @@ export function MessageInput({ channelId, channelName }: MessageInputProps) {
     const quill = quillRef.current;
     if (!quill) return;
     const text = quill.getText().trim();
-    if (!text) return;
+    if (!text && pendingFiles.length === 0) return;
+    const content = text || ' ';
+    const fileIds = pendingFiles.map((f) => f.id);
     quill.setText('');
+    setPendingFiles([]);
     setCanSend(false);
-    await sendMessage(channelId, text);
-  }, [channelId, sendMessage]);
+    await sendMessage(channelId, content, fileIds.length > 0 ? fileIds : undefined);
+  }, [channelId, sendMessage, pendingFiles]);
 
   const handleSendRef = useRef(handleSend);
   handleSendRef.current = handleSend;
@@ -107,6 +116,31 @@ export function MessageInput({ channelId, channelName }: MessageInputProps) {
     quill.focus();
   }, []);
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    try {
+      for (const file of Array.from(files)) {
+        const uploaded = await uploadFile(file);
+        setPendingFiles((prev) => [...prev, uploaded]);
+      }
+    } catch (err) {
+      console.error('Failed to upload file:', err);
+    } finally {
+      setIsUploading(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const removePendingFile = (fileId: number) => {
+    setPendingFiles((prev) => prev.filter((f) => f.id !== fileId));
+  };
+
   const applyFormat = (format: string, value?: string) => {
     const quill = quillRef.current;
     if (!quill) return;
@@ -141,6 +175,8 @@ export function MessageInput({ channelId, channelName }: MessageInputProps) {
     quill.focus();
   };
 
+  const hasContent = canSend || pendingFiles.length > 0;
+
   return (
     <div className="relative px-5 pb-6 pt-4 bg-white">
       <div
@@ -163,6 +199,42 @@ export function MessageInput({ channelId, channelName }: MessageInputProps) {
           ))}
         </div>
 
+        {/* File preview area */}
+        {pendingFiles.length > 0 && (
+          <div data-testid="file-preview" className="flex flex-wrap gap-2 px-3 py-2 border-b border-[rgba(29,28,29,0.13)]">
+            {pendingFiles.map((file) => (
+              <div
+                key={file.id}
+                className="relative flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm"
+              >
+                {file.mimetype.startsWith('image/') ? (
+                  <img
+                    src={file.url}
+                    alt={file.originalName}
+                    className="h-10 w-10 rounded object-cover"
+                  />
+                ) : (
+                  <FileIcon className="h-5 w-5 text-gray-500" />
+                )}
+                <span className="max-w-[120px] truncate text-[13px] text-[#1D1C1D]">
+                  {file.originalName}
+                </span>
+                <button
+                  onClick={() => removePendingFile(file.id)}
+                  className="ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-gray-200 hover:bg-gray-300"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Upload progress indicator */}
+        {isUploading && (
+          <div className="px-3 py-1 text-xs text-gray-500">Uploading...</div>
+        )}
+
         {/* Quill Editor */}
         <div ref={editorRef} />
 
@@ -176,10 +248,24 @@ export function MessageInput({ channelId, channelName }: MessageInputProps) {
           </div>
         )}
 
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          accept="image/*,.pdf,.txt,.json,.zip"
+          onChange={handleFileSelect}
+        />
+
         {/* Bottom Toolbar */}
         <div className="flex items-center justify-between px-[6px] py-1">
           <div className="flex items-center">
-            <button className="flex h-7 w-7 items-center justify-center rounded text-[#616061] hover:bg-[#F8F8F8] hover:text-[#1D1C1D]">
+            <button
+              data-testid="attach-file-button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex h-7 w-7 items-center justify-center rounded text-[#616061] hover:bg-[#F8F8F8] hover:text-[#1D1C1D]"
+              title="Attach file"
+            >
               <Plus className="h-[18px] w-[18px]" />
             </button>
             <button
@@ -202,10 +288,10 @@ export function MessageInput({ channelId, channelName }: MessageInputProps) {
 
           <button
             onClick={handleSend}
-            disabled={!canSend}
+            disabled={!hasContent}
             className={cn(
               'flex h-7 w-7 items-center justify-center rounded transition-colors',
-              canSend
+              hasContent
                 ? 'bg-[#007a5a] text-white hover:bg-[#005e46]'
                 : 'text-gray-400'
             )}

@@ -33,6 +33,15 @@ export interface Reaction {
   userIds: number[];
 }
 
+export interface MessageFile {
+  id: number;
+  filename: string;
+  originalName: string;
+  mimetype: string;
+  size: number;
+  url: string;
+}
+
 export interface Message {
   id: number;
   content: string;
@@ -42,6 +51,7 @@ export interface Message {
   createdAt: Date;
   updatedAt?: Date;
   reactions: Reaction[];
+  files: MessageFile[];
   threadCount: number;
   threadLastReplyAt?: Date;
   isEdited?: boolean;

@@ -214,6 +214,38 @@ export function searchMessages(query: string, channelId?: number) {
   return request<SearchResponse>(`/search?${params}`);
 }
 
+// ---- Files ----
+
+export interface ApiFile {
+  id: number;
+  filename: string;
+  originalName: string;
+  mimetype: string;
+  size: number;
+  url: string;
+}
+
+export async function uploadFile(file: File): Promise<ApiFile> {
+  const token = localStorage.getItem('token');
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const res = await fetch('/files', {
+    method: 'POST',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: 'Upload failed' }));
+    throw new ApiError(body.error || 'Upload failed', res.status);
+  }
+
+  return res.json();
+}
+
 // ---- Users ----
 
 export function getUsers() {

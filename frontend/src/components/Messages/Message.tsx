@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
-import { Smile, MessageSquare, MoreHorizontal, Bookmark, Pencil, Trash2 } from 'lucide-react';
+import { Smile, MessageSquare, MoreHorizontal, Bookmark, Pencil, Trash2, FileIcon, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/ui/avatar';
 import { EmojiPicker } from '@/components/ui/emoji-picker';
@@ -149,6 +149,45 @@ export function Message({ message, showAvatar, isCompact }: MessageProps) {
           </div>
         )}
 
+        {/* File Attachments */}
+        {message.files && message.files.length > 0 && (
+          <div className="mt-1 flex flex-wrap gap-2">
+            {message.files.map((file) => (
+              <div
+                key={file.id}
+                data-testid="message-file"
+                className="rounded-lg border border-gray-200 overflow-hidden"
+              >
+                {file.mimetype.startsWith('image/') ? (
+                  <a href={file.url} target="_blank" rel="noopener noreferrer">
+                    <img
+                      src={file.url}
+                      alt={file.originalName}
+                      className="max-h-[200px] max-w-[300px] object-contain"
+                    />
+                  </a>
+                ) : (
+                  <a
+                    href={file.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50"
+                  >
+                    <FileIcon className="h-5 w-5 text-gray-500 flex-shrink-0" />
+                    <span className="text-[13px] text-[#1264A3] hover:underline truncate max-w-[200px]">
+                      {file.originalName}
+                    </span>
+                    <span className="text-[11px] text-gray-400 flex-shrink-0">
+                      {formatFileSize(file.size)}
+                    </span>
+                    <Download className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                  </a>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Reactions */}
         {message.reactions.length > 0 && (
           <MessageReactions
@@ -236,4 +275,10 @@ export function Message({ message, showAvatar, isCompact }: MessageProps) {
       )}
     </div>
   );
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
