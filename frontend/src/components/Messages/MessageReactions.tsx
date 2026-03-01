@@ -46,13 +46,13 @@ export function MessageReactions({ reactions, messageId }: MessageReactionsProps
             key={reaction.emoji}
             onClick={() => handleReactionClick(reaction.emoji, hasReacted)}
             className={cn(
-              'inline-flex items-center gap-1 rounded-[12px] border px-[6px] py-[2px] text-[12px] transition-colors',
+              'inline-flex h-[22px] items-center gap-1 rounded-[12px] border px-[6px] text-[12px] transition-colors',
               hasReacted
                 ? 'border-[#1264A3] bg-[#E8F5FA] text-[#1264A3]'
                 : 'border-[#E0E0E0] bg-white text-[#1D1C1D] hover:bg-[#F8F8F8]'
             )}
           >
-            <span data-testid="reaction-emoji" className="text-base leading-none">{shortcodeToNative(reaction.emoji)}</span>
+            <span data-testid="reaction-emoji" className="text-sm leading-none">{shortcodeToNative(reaction.emoji)}</span>
             <span className="text-[13px] font-medium">{reaction.count}</span>
           </button>
         );
