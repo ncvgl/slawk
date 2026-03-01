@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { format, isToday, isYesterday } from 'date-fns';
-import { SendHorizontal } from 'lucide-react';
+import { SendHorizontal, Smile, MessageSquare, MoreHorizontal } from 'lucide-react';
 import { Avatar } from '@/components/ui/avatar';
 import { getConversation, sendDM, type ApiDirectMessage } from '@/lib/api';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -30,6 +30,7 @@ export function DMConversation({ userId, userName }: DMConversationProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [messageText, setMessageText] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [hoveredMessageId, setHoveredMessageId] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const currentUser = useAuthStore((s) => s.user);
 
@@ -130,15 +131,26 @@ export function DMConversation({ userId, userName }: DMConversationProps) {
                       <div className="flex-1 border-t border-[rgba(29,28,29,0.13)]" />
                     </div>
                   )}
-                  <div className={cn('flex px-0', showAvatar ? 'pt-4 pb-2' : 'py-0.5')}>
+                  <div
+                    className={cn(
+                      'group relative flex px-0 hover:bg-[#F8F8F8]',
+                      showAvatar ? 'pt-4 pb-2' : 'py-0.5'
+                    )}
+                    onMouseEnter={() => setHoveredMessageId(msg.id)}
+                    onMouseLeave={() => setHoveredMessageId(null)}
+                  >
                     <div className="w-9 flex-shrink-0 mr-2">
-                      {showAvatar && (
+                      {showAvatar ? (
                         <Avatar
                           alt={msg.fromUser.name}
                           fallback={msg.fromUser.name}
                           size="md"
                           className="mt-[5px]"
                         />
+                      ) : (
+                        <span className="hidden text-[12px] text-[#616061] group-hover:inline leading-[22px]">
+                          {format(msg.createdAt, 'h:mm')}
+                        </span>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -156,6 +168,33 @@ export function DMConversation({ userId, userName }: DMConversationProps) {
                         {msg.content}
                       </p>
                     </div>
+
+                    {/* Hover action toolbar */}
+                    {hoveredMessageId === msg.id && (
+                      <div
+                        data-testid="dm-message-toolbar"
+                        className="absolute -top-4 right-2 flex items-center gap-0.5 rounded-lg border border-[#E0E0E0] bg-white p-0.5 shadow-sm"
+                      >
+                        <button
+                          className="flex h-7 w-7 items-center justify-center rounded hover:bg-[#F8F8F8]"
+                          title="Add reaction"
+                        >
+                          <Smile className="h-4 w-4 text-[#616061]" />
+                        </button>
+                        <button
+                          className="flex h-7 w-7 items-center justify-center rounded hover:bg-[#F8F8F8]"
+                          title="Reply in thread"
+                        >
+                          <MessageSquare className="h-4 w-4 text-[#616061]" />
+                        </button>
+                        <button
+                          className="flex h-7 w-7 items-center justify-center rounded hover:bg-[#F8F8F8]"
+                          title="More actions"
+                        >
+                          <MoreHorizontal className="h-4 w-4 text-[#616061]" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
