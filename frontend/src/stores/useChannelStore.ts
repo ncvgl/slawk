@@ -35,6 +35,7 @@ interface ChannelState {
   setActiveDM: (dmId: number) => void;
   startDM: (userId: number, userName: string, userAvatar?: string) => void;
   addOrUpdateDM: (userId: number, userName: string, userAvatar?: string) => void;
+  updateDMStatus: (userId: number, status: DirectMessage['userStatus']) => void;
   incrementUnread: (channelId: number) => void;
   markChannelAsRead: (channelId: number) => void;
   markDMAsRead: (dmId: number) => void;
@@ -200,6 +201,14 @@ export const useChannelStore = create<ChannelState>((set, get) => ({
         },
       ],
     });
+  },
+
+  updateDMStatus: (userId: number, status: DirectMessage['userStatus']) => {
+    set((state) => ({
+      directMessages: state.directMessages.map((dm) =>
+        dm.userId === userId ? { ...dm, userStatus: status } : dm
+      ),
+    }));
   },
 
   setActiveChannel: (channelId: number) => {
