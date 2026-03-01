@@ -45,8 +45,8 @@ export function MessageReactions({ reactions, messageId }: MessageReactionsProps
                 : 'border-[#E0E0E0] bg-white text-[#1D1C1D] hover:bg-[#F8F8F8]'
             )}
           >
-            <span className="w-4 h-4 flex items-center justify-center">{reaction.emoji}</span>
-            <span className="font-normal">{reaction.count}</span>
+            <span data-testid="reaction-emoji" className="text-base leading-none">{reaction.emoji}</span>
+            <span className="text-[13px] font-medium">{reaction.count}</span>
           </button>
         );
       })}

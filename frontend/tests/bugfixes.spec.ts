@@ -204,6 +204,41 @@ test.describe('Bug #11: Add teammates button', () => {
   });
 });
 
+test.describe('Bug #11: Reaction emoji larger inside pill', () => {
+  test('reaction emoji span has font-size of 16px', async ({ page }) => {
+    const email = uniqueEmail();
+    await register(page, 'EmojiSize User', email, 'password123');
+
+    await page.locator('button').filter({ hasText: 'general' }).first().click();
+    await expect(page.locator('.ql-editor')).toBeVisible({ timeout: 10_000 });
+    await page.waitForTimeout(500);
+
+    const msg = `emoji-size-${Date.now()}`;
+    await sendMessage(page, msg);
+    await waitForMessage(page, msg);
+
+    const messageRow = page.locator('.group.relative.flex.px-5').filter({ hasText: msg });
+
+    // Add a 👍 reaction via hover toolbar
+    await messageRow.hover();
+    const hoverToolbar = page.locator('.absolute.-top-4.right-5');
+    await hoverToolbar.locator('button').first().click();
+    const searchBox = page.getByRole('searchbox', { name: 'Search' });
+    await expect(searchBox).toBeVisible({ timeout: 5_000 });
+    await searchBox.fill('thumbsup');
+    await page.waitForTimeout(500);
+    await page.getByRole('button', { name: '👍', exact: true }).click();
+
+    // Wait for reaction pill to appear
+    const reactionPill = messageRow.locator('button.inline-flex.items-center.gap-1').first();
+    await expect(reactionPill).toBeVisible({ timeout: 5_000 });
+
+    // The emoji span (first span in the pill, marked data-testid) must be 16px
+    const emojiSpan = reactionPill.locator('[data-testid="reaction-emoji"]');
+    await expect(emojiSpan).toHaveCSS('font-size', '16px');
+  });
+});
+
 test.describe('Bug #10: No video icon in message composer', () => {
   test('video camera button is not present in the composer toolbar', async ({ page }) => {
     const email = uniqueEmail();
