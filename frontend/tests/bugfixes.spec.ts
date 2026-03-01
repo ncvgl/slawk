@@ -204,6 +204,48 @@ test.describe('Bug #11: Add teammates button', () => {
   });
 });
 
+test.describe('Bug #12: Channel star/favorite', () => {
+  test('starring a channel adds it to a Starred section in the sidebar', async ({ page }) => {
+    const email = uniqueEmail();
+    await register(page, 'Star User', email, 'password123');
+
+    // Open general channel
+    await expect(page.locator('button').filter({ hasText: 'general' })).toBeVisible({ timeout: 10_000 });
+    await page.locator('button').filter({ hasText: 'general' }).click();
+    await expect(page.locator('.ql-editor')).toBeVisible();
+
+    // Click the star button in the channel header
+    await page.locator('[data-testid="star-channel-button"]').click();
+
+    // A "Starred" section should appear in the sidebar
+    await expect(page.getByText('Starred', { exact: true })).toBeVisible({ timeout: 3_000 });
+
+    // The general channel should appear under the Starred section
+    const starredSection = page.locator('[data-testid="starred-section"]');
+    await expect(starredSection).toBeVisible();
+    await expect(starredSection.locator('button').filter({ hasText: 'general' })).toBeVisible();
+  });
+
+  test('un-starring a channel removes it from the Starred section', async ({ page }) => {
+    const email = uniqueEmail();
+    await register(page, 'Unstar User', email, 'password123');
+
+    await expect(page.locator('button').filter({ hasText: 'general' })).toBeVisible({ timeout: 10_000 });
+    await page.locator('button').filter({ hasText: 'general' }).click();
+    await expect(page.locator('.ql-editor')).toBeVisible();
+
+    // Star it
+    await page.locator('[data-testid="star-channel-button"]').click();
+    await expect(page.getByText('Starred', { exact: true })).toBeVisible({ timeout: 3_000 });
+
+    // Un-star it
+    await page.locator('[data-testid="star-channel-button"]').click();
+
+    // Starred section should disappear (no starred channels)
+    await expect(page.getByText('Starred', { exact: true })).not.toBeVisible({ timeout: 3_000 });
+  });
+});
+
 test.describe('Bug #11: Reaction emoji larger inside pill', () => {
   test('reaction emoji span has font-size of 16px', async ({ page }) => {
     const email = uniqueEmail();

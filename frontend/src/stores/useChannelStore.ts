@@ -2,6 +2,22 @@ import { create } from 'zustand';
 import * as api from '@/lib/api';
 import type { Channel, DirectMessage } from '@/lib/types';
 
+const STARRED_KEY = 'slawk:starred_channels';
+
+function loadStarred(): Set<number> {
+  try {
+    const raw = localStorage.getItem(STARRED_KEY);
+    if (!raw) return new Set();
+    return new Set(JSON.parse(raw) as number[]);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveStarred(ids: Set<number>): void {
+  localStorage.setItem(STARRED_KEY, JSON.stringify(Array.from(ids)));
+}
+
 interface ChannelState {
   channels: Channel[];
   directMessages: DirectMessage[];
@@ -13,6 +29,7 @@ interface ChannelState {
   fetchDirectMessages: () => Promise<void>;
   createChannel: (name: string, isPrivate?: boolean) => Promise<void>;
   joinChannel: (channelId: number) => Promise<void>;
+  toggleStar: (channelId: number) => void;
   setActiveChannel: (channelId: number) => void;
   setActiveDM: (dmId: number) => void;
   startDM: (userId: number, userName: string, userAvatar?: string) => void;
@@ -51,6 +68,7 @@ export const useChannelStore = create<ChannelState>((set, get) => ({
   fetchChannels: async () => {
     set({ isLoading: true });
     try {
+      const starred = loadStarred();
       const apiChannels = await api.getChannels();
       const channels: Channel[] = apiChannels.map((ch) => ({
         id: ch.id,
@@ -59,6 +77,7 @@ export const useChannelStore = create<ChannelState>((set, get) => ({
         memberCount: ch._count.members,
         unreadCount: ch.unreadCount,
         isMember: ch.isMember,
+        isStarred: starred.has(ch.id),
       }));
       const memberChannels = channels.filter((ch) => ch.isMember);
       set((state) => ({
@@ -108,6 +127,21 @@ export const useChannelStore = create<ChannelState>((set, get) => ({
       console.error('Failed to join channel:', err);
       throw err;
     }
+  },
+
+  toggleStar: (channelId: number) => {
+    const starred = loadStarred();
+    if (starred.has(channelId)) {
+      starred.delete(channelId);
+    } else {
+      starred.add(channelId);
+    }
+    saveStarred(starred);
+    set((state) => ({
+      channels: state.channels.map((ch) =>
+        ch.id === channelId ? { ...ch, isStarred: starred.has(channelId) } : ch,
+      ),
+    }));
   },
 
   startDM: (userId: number, userName: string, userAvatar?: string) => {

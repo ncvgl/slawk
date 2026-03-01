@@ -8,6 +8,7 @@ import {
   Plus,
   LogOut,
   Search,
+  Star,
   User,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -96,6 +97,7 @@ export function Sidebar() {
     }
   };
 
+  const starredChannels = channels.filter((ch) => ch.isStarred && ch.isMember);
   const publicChannels = channels.filter((ch) => !ch.isPrivate);
   const privateChannels = channels.filter((ch) => ch.isPrivate);
 
@@ -196,6 +198,27 @@ export function Sidebar() {
 
         {/* Scrollable Content - 0 0 16px 0 padding */}
         <div className="flex-1 overflow-y-auto pb-4">
+          {/* Starred Section */}
+          {starredChannels.length > 0 && (
+            <div data-testid="starred-section" className="mb-3 mt-3">
+              <div className="flex w-full items-center gap-1.5 pl-4 pr-2 py-[6px] text-[15px] text-white/70">
+                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                <span>Starred</span>
+              </div>
+              <div>
+                {starredChannels.map((channel) => (
+                  <ChannelItem
+                    key={channel.id}
+                    channel={channel}
+                    isActive={activeChannelId === channel.id}
+                    onClick={() => setActiveChannel(channel.id)}
+                    isPrivate={channel.isPrivate}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Channels Section */}
           <div className="mb-3 mt-3">
             <button

@@ -16,6 +16,7 @@ export interface Channel {
   unreadCount: number;
   isMember: boolean;
   isMuted?: boolean;
+  isStarred?: boolean;
 }
 
 export interface DirectMessage {

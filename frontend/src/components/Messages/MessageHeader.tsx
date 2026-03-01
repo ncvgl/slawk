@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Hash, Star, ChevronDown, Users, Bell, Pin, Search, MoreVertical, MessageSquare, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { searchMessages, type SearchResult } from '@/lib/api';
+import { useChannelStore } from '@/stores/useChannelStore';
 import type { Channel } from '@/lib/types';
 
 interface MessageHeaderProps {
@@ -19,6 +20,7 @@ const headerTabs = [
 ];
 
 export function MessageHeader({ channel, showMembers, onToggleMembers, onTogglePins, showPins }: MessageHeaderProps) {
+  const toggleStar = useChannelStore((s) => s.toggleStar);
   const [activeTab, setActiveTab] = useState('messages');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -75,8 +77,13 @@ export function MessageHeader({ channel, showMembers, onToggleMembers, onToggleP
             <span className="text-[18px] font-black text-[#1D1C1D]">{channel.name}</span>
             <ChevronDown className="h-4 w-4 text-[#616061]" />
           </button>
-          <button className="flex h-6 w-6 items-center justify-center rounded hover:bg-[#F8F8F8]">
-            <Star className="h-4 w-4 text-[#616061]" />
+          <button
+            data-testid="star-channel-button"
+            onClick={() => toggleStar(channel.id)}
+            className="flex h-6 w-6 items-center justify-center rounded hover:bg-[#F8F8F8]"
+            title={channel.isStarred ? 'Remove from Starred' : 'Add to Starred'}
+          >
+            <Star className={cn('h-4 w-4', channel.isStarred ? 'fill-yellow-400 text-yellow-400' : 'text-[#616061]')} />
           </button>
         </div>
 
