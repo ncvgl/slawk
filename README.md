@@ -1,3 +1,5 @@
+![Slawk](images/slawk.png)
+
 **Slawk** — an open-source Slack clone built in 14 days with Claude Code.
 
 Slack charges $8/user/month. A 50-person org pays $5,000/year. This is the experiment: can any startup self-host a full-featured alternative for $100/year total?
