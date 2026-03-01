@@ -1,7 +1,11 @@
 import { Sidebar } from '@/components/Sidebar/Sidebar';
 import { MessageArea } from '@/components/Messages/MessageArea';
+import { ProfileModal } from '@/components/ProfileModal';
+import { useProfileStore } from '@/stores/useProfileStore';
 
 export function AppLayout() {
+  const { isOpen, userId, closeProfile } = useProfileStore();
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-white">
       {/* Left Sidebar */}
@@ -12,7 +16,8 @@ export function AppLayout() {
         <MessageArea />
       </main>
 
-      {/* Thread Panel (future) - would go here */}
+      {/* Profile Modal */}
+      {isOpen && <ProfileModal userId={userId} onClose={closeProfile} />}
     </div>
   );
 }

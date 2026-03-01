@@ -8,10 +8,12 @@ import {
   Plus,
   LogOut,
   Search,
+  User,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useChannelStore } from '@/stores/useChannelStore';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useProfileStore } from '@/stores/useProfileStore';
 import { Avatar } from '@/components/ui/avatar';
 import { ChannelItem } from './ChannelItem';
 import { DirectMessageItem } from './DirectMessageItem';
@@ -26,6 +28,7 @@ export function Sidebar() {
   const { channels, directMessages, activeChannelId, activeDMId, setActiveChannel, setActiveDM, startDM, createChannel, joinChannel, fetchChannels } =
     useChannelStore();
   const { user, logout } = useAuthStore();
+  const { openProfile } = useProfileStore();
   const [channelsExpanded, setChannelsExpanded] = useState(true);
   const [dmsExpanded, setDmsExpanded] = useState(true);
   const [activeNav, setActiveNav] = useState('home');
@@ -134,7 +137,7 @@ export function Sidebar() {
         {user && (
           <div className="relative mb-3" ref={avatarMenuRef}>
             <button
-              data-testid="user-avatar-button"
+              data-testid="user-menu-button"
               onClick={() => setShowAvatarMenu(!showAvatarMenu)}
             >
               <Avatar
@@ -152,6 +155,16 @@ export function Sidebar() {
                   <p className="text-sm font-medium text-gray-900">{user.name}</p>
                   <p className="text-xs text-gray-500">{user.email}</p>
                 </div>
+                <button
+                  onClick={() => {
+                    setShowAvatarMenu(false);
+                    openProfile();
+                  }}
+                  className="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  <User className="h-4 w-4" />
+                  Profile
+                </button>
                 <button
                   onClick={() => {
                     setShowAvatarMenu(false);

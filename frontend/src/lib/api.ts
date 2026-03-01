@@ -271,6 +271,34 @@ export function getUsers(search?: string) {
   return request<AuthUser[]>(`/users?${params}`);
 }
 
+// ---- User Profile ----
+
+export interface UserProfile {
+  id: number;
+  email: string;
+  name: string;
+  avatar?: string | null;
+  status?: string;
+  bio?: string | null;
+  createdAt: string;
+  _count?: { messages: number; channels: number };
+}
+
+export function getMyProfile() {
+  return request<UserProfile>('/users/me');
+}
+
+export function updateMyProfile(data: { name?: string; avatar?: string | null; status?: string; bio?: string | null }) {
+  return request<UserProfile>('/users/me', {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+export function getUserProfile(userId: number) {
+  return request<UserProfile>(`/users/${userId}`);
+}
+
 // ---- Direct Messages ----
 
 export interface ApiDMConversation {

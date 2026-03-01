@@ -125,7 +125,7 @@ test.describe('Bug #5: Logout functionality', () => {
     await register(page, 'Logout User', email, 'password123');
 
     // Click avatar in the nav rail
-    await page.locator('[data-testid="user-avatar-button"]').click();
+    await page.locator('[data-testid="user-menu-button"]').click();
 
     // Should see a menu with logout option
     await expect(page.getByRole('button', { name: /log\s?out|sign\s?out/i })).toBeVisible();

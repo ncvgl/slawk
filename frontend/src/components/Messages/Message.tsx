@@ -7,6 +7,7 @@ import { EmojiPicker } from '@/components/ui/emoji-picker';
 import { MessageReactions } from './MessageReactions';
 import { useMessageStore } from '@/stores/useMessageStore';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useProfileStore } from '@/stores/useProfileStore';
 import { pinMessage, unpinMessage } from '@/lib/api';
 import type { Message as MessageType } from '@/lib/types';
 
@@ -46,6 +47,7 @@ export function Message({ message, showAvatar, isCompact, onOpenThread }: Messag
   const editInputRef = useRef<HTMLTextAreaElement>(null);
   const { addReaction, editMessage, deleteMessage } = useMessageStore();
   const currentUser = useAuthStore((s) => s.user);
+  const { openProfile } = useProfileStore();
   const isOwner = currentUser?.id === message.userId;
 
   const formattedTime = format(message.createdAt, 'h:mm a');
@@ -126,7 +128,10 @@ export function Message({ message, showAvatar, isCompact, onOpenThread }: Messag
       <div className="flex-1 min-w-0">
         {showAvatar && (
           <div className="flex items-baseline gap-2">
-            <button className="text-[15px] font-black text-[#1D1C1D] hover:underline">
+            <button
+              onClick={() => openProfile(message.userId)}
+              className="text-[15px] font-black text-[#1D1C1D] hover:underline"
+            >
               {message.user.displayName || message.user.name}
             </button>
             <span className="text-[12px] font-normal text-[#616061] ml-1">{formattedTime}</span>

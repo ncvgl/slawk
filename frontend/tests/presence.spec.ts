@@ -7,7 +7,7 @@ test.describe('User Presence', () => {
     await register(page, 'Presence User', email, 'password123');
 
     // The user's own avatar in the sidebar should show an online indicator (green dot)
-    const avatarButton = page.getByTestId('user-avatar-button');
+    const avatarButton = page.getByTestId('user-menu-button');
     await expect(avatarButton).toBeVisible();
 
     // The status dot should be visible and green (online)
