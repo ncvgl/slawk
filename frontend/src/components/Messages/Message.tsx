@@ -243,10 +243,22 @@ export function Message({ message, showAvatar, isCompact, onOpenThread }: Messag
             className="mt-[6px] flex items-center gap-2 rounded px-1 py-0.5 text-[13px] text-[#1264A3] hover:bg-[#e8f5fa] -ml-1"
           >
             {/* Mini avatar stack */}
-            <div className="flex -space-x-1">
-              <div className="h-5 w-5 rounded-[4px] bg-[#e8e8e8] border border-white" />
+            <div data-testid="thread-avatars" className="flex -space-x-1">
+              <Avatar
+                src={message.user.avatar ?? undefined}
+                alt={message.user.name}
+                fallback={message.user.name}
+                size="sm"
+                className="border border-white"
+              />
               {message.threadCount > 1 && (
-                <div className="h-5 w-5 rounded-[4px] bg-[#d8d8d8] border border-white" />
+                <Avatar
+                  src={undefined}
+                  alt="Thread participant"
+                  fallback="?"
+                  size="sm"
+                  className="border border-white"
+                />
               )}
             </div>
             <span className="font-normal">
