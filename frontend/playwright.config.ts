@@ -10,7 +10,7 @@ export default defineConfig({
   timeout: 30_000,
 
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: process.env.BASE_URL || 'http://localhost:5173',
     screenshot: 'only-on-failure',
     trace: 'on-first-retry',
   },
@@ -32,7 +32,7 @@ export default defineConfig({
     },
     {
       command: 'npm run dev',
-      port: 5173,
+      port: parseInt(new URL(process.env.BASE_URL || 'http://localhost:5173').port || '5173'),
       reuseExistingServer: !process.env.CI,
       timeout: 15_000,
     },
