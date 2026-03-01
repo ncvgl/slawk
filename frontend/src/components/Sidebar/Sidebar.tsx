@@ -291,7 +291,7 @@ export function Sidebar() {
                   onClick={handleOpenAddTeammates}
                   className="flex items-center gap-2 mx-2 w-[calc(100%-16px)] px-4 h-[28px] text-[15px] rounded-[6px] text-left text-white/70 hover:bg-[rgba(88,66,124,1)] hover:text-white"
                 >
-                  <Plus className="w-4 h-4 flex-shrink-0" />
+                  <Plus className="w-5 h-5 flex-shrink-0" />
                   <span>Add teammates</span>
                 </button>
               </div>
