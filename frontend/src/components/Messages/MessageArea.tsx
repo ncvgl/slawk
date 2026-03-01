@@ -44,7 +44,7 @@ export function MessageArea() {
 
   // Show DM conversation if a DM is active
   if (activeDMId && activeDM) {
-    return <DMConversation userId={activeDM.userId} userName={activeDM.userName} />;
+    return <DMConversation userId={activeDM.userId} userName={activeDM.userName} userAvatar={activeDM.userAvatar || undefined} />;
   }
 
   if (!activeChannel) {
