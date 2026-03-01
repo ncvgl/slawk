@@ -204,6 +204,34 @@ test.describe('Bug #11: Add teammates button', () => {
   });
 });
 
+test.describe('Bug #9: Pinned message has orange background', () => {
+  test('pinned message row shows #FEF9ED background', async ({ page }) => {
+    const email = uniqueEmail();
+    await register(page, 'PinBg User', email, 'password123');
+
+    await expect(page.locator('button').filter({ hasText: 'general' })).toBeVisible({ timeout: 10_000 });
+    await page.locator('button').filter({ hasText: 'general' }).click();
+    await expect(page.locator('.ql-editor')).toBeVisible();
+
+    const msg = `pin-bg-${Date.now()}`;
+    await sendMessage(page, msg);
+    await waitForMessage(page, msg);
+
+    const messageRow = page.locator('.group.relative.flex.px-5').filter({ hasText: msg });
+    await messageRow.hover();
+
+    // Open the ⋮ more menu (4th button in hover toolbar)
+    const toolbar = messageRow.locator('.absolute.-top-4.right-5').first();
+    await toolbar.locator('button').nth(3).click();
+
+    // Pin the message
+    await page.getByRole('button', { name: /^pin message$/i }).click();
+
+    // The message row must now have #FEF9ED background (rgb(254, 249, 237))
+    await expect(messageRow).toHaveCSS('background-color', 'rgb(254, 249, 237)');
+  });
+});
+
 test.describe('Bug #12: Bookmark button', () => {
   test('bookmark button shows feedback when clicked', async ({ page }) => {
     const email = uniqueEmail();

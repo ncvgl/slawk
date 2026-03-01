@@ -98,7 +98,8 @@ export function Message({ message, showAvatar, isCompact, onOpenThread }: Messag
   return (
     <div
       className={cn(
-        'group relative flex px-5 hover:bg-[#F8F8F8]',
+        'group relative flex px-5',
+        message.isPinned ? 'bg-[#FEF9ED] hover:bg-[#FEF9ED]' : 'hover:bg-[#F8F8F8]',
         showAvatar ? 'pt-4 pb-2' : 'py-0.5'
       )}
       onMouseEnter={() => setIsHovered(true)}
