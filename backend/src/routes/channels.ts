@@ -3,6 +3,7 @@ import { z } from 'zod';
 import prisma from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { AuthRequest } from '../types.js';
+import { isUserOnline } from '../websocket/index.js';
 
 const router = Router();
 
@@ -257,13 +258,23 @@ router.get('/:id/members', authMiddleware, async (req: AuthRequest, res: Respons
       where: { channelId },
       include: {
         user: {
-          select: { id: true, name: true, email: true, createdAt: true },
+          select: { id: true, name: true, email: true, avatar: true, status: true, lastSeen: true, createdAt: true },
         },
       },
       orderBy: { joinedAt: 'asc' },
     });
 
-    res.json(members);
+    // Enrich with real-time online status
+    const enrichedMembers = members.map((m) => ({
+      ...m,
+      user: {
+        ...m.user,
+        isOnline: isUserOnline(m.user.id),
+        status: isUserOnline(m.user.id) ? 'online' : (m.user.status || 'offline'),
+      },
+    }));
+
+    res.json(enrichedMembers);
   } catch (error) {
     console.error('List members error:', error);
     res.status(500).json({ error: 'Failed to list members' });

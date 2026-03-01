@@ -6,6 +6,8 @@ import type { Channel } from '@/lib/types';
 
 interface MessageHeaderProps {
   channel: Channel;
+  showMembers?: boolean;
+  onToggleMembers?: () => void;
 }
 
 const headerTabs = [
@@ -14,7 +16,7 @@ const headerTabs = [
   { id: 'pins', label: 'Pins', icon: Pin },
 ];
 
-export function MessageHeader({ channel }: MessageHeaderProps) {
+export function MessageHeader({ channel, showMembers, onToggleMembers }: MessageHeaderProps) {
   const [activeTab, setActiveTab] = useState('messages');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -78,7 +80,13 @@ export function MessageHeader({ channel }: MessageHeaderProps) {
 
         {/* Right Section */}
         <div className="flex items-center gap-2">
-          <button className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[13px] text-[#616061] hover:bg-[#F8F8F8]">
+          <button
+            onClick={onToggleMembers}
+            className={cn(
+              'flex items-center gap-1 rounded px-1.5 py-0.5 text-[13px] hover:bg-[#F8F8F8]',
+              showMembers ? 'text-[#1264A3] bg-[#E8F5FA]' : 'text-[#616061]'
+            )}
+          >
             <Users className="h-4 w-4" />
             <span>{channel.memberCount}</span>
           </button>

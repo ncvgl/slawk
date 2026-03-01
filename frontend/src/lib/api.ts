@@ -219,3 +219,24 @@ export function searchMessages(query: string, channelId?: number) {
 export function getUsers() {
   return request<AuthUser[]>('/users');
 }
+
+// ---- Channel Members ----
+
+export interface ChannelMember {
+  userId: number;
+  channelId: number;
+  joinedAt: string;
+  user: {
+    id: number;
+    name: string;
+    email: string;
+    avatar?: string | null;
+    status: string;
+    isOnline: boolean;
+    lastSeen?: string;
+  };
+}
+
+export function getChannelMembers(channelId: number) {
+  return request<ChannelMember[]>(`/channels/${channelId}/members`);
+}
