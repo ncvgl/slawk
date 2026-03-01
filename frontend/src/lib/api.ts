@@ -116,6 +116,9 @@ export interface ApiMessage {
   userId: number;
   channelId: number;
   threadId: number | null;
+  isPinned?: boolean;
+  pinnedBy?: number | null;
+  pinnedAt?: string | null;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
@@ -158,6 +161,20 @@ export function removeReaction(messageId: number, emoji: string) {
     `/messages/${messageId}/reactions/${encodeURIComponent(emoji)}`,
     { method: 'DELETE' },
   );
+}
+
+// ---- Pins ----
+
+export function pinMessage(messageId: number) {
+  return request<ApiMessage>(`/messages/${messageId}/pin`, { method: 'POST' });
+}
+
+export function unpinMessage(messageId: number) {
+  return request<ApiMessage>(`/messages/${messageId}/pin`, { method: 'DELETE' });
+}
+
+export function getPinnedMessages(channelId: number) {
+  return request<ApiMessage[]>(`/channels/${channelId}/pins`);
 }
 
 // ---- Threads ----

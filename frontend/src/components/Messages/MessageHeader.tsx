@@ -8,6 +8,8 @@ interface MessageHeaderProps {
   channel: Channel;
   showMembers?: boolean;
   onToggleMembers?: () => void;
+  onTogglePins?: () => void;
+  showPins?: boolean;
 }
 
 const headerTabs = [
@@ -16,7 +18,7 @@ const headerTabs = [
   { id: 'pins', label: 'Pins', icon: Pin },
 ];
 
-export function MessageHeader({ channel, showMembers, onToggleMembers }: MessageHeaderProps) {
+export function MessageHeader({ channel, showMembers, onToggleMembers, onTogglePins, showPins }: MessageHeaderProps) {
   const [activeTab, setActiveTab] = useState('messages');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -150,7 +152,10 @@ export function MessageHeader({ channel, showMembers, onToggleMembers }: Message
         {headerTabs.map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => {
+              setActiveTab(tab.id);
+              if (tab.id === 'pins') onTogglePins?.();
+            }}
             className={cn(
               'flex items-center gap-1 rounded px-2 py-[3px] text-[13px] transition-colors',
               activeTab === tab.id

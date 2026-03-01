@@ -55,4 +55,5 @@ export interface Message {
   threadCount: number;
   threadLastReplyAt?: Date;
   isEdited?: boolean;
+  isPinned?: boolean;
 }

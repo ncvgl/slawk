@@ -7,12 +7,14 @@ import { MessageInput } from './MessageInput';
 import { MembersPanel } from './MembersPanel';
 import { ThreadPanel } from './ThreadPanel';
 import { DMConversation } from './DMConversation';
+import { PinsPanel } from './PinsPanel';
 
 export function MessageArea() {
   const { activeChannelId, activeDMId, getActiveChannel, getActiveDM } = useChannelStore();
   const activeChannel = getActiveChannel();
   const activeDM = getActiveDM();
   const [showMembers, setShowMembers] = useState(false);
+  const [showPins, setShowPins] = useState(false);
   const [activeThreadId, setActiveThreadId] = useState<number | null>(null);
 
   const handleOpenThread = useCallback((messageId: number) => {
@@ -52,9 +54,20 @@ export function MessageArea() {
         <MessageHeader
           channel={activeChannel}
           showMembers={showMembers}
+          showPins={showPins}
           onToggleMembers={() => {
             setShowMembers(!showMembers);
-            if (!showMembers) setActiveThreadId(null);
+            if (!showMembers) {
+              setActiveThreadId(null);
+              setShowPins(false);
+            }
+          }}
+          onTogglePins={() => {
+            setShowPins(!showPins);
+            if (!showPins) {
+              setShowMembers(false);
+              setActiveThreadId(null);
+            }
           }}
         />
         <MessageList channelId={activeChannelId!} onOpenThread={handleOpenThread} />
@@ -64,6 +77,12 @@ export function MessageArea() {
         <MembersPanel
           channelId={activeChannelId!}
           onClose={() => setShowMembers(false)}
+        />
+      )}
+      {showPins && (
+        <PinsPanel
+          channelId={activeChannelId!}
+          onClose={() => setShowPins(false)}
         />
       )}
       {activeThreadId && (

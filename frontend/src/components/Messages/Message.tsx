@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
-import { Smile, MessageSquare, MoreHorizontal, Bookmark, Pencil, Trash2, FileIcon, Download } from 'lucide-react';
+import { Smile, MessageSquare, MoreHorizontal, Bookmark, Pencil, Trash2, FileIcon, Download, Pin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/ui/avatar';
 import { EmojiPicker } from '@/components/ui/emoji-picker';
 import { MessageReactions } from './MessageReactions';
 import { useMessageStore } from '@/stores/useMessageStore';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { pinMessage, unpinMessage } from '@/lib/api';
 import type { Message as MessageType } from '@/lib/types';
 
 function renderMessageContent(content: string) {
@@ -131,6 +132,12 @@ export function Message({ message, showAvatar, isCompact, onOpenThread }: Messag
             <span className="text-[12px] font-normal text-[#616061] ml-1">{formattedTime}</span>
             {message.isEdited && (
               <span className="text-[12px] text-[#616061]">(edited)</span>
+            )}
+            {message.isPinned && (
+              <span data-testid="pin-indicator" className="inline-flex items-center gap-0.5 text-[12px] text-[#E8912D] ml-1">
+                <Pin className="h-3 w-3" />
+                Pinned
+              </span>
             )}
           </div>
         )}
@@ -268,22 +275,51 @@ export function Message({ message, showAvatar, isCompact, onOpenThread }: Messag
       )}
 
       {/* More actions dropdown */}
-      {showMoreMenu && isOwner && (
+      {showMoreMenu && (
         <div className="absolute -top-4 right-5 mt-9 z-50 w-48 rounded-lg border border-[#E0E0E0] bg-white py-1 shadow-lg">
           <button
-            onClick={handleEdit}
+            onClick={async () => {
+              setShowMoreMenu(false);
+              try {
+                if (message.isPinned) {
+                  await unpinMessage(message.id);
+                } else {
+                  await pinMessage(message.id);
+                }
+                // Update the message in the store
+                const { messages } = useMessageStore.getState();
+                useMessageStore.setState({
+                  messages: messages.map((m) =>
+                    m.id === message.id ? { ...m, isPinned: !message.isPinned } : m
+                  ),
+                });
+              } catch (err) {
+                console.error('Failed to pin/unpin:', err);
+              }
+            }}
             className="flex w-full items-center gap-2 px-4 py-1.5 text-[14px] text-[#1D1C1D] hover:bg-[#F8F8F8]"
           >
-            <Pencil className="h-4 w-4" />
-            Edit message
+            <Pin className="h-4 w-4" />
+            {message.isPinned ? 'Unpin message' : 'Pin message'}
           </button>
-          <button
-            onClick={handleDelete}
-            className="flex w-full items-center gap-2 px-4 py-1.5 text-[14px] text-red-600 hover:bg-[#F8F8F8]"
-          >
-            <Trash2 className="h-4 w-4" />
-            Delete message
-          </button>
+          {isOwner && (
+            <>
+              <button
+                onClick={handleEdit}
+                className="flex w-full items-center gap-2 px-4 py-1.5 text-[14px] text-[#1D1C1D] hover:bg-[#F8F8F8]"
+              >
+                <Pencil className="h-4 w-4" />
+                Edit message
+              </button>
+              <button
+                onClick={handleDelete}
+                className="flex w-full items-center gap-2 px-4 py-1.5 text-[14px] text-red-600 hover:bg-[#F8F8F8]"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete message
+              </button>
+            </>
+          )}
         </div>
       )}
 

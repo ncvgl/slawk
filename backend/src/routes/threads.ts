@@ -223,4 +223,102 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response) =>
   }
 });
 
+// POST /messages/:id/pin - Pin a message
+router.post('/:id/pin', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const messageId = parseInt(req.params.id);
+    const userId = req.user!.userId;
+
+    if (isNaN(messageId)) {
+      res.status(400).json({ error: 'Invalid message ID' });
+      return;
+    }
+
+    const message = await prisma.message.findUnique({
+      where: { id: messageId },
+    });
+
+    if (!message || message.deletedAt) {
+      res.status(404).json({ error: 'Message not found' });
+      return;
+    }
+
+    // Check membership
+    const membership = await prisma.channelMember.findUnique({
+      where: { userId_channelId: { userId, channelId: message.channelId } },
+    });
+
+    if (!membership) {
+      res.status(403).json({ error: 'You must be a member of this channel' });
+      return;
+    }
+
+    const updated = await prisma.message.update({
+      where: { id: messageId },
+      data: { isPinned: true, pinnedBy: userId, pinnedAt: new Date() },
+      include: {
+        user: { select: { id: true, name: true, email: true, avatar: true } },
+        reactions: { include: { user: { select: { id: true, name: true } } } },
+        files: { select: { id: true, filename: true, mimetype: true, size: true, url: true } },
+        _count: { select: { replies: true } },
+      },
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Pin message error:', error);
+    res.status(500).json({ error: 'Failed to pin message' });
+  }
+});
+
+// DELETE /messages/:id/pin - Unpin a message
+router.delete('/:id/pin', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const messageId = parseInt(req.params.id);
+    const userId = req.user!.userId;
+
+    if (isNaN(messageId)) {
+      res.status(400).json({ error: 'Invalid message ID' });
+      return;
+    }
+
+    const message = await prisma.message.findUnique({
+      where: { id: messageId },
+    });
+
+    if (!message || message.deletedAt) {
+      res.status(404).json({ error: 'Message not found' });
+      return;
+    }
+
+    const membership = await prisma.channelMember.findUnique({
+      where: { userId_channelId: { userId, channelId: message.channelId } },
+    });
+
+    if (!membership) {
+      res.status(403).json({ error: 'You must be a member of this channel' });
+      return;
+    }
+
+    const updated = await prisma.message.update({
+      where: { id: messageId },
+      data: { isPinned: false, pinnedBy: null, pinnedAt: null },
+      include: {
+        user: { select: { id: true, name: true, email: true, avatar: true } },
+        reactions: { include: { user: { select: { id: true, name: true } } } },
+        files: { select: { id: true, filename: true, mimetype: true, size: true, url: true } },
+        _count: { select: { replies: true } },
+      },
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Unpin message error:', error);
+    res.status(500).json({ error: 'Failed to unpin message' });
+  }
+});
+
+// GET /channels/:channelId/pins - Get pinned messages (mounted on /channels)
+// NOTE: This is added in channels routes
+
 export default router;

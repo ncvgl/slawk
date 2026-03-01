@@ -329,4 +329,37 @@ router.post('/:id/read', authMiddleware, async (req: AuthRequest, res: Response)
   }
 });
 
+// GET /channels/:id/pins - Get pinned messages
+router.get('/:id/pins', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const channelId = parseInt(req.params.id);
+    const userId = req.user!.userId;
+
+    const membership = await prisma.channelMember.findUnique({
+      where: { userId_channelId: { userId, channelId } },
+    });
+
+    if (!membership) {
+      res.status(403).json({ error: 'You must be a member of this channel' });
+      return;
+    }
+
+    const pins = await prisma.message.findMany({
+      where: { channelId, isPinned: true, deletedAt: null },
+      include: {
+        user: { select: { id: true, name: true, email: true, avatar: true } },
+        reactions: { include: { user: { select: { id: true, name: true } } } },
+        files: { select: { id: true, filename: true, mimetype: true, size: true, url: true } },
+        _count: { select: { replies: true } },
+      },
+      orderBy: { pinnedAt: 'desc' },
+    });
+
+    res.json(pins);
+  } catch (error) {
+    console.error('Get pinned messages error:', error);
+    res.status(500).json({ error: 'Failed to get pinned messages' });
+  }
+});
+
 export default router;

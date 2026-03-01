@@ -44,6 +44,7 @@ function transformApiMessage(msg: api.ApiMessage): Message {
     })),
     threadCount: msg._count?.replies ?? 0,
     isEdited: msg.updatedAt !== msg.createdAt,
+    isPinned: msg.isPinned ?? false,
   };
 }
 

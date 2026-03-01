@@ -56,6 +56,9 @@ model Message {
   userId    Int
   channelId Int
   threadId  Int?
+  isPinned  Boolean   @default(false)
+  pinnedBy  Int?
+  pinnedAt  DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @default(now()) @updatedAt
   deletedAt DateTime?
