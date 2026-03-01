@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { format, isToday, isYesterday, isSameDay } from 'date-fns';
 import { useMessageStore } from '@/stores/useMessageStore';
+import { useChannelStore } from '@/stores/useChannelStore';
+import { markChannelRead } from '@/lib/api';
 import { Message } from './Message';
 import type { Message as MessageType } from '@/lib/types';
 
@@ -42,6 +44,7 @@ function shouldShowAvatar(
 
 export function MessageList({ channelId, onOpenThread }: MessageListProps) {
   const { getMessagesForChannel, fetchMessages, isLoading } = useMessageStore();
+  const { markChannelAsRead } = useChannelStore();
   const messages = getMessagesForChannel(channelId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -49,6 +52,19 @@ export function MessageList({ channelId, onOpenThread }: MessageListProps) {
   useEffect(() => {
     fetchMessages(channelId);
   }, [channelId, fetchMessages]);
+
+  // After messages load, persist the read state to the backend so the
+  // unread badge does not reappear on page reload.
+  useEffect(() => {
+    if (messages.length === 0) return;
+    const lastMessage = messages[messages.length - 1];
+    // Update in-memory unread count immediately
+    markChannelAsRead(channelId);
+    // Persist to the server (fire-and-forget; errors are non-critical)
+    markChannelRead(channelId, lastMessage.id).catch(() => {
+      // Silently ignore errors (e.g. if the user isn't a member)
+    });
+  }, [channelId, messages.length, markChannelAsRead]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
