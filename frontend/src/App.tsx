@@ -35,9 +35,12 @@ function AppShell() {
   const { onMessageNew, onMessageUpdated, onMessageDeleted } = useMessageStore();
   const joinedChannelsRef = useRef<Set<number>>(new Set());
 
+  const fetchDirectMessages = useChannelStore((s) => s.fetchDirectMessages);
+
   useEffect(() => {
     fetchChannels();
-  }, [fetchChannels]);
+    fetchDirectMessages();
+  }, [fetchChannels, fetchDirectMessages]);
 
   // Connect socket and set up event listeners
   useEffect(() => {
@@ -61,14 +64,21 @@ function AppShell() {
       useMessageStore.getState().onMessageDeleted(data);
     };
 
+    const handleNewDM = (dm: import('@/lib/api').ApiDirectMessage) => {
+      const { addOrUpdateDM } = useChannelStore.getState();
+      addOrUpdateDM(dm.fromUserId, dm.fromUser.name, dm.fromUser.avatar ?? undefined);
+    };
+
     socket.on('message:new', handleNewMessage);
     socket.on('message:updated', handleUpdatedMessage);
     socket.on('message:deleted', handleDeletedMessage);
+    socket.on('dm:new', handleNewDM);
 
     return () => {
       socket.off('message:new', handleNewMessage);
       socket.off('message:updated', handleUpdatedMessage);
       socket.off('message:deleted', handleDeletedMessage);
+      socket.off('dm:new', handleNewDM);
       disconnectSocket();
     };
   }, []);

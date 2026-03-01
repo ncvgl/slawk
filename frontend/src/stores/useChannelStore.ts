@@ -10,10 +10,13 @@ interface ChannelState {
   isLoading: boolean;
 
   fetchChannels: () => Promise<void>;
+  fetchDirectMessages: () => Promise<void>;
   createChannel: (name: string, isPrivate?: boolean) => Promise<void>;
   joinChannel: (channelId: number) => Promise<void>;
   setActiveChannel: (channelId: number) => void;
   setActiveDM: (dmId: number) => void;
+  startDM: (userId: number, userName: string, userAvatar?: string) => void;
+  addOrUpdateDM: (userId: number, userName: string, userAvatar?: string) => void;
   incrementUnread: (channelId: number) => void;
   markChannelAsRead: (channelId: number) => void;
   markDMAsRead: (dmId: number) => void;
@@ -27,6 +30,23 @@ export const useChannelStore = create<ChannelState>((set, get) => ({
   activeChannelId: null,
   activeDMId: null,
   isLoading: false,
+
+  fetchDirectMessages: async () => {
+    try {
+      const conversations = await api.getDirectMessages();
+      const dms: DirectMessage[] = conversations.map((c) => ({
+        id: c.otherUser.id,
+        userId: c.otherUser.id,
+        userName: c.otherUser.name,
+        userAvatar: c.otherUser.avatar || '',
+        userStatus: (c.otherUser.status as DirectMessage['userStatus']) || 'offline',
+        unreadCount: c.unreadCount,
+      }));
+      set({ directMessages: dms });
+    } catch (err) {
+      console.error('Failed to fetch DMs:', err);
+    }
+  },
 
   fetchChannels: async () => {
     set({ isLoading: true });
@@ -88,6 +108,46 @@ export const useChannelStore = create<ChannelState>((set, get) => ({
       console.error('Failed to join channel:', err);
       throw err;
     }
+  },
+
+  startDM: (userId: number, userName: string, userAvatar?: string) => {
+    const state = get();
+    // Add to DM list if not already there
+    if (!state.directMessages.find((dm) => dm.userId === userId)) {
+      set({
+        directMessages: [
+          ...state.directMessages,
+          {
+            id: userId,
+            userId,
+            userName,
+            userAvatar: userAvatar || '',
+            userStatus: 'online',
+            unreadCount: 0,
+          },
+        ],
+      });
+    }
+    set({ activeDMId: userId, activeChannelId: null });
+  },
+
+  addOrUpdateDM: (userId: number, userName: string, userAvatar?: string) => {
+    const state = get();
+    const existing = state.directMessages.find((dm) => dm.userId === userId);
+    if (existing) return;
+    set({
+      directMessages: [
+        ...state.directMessages,
+        {
+          id: userId,
+          userId,
+          userName,
+          userAvatar: userAvatar || '',
+          userStatus: 'online',
+          unreadCount: 0,
+        },
+      ],
+    });
   },
 
   setActiveChannel: (channelId: number) => {

@@ -6,10 +6,12 @@ import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
 import { MembersPanel } from './MembersPanel';
 import { ThreadPanel } from './ThreadPanel';
+import { DMConversation } from './DMConversation';
 
 export function MessageArea() {
-  const { activeChannelId, getActiveChannel } = useChannelStore();
+  const { activeChannelId, activeDMId, getActiveChannel, getActiveDM } = useChannelStore();
   const activeChannel = getActiveChannel();
+  const activeDM = getActiveDM();
   const [showMembers, setShowMembers] = useState(false);
   const [activeThreadId, setActiveThreadId] = useState<number | null>(null);
 
@@ -30,6 +32,11 @@ export function MessageArea() {
     );
     useMessageStore.setState({ messages: updated });
   }, []);
+
+  // Show DM conversation if a DM is active
+  if (activeDMId && activeDM) {
+    return <DMConversation userId={activeDM.userId} userName={activeDM.userName} />;
+  }
 
   if (!activeChannel) {
     return (

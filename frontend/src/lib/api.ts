@@ -248,8 +248,47 @@ export async function uploadFile(file: File): Promise<ApiFile> {
 
 // ---- Users ----
 
-export function getUsers() {
-  return request<AuthUser[]>('/users');
+export function getUsers(search?: string) {
+  const params = new URLSearchParams({ limit: '50' });
+  if (search) params.set('search', search);
+  return request<AuthUser[]>(`/users?${params}`);
+}
+
+// ---- Direct Messages ----
+
+export interface ApiDMConversation {
+  otherUser: { id: number; name: string; email: string; avatar?: string | null; status?: string };
+  lastMessage: { content: string; createdAt: string; fromUserId: number } | null;
+  unreadCount: number;
+}
+
+export interface ApiDirectMessage {
+  id: number;
+  content: string;
+  fromUserId: number;
+  toUserId: number;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  fromUser: { id: number; name: string; email: string; avatar?: string | null };
+  toUser: { id: number; name: string; email: string; avatar?: string | null };
+}
+
+export function getDirectMessages() {
+  return request<ApiDMConversation[]>('/dms');
+}
+
+export function getConversation(userId: number, cursor?: number) {
+  const params = new URLSearchParams();
+  if (cursor) params.set('cursor', String(cursor));
+  return request<{ messages: ApiDirectMessage[]; hasMore: boolean }>(`/dms/${userId}?${params}`);
+}
+
+export function sendDM(toUserId: number, content: string) {
+  return request<ApiDirectMessage>('/dms', {
+    method: 'POST',
+    body: JSON.stringify({ toUserId, content }),
+  });
 }
 
 // ---- Channel Members ----

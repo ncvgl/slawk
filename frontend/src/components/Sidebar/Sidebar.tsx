@@ -23,7 +23,7 @@ const navItems = [
 ];
 
 export function Sidebar() {
-  const { channels, directMessages, activeChannelId, setActiveChannel, setActiveDM, createChannel, joinChannel, fetchChannels } =
+  const { channels, directMessages, activeChannelId, activeDMId, setActiveChannel, setActiveDM, startDM, createChannel, joinChannel, fetchChannels } =
     useChannelStore();
   const { user, logout } = useAuthStore();
   const [channelsExpanded, setChannelsExpanded] = useState(true);
@@ -37,6 +37,7 @@ export function Sidebar() {
   const [browseChannels, setBrowseChannels] = useState<typeof channels>([]);
   const [showAddTeammates, setShowAddTeammates] = useState(false);
   const [users, setUsers] = useState<import('@/lib/api').AuthUser[]>([]);
+  const [teammateSearch, setTeammateSearch] = useState('');
   const avatarMenuRef = useRef<HTMLDivElement>(null);
 
   // Close avatar menu when clicking outside
@@ -75,11 +76,17 @@ export function Sidebar() {
     }
   };
 
-  const handleOpenAddTeammates = async () => {
+  const handleOpenAddTeammates = () => {
     setShowAddTeammates(true);
+    setTeammateSearch('');
+    setUsers([]);
+    fetchTeammates();
+  };
+
+  const fetchTeammates = async (search?: string) => {
     try {
       const { getUsers } = await import('@/lib/api');
-      const allUsers = await getUsers();
+      const allUsers = await getUsers(search);
       setUsers(allUsers.filter((u) => u.id !== user?.id));
     } catch {
       // ignore
@@ -240,7 +247,7 @@ export function Sidebar() {
                   <DirectMessageItem
                     key={dm.id}
                     dm={dm}
-                    isActive={false}
+                    isActive={activeDMId === dm.id}
                     onClick={() => setActiveDM(dm.id)}
                   />
                 ))}
@@ -379,6 +386,18 @@ export function Sidebar() {
           <div className="w-[480px] rounded-lg bg-white p-6 shadow-xl">
             <h2 className="text-[22px] font-bold text-[#1D1C1D] mb-2">Direct message</h2>
             <p className="text-[14px] text-gray-500 mb-4">Find or start a conversation</p>
+            <input
+              data-testid="teammate-search"
+              type="text"
+              value={teammateSearch}
+              onChange={(e) => {
+                setTeammateSearch(e.target.value);
+                fetchTeammates(e.target.value || undefined);
+              }}
+              placeholder="Search by name..."
+              autoFocus
+              className="w-full rounded border border-gray-300 px-3 py-2 text-[15px] text-[#1D1C1D] outline-none focus:border-[#1264A3] focus:ring-1 focus:ring-[#1264A3] mb-3"
+            />
             {users.length === 0 ? (
               <p className="text-center text-gray-500 py-4">No other users found</p>
             ) : (
@@ -386,6 +405,10 @@ export function Sidebar() {
                 {users.map((u) => (
                   <button
                     key={u.id}
+                    onClick={() => {
+                      startDM(u.id, u.name, u.avatar ?? undefined);
+                      setShowAddTeammates(false);
+                    }}
                     className="flex w-full items-center gap-3 rounded px-3 py-2 hover:bg-gray-50 text-left"
                   >
                     <div className="flex h-8 w-8 items-center justify-center rounded bg-[#611f69] text-white text-sm font-medium">

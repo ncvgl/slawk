@@ -17,6 +17,7 @@ export function DirectMessageItem({
 
   return (
     <button
+      data-testid="dm-list-item"
       onClick={onClick}
       data-active={isActive}
       className={cn(
