@@ -22,7 +22,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useMessageStore } from '@/stores/useMessageStore';
 import { EmojiPicker } from '@/components/ui/emoji-picker';
-import { uploadFile, type ApiFile } from '@/lib/api';
+import { uploadFile, getUsers, type ApiFile, type AuthUser } from '@/lib/api';
 
 interface MessageInputProps {
   channelId: number;
@@ -49,6 +49,12 @@ export function MessageInput({ channelId, channelName }: MessageInputProps) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<ApiFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [showMentionDropdown, setShowMentionDropdown] = useState(false);
+  const [mentionUsers, setMentionUsers] = useState<AuthUser[]>([]);
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [mentionStartIndex, setMentionStartIndex] = useState<number | null>(null);
+  const [mentionSelectedIndex, setMentionSelectedIndex] = useState(0);
+  const mentionDropdownRef = useRef<HTMLDivElement>(null);
   const emojiButtonRef = useRef<HTMLButtonElement>(null);
   const { sendMessage } = useMessageStore();
 
@@ -67,6 +73,8 @@ export function MessageInput({ channelId, channelName }: MessageInputProps) {
 
   const handleSendRef = useRef(handleSend);
   handleSendRef.current = handleSend;
+  const mentionActiveRef = useRef(false);
+  mentionActiveRef.current = showMentionDropdown;
 
   useEffect(() => {
     if (!editorRef.current || quillRef.current) return;
@@ -80,8 +88,20 @@ export function MessageInput({ channelId, channelName }: MessageInputProps) {
             enter: {
               key: 'Enter',
               handler: () => {
+                // Don't send if mention dropdown is open
+                if (mentionActiveRef.current) return true;
                 handleSendRef.current();
                 return false;
+              },
+            },
+            escape: {
+              key: 'Escape',
+              handler: () => {
+                if (mentionActiveRef.current) {
+                  setShowMentionDropdown(false);
+                  return false;
+                }
+                return true;
               },
             },
           },
@@ -92,6 +112,25 @@ export function MessageInput({ channelId, channelName }: MessageInputProps) {
 
     quill.on('text-change', () => {
       setCanSend(quill.getText().trim().length > 0);
+      // Detect @mention trigger
+      const selection = quill.getSelection();
+      if (!selection) return;
+      const cursorPos = selection.index;
+      const text = quill.getText(0, cursorPos);
+      const atIndex = text.lastIndexOf('@');
+      if (atIndex >= 0) {
+        const beforeAt = atIndex > 0 ? text[atIndex - 1] : ' ';
+        const query = text.slice(atIndex + 1);
+        // Only trigger if @ is at start or preceded by whitespace, and query has no spaces
+        if ((atIndex === 0 || /\s/.test(beforeAt)) && !/\s/.test(query)) {
+          setMentionStartIndex(atIndex);
+          setMentionQuery(query);
+          setShowMentionDropdown(true);
+          setMentionSelectedIndex(0);
+          return;
+        }
+      }
+      setShowMentionDropdown(false);
     });
 
     quill.root.addEventListener('focus', () => setIsFocused(true));
@@ -115,6 +154,48 @@ export function MessageInput({ channelId, channelName }: MessageInputProps) {
     setShowEmojiPicker(false);
     quill.focus();
   }, []);
+
+  // Fetch users for mention autocomplete
+  useEffect(() => {
+    if (!showMentionDropdown) {
+      setMentionUsers([]);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const users = await getUsers(mentionQuery || undefined);
+        if (!cancelled) setMentionUsers(users);
+      } catch {
+        // ignore
+      }
+    }, 150);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [showMentionDropdown, mentionQuery]);
+
+  const insertMention = useCallback((user: AuthUser) => {
+    const quill = quillRef.current;
+    if (!quill || mentionStartIndex === null) return;
+    const mentionText = `@${user.name}`;
+    // Delete the @query text and insert mention
+    const deleteLength = mentionQuery.length + 1; // +1 for @
+    quill.deleteText(mentionStartIndex, deleteLength);
+    quill.insertText(mentionStartIndex, mentionText + ' ');
+    quill.setSelection(mentionStartIndex + mentionText.length + 1);
+    setShowMentionDropdown(false);
+    setMentionQuery('');
+    setMentionStartIndex(null);
+    quill.focus();
+  }, [mentionStartIndex, mentionQuery]);
+
+  const handleMentionButtonClick = () => {
+    const quill = quillRef.current;
+    if (!quill) return;
+    const range = quill.getSelection(true);
+    quill.insertText(range.index, '@');
+    quill.setSelection(range.index + 1);
+    quill.focus();
+  };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -238,6 +319,31 @@ export function MessageInput({ channelId, channelName }: MessageInputProps) {
         {/* Quill Editor */}
         <div ref={editorRef} />
 
+        {/* Mention Dropdown */}
+        {showMentionDropdown && mentionUsers.length > 0 && (
+          <div
+            data-testid="mention-dropdown"
+            ref={mentionDropdownRef}
+            className="absolute bottom-full left-0 mb-1 w-[280px] max-h-[200px] overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg z-50"
+          >
+            {mentionUsers.map((user, index) => (
+              <button
+                key={user.id}
+                onClick={() => insertMention(user)}
+                className={cn(
+                  'flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[#1264A3] hover:text-white',
+                  index === mentionSelectedIndex ? 'bg-[#1264A3] text-white' : 'text-[#1D1C1D]'
+                )}
+              >
+                <div className="flex h-6 w-6 items-center justify-center rounded bg-[#611f69] text-white text-xs font-medium flex-shrink-0">
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+                <span className="truncate font-medium">{user.name}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Emoji Picker */}
         {showEmojiPicker && (
           <div className="absolute bottom-full left-0 mb-2 z-50">
@@ -275,7 +381,11 @@ export function MessageInput({ channelId, channelName }: MessageInputProps) {
             >
               <Smile className="h-[18px] w-[18px]" />
             </button>
-            <button className="flex h-7 w-7 items-center justify-center rounded text-[#616061] hover:bg-[#F8F8F8] hover:text-[#1D1C1D]">
+            <button
+              data-testid="mention-button"
+              onClick={handleMentionButtonClick}
+              className="flex h-7 w-7 items-center justify-center rounded text-[#616061] hover:bg-[#F8F8F8] hover:text-[#1D1C1D]"
+            >
               <AtSign className="h-[18px] w-[18px]" />
             </button>
             <button className="flex h-7 w-7 items-center justify-center rounded text-[#616061] hover:bg-[#F8F8F8] hover:text-[#1D1C1D]">

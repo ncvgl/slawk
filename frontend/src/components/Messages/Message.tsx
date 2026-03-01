@@ -9,6 +9,25 @@ import { useMessageStore } from '@/stores/useMessageStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import type { Message as MessageType } from '@/lib/types';
 
+function renderMessageContent(content: string) {
+  // Split by @mention pattern and render mentions as highlighted
+  const parts = content.split(/(@\w[\w\s]*\w|@\w+)/g);
+  if (parts.length === 1) return content;
+  return parts.map((part, i) => {
+    if (part.startsWith('@') && part.length > 1) {
+      return (
+        <span
+          key={i}
+          className="mention-highlight rounded bg-[#1d9bd11a] px-[2px] text-[#1264A3] font-medium cursor-pointer hover:bg-[#1d9bd133]"
+        >
+          {part}
+        </span>
+      );
+    }
+    return part;
+  });
+}
+
 interface MessageProps {
   message: MessageType;
   showAvatar: boolean;
@@ -143,7 +162,7 @@ export function Message({ message, showAvatar, isCompact, onOpenThread }: Messag
           </div>
         ) : (
           <div className="text-[15px] font-normal text-[#1D1C1D] leading-[22px] whitespace-pre-wrap break-words">
-            {message.content}
+            {renderMessageContent(message.content)}
             {!showAvatar && message.isEdited && (
               <span className="text-[12px] text-[#616061] ml-1">(edited)</span>
             )}
