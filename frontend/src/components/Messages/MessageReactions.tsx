@@ -5,6 +5,13 @@ import { useMessageStore } from '@/stores/useMessageStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { EmojiPicker } from '@/components/ui/emoji-picker';
 import type { Reaction } from '@/lib/types';
+import data from '@emoji-mart/data';
+
+function shortcodeToNative(emoji: string): string {
+  const emojiData = (data as any).emojis?.[emoji];
+  if (emojiData?.skins?.[0]?.native) return emojiData.skins[0].native;
+  return emoji;
+}
 
 interface MessageReactionsProps {
   reactions: Reaction[];
@@ -45,7 +52,7 @@ export function MessageReactions({ reactions, messageId }: MessageReactionsProps
                 : 'border-[#E0E0E0] bg-white text-[#1D1C1D] hover:bg-[#F8F8F8]'
             )}
           >
-            <span data-testid="reaction-emoji" className="text-base leading-none">{reaction.emoji}</span>
+            <span data-testid="reaction-emoji" className="text-base leading-none">{shortcodeToNative(reaction.emoji)}</span>
             <span className="text-[13px] font-medium">{reaction.count}</span>
           </button>
         );
