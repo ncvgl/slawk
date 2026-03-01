@@ -119,7 +119,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
         });
 
         return {
-          user,
+          otherUser: user,
           lastMessage,
           unreadCount,
         };
