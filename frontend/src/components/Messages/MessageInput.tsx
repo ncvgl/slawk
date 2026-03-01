@@ -265,20 +265,6 @@ export function MessageInput({ channelId, channelName }: MessageInputProps) {
           isFocused ? 'border-[#1264A3] border-2' : 'border-[rgba(29,28,29,0.13)]'
         )}
       >
-        {/* Formatting Toolbar */}
-        <div className="flex items-center gap-0.5 bg-[#F8F8F8] rounded-t-[8px] px-1 py-1">
-          {formatButtons.map((button) => (
-            <button
-              key={button.label}
-              onClick={() => applyFormat(button.format, button.value)}
-              className="flex h-7 w-7 items-center justify-center rounded text-[#616061] hover:bg-[#e8e8e8] hover:text-[#1D1C1D]"
-              title={button.label}
-            >
-              <button.icon className="h-[18px] w-[18px]" />
-            </button>
-          ))}
-        </div>
-
         {/* File preview area */}
         {pendingFiles.length > 0 && (
           <div data-testid="file-preview" className="flex flex-wrap gap-2 px-3 py-2 border-b border-[rgba(29,28,29,0.13)]">
@@ -317,6 +303,23 @@ export function MessageInput({ channelId, channelName }: MessageInputProps) {
 
         {/* Quill Editor */}
         <div ref={editorRef} />
+
+        {/* Formatting Toolbar */}
+        <div
+          data-testid="formatting-toolbar"
+          className="flex items-center gap-0.5 border-t border-[rgba(29,28,29,0.13)] px-1 py-1"
+        >
+          {formatButtons.map((button) => (
+            <button
+              key={button.label}
+              onClick={() => applyFormat(button.format, button.value)}
+              className="flex h-7 w-7 items-center justify-center rounded text-[#616061] hover:bg-[#F8F8F8] hover:text-[#1D1C1D]"
+              title={button.label}
+            >
+              <button.icon className="h-[18px] w-[18px]" />
+            </button>
+          ))}
+        </div>
 
         {/* Mention Dropdown */}
         {showMentionDropdown && mentionUsers.length > 0 && (
