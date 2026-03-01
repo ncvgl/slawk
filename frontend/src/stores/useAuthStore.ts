@@ -63,6 +63,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (token) {
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
+        // Set initial state from token
         set({
           user: {
             id: payload.userId,
@@ -70,6 +71,20 @@ export const useAuthStore = create<AuthState>((set) => ({
             name: payload.email.split('@')[0],
           },
           isAuthenticated: true,
+        });
+        // Fetch full profile to get actual name
+        api.getMyProfile().then((profile) => {
+          set({
+            user: {
+              id: profile.id,
+              email: profile.email,
+              name: profile.name,
+              avatar: profile.avatar,
+              status: profile.status as any,
+            },
+          });
+        }).catch(() => {
+          // If profile fetch fails, token may be expired
         });
       } catch {
         localStorage.removeItem('token');

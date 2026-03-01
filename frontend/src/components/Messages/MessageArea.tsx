@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useChannelStore } from '@/stores/useChannelStore';
 import { useMessageStore } from '@/stores/useMessageStore';
 import { MessageHeader } from './MessageHeader';
@@ -16,6 +16,13 @@ export function MessageArea() {
   const [showMembers, setShowMembers] = useState(false);
   const [showPins, setShowPins] = useState(false);
   const [activeThreadId, setActiveThreadId] = useState<number | null>(null);
+
+  // Close side panels when switching channels
+  useEffect(() => {
+    setShowMembers(false);
+    setShowPins(false);
+    setActiveThreadId(null);
+  }, [activeChannelId]);
 
   const handleOpenThread = useCallback((messageId: number) => {
     setActiveThreadId(messageId);
