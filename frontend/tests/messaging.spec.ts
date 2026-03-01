@@ -117,11 +117,14 @@ test.describe('Messaging', () => {
     }
 
     // Give socket connections time to establish and join channel rooms
-    await page1.waitForTimeout(1_000);
+    await page1.waitForTimeout(3_000);
 
     // User 1 sends a message
     const realTimeMsg = `Real-time test ${Date.now()}`;
     await sendMessage(page1, realTimeMsg);
+
+    // User 1 should see their own message first
+    await waitForMessage(page1, realTimeMsg);
 
     // User 2 should see the message appear without refreshing
     await waitForMessage(page2, realTimeMsg);

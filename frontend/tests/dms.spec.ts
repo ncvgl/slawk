@@ -32,7 +32,7 @@ test.describe('Direct Messages', () => {
     await expect(page1.getByTestId('dm-conversation')).toBeVisible({ timeout: 5000 });
 
     // Should show receiver's name in the header
-    await expect(page1.getByTestId('dm-conversation').getByText(name2)).toBeVisible();
+    await expect(page1.getByTestId('dm-conversation').getByText(name2, { exact: true })).toBeVisible();
 
     // Send a DM
     const dmInput = page1.getByTestId('dm-message-input');
