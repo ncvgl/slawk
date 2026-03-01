@@ -10,7 +10,8 @@
 
 <p align="center">
   <b>Stack:</b> Node.js · PostgreSQL · Prisma · Socket.io · React · Vite · Tailwind<br>
-  <b>Features:</b> Real-time messaging · Channels · DMs · Threads · Reactions · File uploads · Search · Presence
+  <b>Features:</b> Real-time messaging · Channels · DMs · Threads · Reactions · File uploads · Search · Presence<br>
+  <b>Vision:</b> minimalist · familiar · fast · safe · cheap
 </p>
 
 ## Day 3
