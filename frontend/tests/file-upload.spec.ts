@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { register, uniqueEmail, waitForMessage } from './helpers';
+import { register, uniqueEmail } from './helpers';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -15,7 +15,6 @@ test.beforeAll(async () => {
     fs.mkdirSync(TEST_FILE_DIR, { recursive: true });
   }
   if (!fs.existsSync(TEST_IMAGE_PATH)) {
-    // Minimal valid 1x1 PNG
     const pngHeader = Buffer.from([
       0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
       0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
@@ -36,40 +35,34 @@ test.describe('File Uploads', () => {
     const email = uniqueEmail();
     await register(page, 'FileUser', email, 'password123');
 
-    // Click the general channel explicitly to make sure we're in the right place
     await page.getByText('general').click();
     await page.waitForTimeout(500);
 
-    // Click the plus/attach button in the message input
     const attachButton = page.getByTestId('attach-file-button');
     await expect(attachButton).toBeVisible();
 
-    // Set up file chooser handler and click attach
     const [fileChooser] = await Promise.all([
       page.waitForEvent('filechooser'),
       attachButton.click(),
     ]);
 
-    // Select a file
     await fileChooser.setFiles(TEST_IMAGE_PATH);
-
-    // Should see file preview/attachment indicator before sending
     await expect(page.getByTestId('file-preview')).toBeVisible({ timeout: 5000 });
 
-    // Send the message with the file
+    // Use unique message text to avoid clashing with past runs
+    const uniqueText = `Image upload ${Date.now()}`;
     const editor = page.locator('.ql-editor');
     await editor.click();
-    await page.keyboard.type('Here is an image', { delay: 10 });
+    await page.keyboard.type(uniqueText, { delay: 10 });
     await page.keyboard.press('Enter');
 
-    // The message should appear with file attachment
-    await waitForMessage(page, 'Here is an image');
+    // Wait for the specific message
+    const messageRow = page.locator('.group.relative.flex.px-5').filter({ hasText: uniqueText });
+    await expect(messageRow.first()).toBeVisible({ timeout: 10000 });
 
-    // Should see file attachment with image preview in the message
-    const fileAttachment = page.locator('[data-testid="message-file"]').first();
+    // Should see file attachment with image preview
+    const fileAttachment = messageRow.first().locator('[data-testid="message-file"]');
     await expect(fileAttachment).toBeVisible({ timeout: 10000 });
-
-    // Image files should render as img elements
     await expect(fileAttachment.locator('img')).toBeVisible({ timeout: 5000 });
   });
 });

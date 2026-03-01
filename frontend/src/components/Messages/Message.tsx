@@ -13,9 +13,10 @@ interface MessageProps {
   message: MessageType;
   showAvatar: boolean;
   isCompact: boolean;
+  onOpenThread?: (messageId: number) => void;
 }
 
-export function Message({ message, showAvatar, isCompact }: MessageProps) {
+export function Message({ message, showAvatar, isCompact, onOpenThread }: MessageProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -198,7 +199,10 @@ export function Message({ message, showAvatar, isCompact }: MessageProps) {
 
         {/* Thread indicator - 13px, Slack blue, with mini avatars */}
         {message.threadCount > 0 && (
-          <button className="mt-[6px] flex items-center gap-2 rounded px-1 py-0.5 text-[13px] text-[#1264A3] hover:bg-[#e8f5fa] -ml-1">
+          <button
+            onClick={() => onOpenThread?.(message.id)}
+            className="mt-[6px] flex items-center gap-2 rounded px-1 py-0.5 text-[13px] text-[#1264A3] hover:bg-[#e8f5fa] -ml-1"
+          >
             {/* Mini avatar stack */}
             <div className="flex -space-x-1">
               <div className="h-5 w-5 rounded-[4px] bg-[#e8e8e8] border border-white" />
@@ -222,7 +226,10 @@ export function Message({ message, showAvatar, isCompact }: MessageProps) {
           >
             <Smile className="h-4 w-4 text-[#616061]" />
           </button>
-          <button className="flex h-7 w-7 items-center justify-center rounded hover:bg-[#F8F8F8]">
+          <button
+            onClick={() => onOpenThread?.(message.id)}
+            className="flex h-7 w-7 items-center justify-center rounded hover:bg-[#F8F8F8]"
+          >
             <MessageSquare className="h-4 w-4 text-[#616061]" />
           </button>
           <button

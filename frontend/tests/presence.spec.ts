@@ -69,9 +69,9 @@ test.describe('User Presence', () => {
     const membersPanel = page1.getByTestId('members-panel');
     await expect(membersPanel).toBeVisible({ timeout: 5000 });
 
-    // LeaverUser should appear in the online section
+    // LeaverUser should appear in the online section (use .first() since name may exist from past runs)
     await expect(
-      membersPanel.getByTestId('online-members').getByText('LeaverUser')
+      membersPanel.getByTestId('online-members').getByText('LeaverUser').first()
     ).toBeVisible({ timeout: 5000 });
 
     // Close user 2's context (simulates going offline)
@@ -79,7 +79,7 @@ test.describe('User Presence', () => {
 
     // LeaverUser should move to the offline section (wait for presence update)
     await expect(
-      membersPanel.getByTestId('offline-members').getByText('LeaverUser')
+      membersPanel.getByTestId('offline-members').getByText('LeaverUser').first()
     ).toBeVisible({ timeout: 15000 });
 
     await context1.close();

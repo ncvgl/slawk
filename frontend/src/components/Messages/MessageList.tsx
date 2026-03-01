@@ -6,6 +6,7 @@ import type { Message as MessageType } from '@/lib/types';
 
 interface MessageListProps {
   channelId: number;
+  onOpenThread?: (messageId: number) => void;
 }
 
 function formatDateSeparator(date: Date): string {
@@ -39,7 +40,7 @@ function shouldShowAvatar(
   return timeDiff > 5 * 60 * 1000;
 }
 
-export function MessageList({ channelId }: MessageListProps) {
+export function MessageList({ channelId, onOpenThread }: MessageListProps) {
   const { getMessagesForChannel, fetchMessages, isLoading } = useMessageStore();
   const messages = getMessagesForChannel(channelId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -93,6 +94,7 @@ export function MessageList({ channelId }: MessageListProps) {
               message={message}
               showAvatar={showAvatar}
               isCompact={!showAvatar}
+              onOpenThread={onOpenThread}
             />
           </div>
         );
