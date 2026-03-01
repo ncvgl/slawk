@@ -51,7 +51,7 @@ export const useChannelStore = create<ChannelState>((set, get) => ({
   fetchDirectMessages: async () => {
     try {
       const conversations = await api.getDirectMessages();
-      const dms: DirectMessage[] = conversations.map((c) => ({
+      const dms: DirectMessage[] = conversations.filter((c) => c?.otherUser).map((c) => ({
         id: c.otherUser.id,
         userId: c.otherUser.id,
         userName: c.otherUser.name,

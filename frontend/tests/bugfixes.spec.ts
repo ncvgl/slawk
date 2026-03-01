@@ -204,6 +204,43 @@ test.describe('Bug #11: Add teammates button', () => {
   });
 });
 
+test.describe('Bug #3: No TypeError from fetchDirectMessages with null entries', () => {
+  test('null entry in DM API response does not throw TypeError', async ({ page }) => {
+    const email = uniqueEmail();
+
+    // Patch window.fetch before any app code runs to inject a null DM entry
+    await page.addInitScript(() => {
+      const orig = window.fetch.bind(window);
+      window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+        const resp = await orig(input, init);
+        if (url.endsWith('/dms') && !url.match(/\/dms\/\d+/)) {
+          const body = await resp.clone().json();
+          if (Array.isArray(body)) {
+            return new Response(JSON.stringify([null, ...body]), {
+              status: resp.status,
+              headers: { 'Content-Type': 'application/json' },
+            });
+          }
+        }
+        return resp;
+      };
+    });
+
+    const consoleErrors: string[] = [];
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') consoleErrors.push(msg.text());
+    });
+
+    await register(page, 'DmNull User', email, 'password123');
+    await expect(page.locator('button').filter({ hasText: 'general' })).toBeVisible({ timeout: 10_000 });
+    await page.waitForTimeout(1_000);
+
+    const typeErrors = consoleErrors.filter((e) => e.includes('Failed to fetch DMs'));
+    expect(typeErrors).toHaveLength(0);
+  });
+});
+
 test.describe('Bug #12: Channel star/favorite', () => {
   test('starring a channel adds it to a Starred section in the sidebar', async ({ page }) => {
     const email = uniqueEmail();
