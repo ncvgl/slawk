@@ -23,7 +23,7 @@ function renderMessageContent(content: string): React.ReactNode {
     if (m[1]) {
       nodes.push(<strong key={key++} className="font-bold">{m[2]}</strong>);
     } else if (m[3]) {
-      nodes.push(<em key={key++}>{m[4]}</em>);
+      nodes.push(<em key={key++} className="leading-[22px]">{m[4]}</em>);
     } else if (m[5]) {
       nodes.push(<code key={key++} className="rounded bg-[#f0f0f0] px-[5px] py-[2px] font-mono text-[13px] text-[#c0392b]">{m[6]}</code>);
     } else if (m[7]) {
