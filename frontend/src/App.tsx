@@ -69,16 +69,23 @@ function AppShell() {
       addOrUpdateDM(dm.fromUserId, dm.fromUser.name, dm.fromUser.avatar ?? undefined);
     };
 
+    const handlePresenceUpdate = (data: { userId: number; status: string }) => {
+      const { updateDMStatus } = useChannelStore.getState();
+      updateDMStatus(data.userId, data.status as import('@/lib/types').DirectMessage['userStatus']);
+    };
+
     socket.on('message:new', handleNewMessage);
     socket.on('message:updated', handleUpdatedMessage);
     socket.on('message:deleted', handleDeletedMessage);
     socket.on('dm:new', handleNewDM);
+    socket.on('presence:update', handlePresenceUpdate);
 
     return () => {
       socket.off('message:new', handleNewMessage);
       socket.off('message:updated', handleUpdatedMessage);
       socket.off('message:deleted', handleDeletedMessage);
       socket.off('dm:new', handleNewDM);
+      socket.off('presence:update', handlePresenceUpdate);
       disconnectSocket();
     };
   }, []);
