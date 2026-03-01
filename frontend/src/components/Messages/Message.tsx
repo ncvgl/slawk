@@ -137,8 +137,9 @@ export function Message({ message, showAvatar, isCompact, onOpenThread }: Messag
         {showAvatar && (
           <div className="flex items-center gap-2">
             <button
+              data-testid="sender-name"
               onClick={() => openProfile(message.userId)}
-              className="text-[15px] font-black text-[#1D1C1D] hover:underline"
+              className="text-[15px] font-bold text-[#1D1C1D] hover:underline"
             >
               {message.user.displayName || message.user.name}
             </button>
