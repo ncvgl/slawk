@@ -13,8 +13,6 @@
   <b>Features:</b> Real-time messaging · Channels · DMs · Threads · Reactions · File uploads · Search · Presence
 </p>
 
----
-
 ## [Day 2](https://www.linkedin.com/posts/nathancavaglione_day-214-cloning-slack-with-claude-code-activity-7433486444993613824-umUt?utm_source=share&utm_medium=member_desktop&rcm=ACoAABo_DiMBthZ8gqvy6PiOdSHUMuPt9XgMnfY)
 
 ![Day 2](images/day_2.jpeg)
