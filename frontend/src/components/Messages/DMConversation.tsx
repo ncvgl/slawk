@@ -102,7 +102,7 @@ export function DMConversation({ userId, userName }: DMConversationProps) {
       </header>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-5 pt-5 pb-2 bg-white">
+      <div className="flex-1 overflow-y-auto px-5 pt-5 pb-4 bg-white">
         {isLoading ? (
           <div className="flex items-center justify-center h-full text-gray-500 text-sm">
             Loading messages...
