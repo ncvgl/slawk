@@ -155,7 +155,7 @@ router.patch('/:id', authMiddleware, async (req: AuthRequest, res: Response) => 
 
     const updatedMessage = await prisma.message.update({
       where: { id: messageId },
-      data: { content },
+      data: { content, editedAt: new Date() },
       include: {
         user: {
           select: { id: true, name: true, email: true, avatar: true },

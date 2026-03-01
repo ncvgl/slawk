@@ -119,6 +119,7 @@ export interface ApiMessage {
   isPinned?: boolean;
   pinnedBy?: number | null;
   pinnedAt?: string | null;
+  editedAt?: string | null;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;

@@ -137,7 +137,7 @@ export function MessageHeader({ channel, showMembers, onToggleMembers, onToggleP
             />
             {/* Search Results Dropdown */}
             {showResults && (
-              <div className="absolute right-0 top-8 z-50 w-[360px] max-h-[400px] overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+              <div data-testid="search-results-dropdown" className="absolute right-0 top-8 z-50 w-[360px] max-h-[400px] overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
                 {isSearching ? (
                   <div className="p-4 text-center text-sm text-gray-500">Searching...</div>
                 ) : searchResults.length === 0 ? (

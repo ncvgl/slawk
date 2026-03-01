@@ -101,7 +101,9 @@ test.describe('Bug #4: Search functionality', () => {
     await expect(page.locator('button').filter({ hasText: 'general' })).toBeVisible({ timeout: 10_000 });
     await page.locator('button').filter({ hasText: 'general' }).click();
     await expect(page.locator('.ql-editor')).toBeVisible();
-    const searchTerm = `searchable-${Date.now()}`;
+
+    // Add random suffix to avoid collision between parallel test workers
+    const searchTerm = `srch-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     await sendMessage(page, searchTerm);
     await waitForMessage(page, searchTerm);
 
@@ -110,8 +112,10 @@ test.describe('Bug #4: Search functionality', () => {
     await searchInput.fill(searchTerm);
     await searchInput.press('Enter');
 
-    // Search results should appear
-    await expect(page.getByText(searchTerm).first()).toBeVisible({ timeout: 5_000 });
+    // Wait for search results dropdown to appear and contain our message
+    const searchDropdown = page.locator('[data-testid="search-results-dropdown"]');
+    await expect(searchDropdown).toBeVisible({ timeout: 10_000 });
+    await expect(searchDropdown.getByText(searchTerm)).toBeVisible({ timeout: 10_000 });
 
     // Press Escape to clear
     await searchInput.press('Escape');
@@ -330,6 +334,35 @@ test.describe('Bug #10: No video icon in message composer', () => {
     // The video button should NOT exist in the composer bottom toolbar
     // (lucide Video icon renders as an SVG with a specific path shape)
     await expect(page.locator('[data-testid="video-call-button"]')).toHaveCount(0);
+  });
+});
+
+test.describe('Bug #1: Pinned message does not show (edited) label', () => {
+  test('pinning a message does not make it show (edited)', async ({ page }) => {
+    const email = uniqueEmail();
+    await register(page, 'PinEdit User', email, 'password123');
+
+    await expect(page.locator('button').filter({ hasText: 'general' })).toBeVisible({ timeout: 10_000 });
+    await page.locator('button').filter({ hasText: 'general' }).click();
+    await expect(page.locator('.ql-editor')).toBeVisible();
+
+    const msg = `pin-edited-${Date.now()}`;
+    await sendMessage(page, msg);
+    await waitForMessage(page, msg);
+
+    const messageRow = page.locator('.group.relative.flex.px-5').filter({ hasText: msg });
+    await messageRow.hover();
+
+    // Open the ⋮ more menu (4th button in hover toolbar)
+    const toolbar = messageRow.locator('.absolute.-top-4.right-5').first();
+    await toolbar.locator('button').nth(3).click();
+
+    // Pin the message
+    await page.getByRole('button', { name: /^pin message$/i }).click();
+
+    // The "(edited)" badge must NOT appear — pinning is not a content edit
+    await page.waitForTimeout(500);
+    await expect(messageRow.getByText('(edited)')).toHaveCount(0);
   });
 });
 
