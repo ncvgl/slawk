@@ -14,6 +14,10 @@
   <b>Vision:</b> minimalist · familiar · fast · safe · open-source
 </p>
 
+## [Day 4](https://www.linkedin.com/posts/nathancavaglione_day-414-cloning-slack-with-claude-code-activity-7434330782736928768-1L7h?utm_source=share&utm_medium=member_desktop&rcm=ACoAABo_DiMBthZ8gqvy6PiOdSHUMuPt9XgMnfY)
+
+![Day 4](images/day_4.jpeg)
+
 ## [Day 3](https://www.linkedin.com/posts/nathancavaglione_day-314-cloning-slack-with-claude-code-share-7433958640103026689-hdKo?utm_source=share&utm_medium=member_desktop&rcm=ACoAABo_DiMBthZ8gqvy6PiOdSHUMuPt9XgMnfY)
 
 ![Day 3](images/day_3.gif)
