@@ -52,6 +52,7 @@ export function Message({ message, showAvatar, isCompact, onOpenThread }: Messag
   const [editContent, setEditContent] = useState(message.content);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const editInputRef = useRef<HTMLTextAreaElement>(null);
+  const hoverLeaveTimer = useRef<ReturnType<typeof setTimeout>>();
   const { addReaction, editMessage, deleteMessage } = useMessageStore();
   const currentUser = useAuthStore((s) => s.user);
   const { openProfile } = useProfileStore();
@@ -109,10 +110,15 @@ export function Message({ message, showAvatar, isCompact, onOpenThread }: Messag
         message.isPinned ? 'bg-[#FEF9ED] hover:bg-[#FEF9ED]' : 'hover:bg-[#F8F8F8]',
         showAvatar ? 'pt-4 pb-2' : 'py-0.5'
       )}
-      onMouseEnter={() => setIsHovered(true)}
+      onMouseEnter={() => {
+        clearTimeout(hoverLeaveTimer.current);
+        setIsHovered(true);
+      }}
       onMouseLeave={() => {
-        setIsHovered(false);
-        setShowMoreMenu(false);
+        hoverLeaveTimer.current = setTimeout(() => {
+          setIsHovered(false);
+          setShowMoreMenu(false);
+        }, 150);
       }}
     >
       {/* Fixed 36px left gutter column with 8px gap to content */}

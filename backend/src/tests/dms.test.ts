@@ -324,7 +324,7 @@ describe('Direct Messages', () => {
         .get('/dms')
         .set('Authorization', `Bearer ${aliceToken}`);
 
-      const bobConvoBefore = convos.body.find((c: any) => c.user.id === bobId);
+      const bobConvoBefore = convos.body.find((c: any) => c.otherUser.id === bobId);
       expect(bobConvoBefore.unreadCount).toBe(3);
 
       // Mark as read
@@ -337,7 +337,7 @@ describe('Direct Messages', () => {
         .get('/dms')
         .set('Authorization', `Bearer ${aliceToken}`);
 
-      const bobConvoAfter = convos.body.find((c: any) => c.user.id === bobId);
+      const bobConvoAfter = convos.body.find((c: any) => c.otherUser.id === bobId);
       expect(bobConvoAfter.unreadCount).toBe(0);
     });
   });
@@ -355,7 +355,7 @@ describe('Direct Messages', () => {
         .get('/dms')
         .set('Authorization', `Bearer ${aliceToken}`);
 
-      const bobConvo = res.body.find((c: any) => c.user.id === bobId);
+      const bobConvo = res.body.find((c: any) => c.otherUser.id === bobId);
       expect(bobConvo.unreadCount).toBe(0);
     });
 
@@ -371,7 +371,7 @@ describe('Direct Messages', () => {
         .get('/dms')
         .set('Authorization', `Bearer ${aliceToken}`);
 
-      const bobConvo = res.body.find((c: any) => c.user.id === bobId);
+      const bobConvo = res.body.find((c: any) => c.otherUser.id === bobId);
       expect(bobConvo.unreadCount).toBe(1);
     });
   });
