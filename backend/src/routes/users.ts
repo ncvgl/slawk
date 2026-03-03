@@ -126,10 +126,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
 
     const where = search
       ? {
-          OR: [
-            { name: { contains: search, mode: 'insensitive' as const } },
-            { email: { contains: search, mode: 'insensitive' as const } },
-          ],
+          name: { contains: search, mode: 'insensitive' as const },
         }
       : {};
 

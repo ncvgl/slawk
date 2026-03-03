@@ -174,14 +174,28 @@ describe('User Profiles', () => {
       expect(res.body[0].name).toBe('Alice');
     });
 
-    it('should search users by email', async () => {
+    it('should not search users by email (privacy)', async () => {
       const res = await request(app)
         .get('/users?search=bob@')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body).toHaveLength(1);
-      expect(res.body[0].email).toBe('bob@example.com');
+      expect(res.body).toHaveLength(0);
+    });
+
+    it('@mention search should not match user by email prefix (privacy leak)', async () => {
+      // "alice" appears in alice@example.com but should NOT return that user
+      // unless their name also contains "alice"
+      const res = await request(app)
+        .get('/users?search=alice')
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(res.status).toBe(200);
+      // Only the user whose NAME contains "alice" should be returned
+      expect(res.body.every((u: { name: string }) => u.name.toLowerCase().includes('alice'))).toBe(true);
+      // The "Profile Test User" whose email is profile-test@example.com should not appear
+      const profileTestUser = res.body.find((u: { name: string }) => u.name === 'Profile Test User');
+      expect(profileTestUser).toBeUndefined();
     });
   });
 });
