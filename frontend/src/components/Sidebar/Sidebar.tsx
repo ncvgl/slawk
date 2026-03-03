@@ -44,6 +44,7 @@ export function Sidebar() {
   const [showAddTeammates, setShowAddTeammates] = useState(false);
   const [users, setUsers] = useState<import('@/lib/api').AuthUser[]>([]);
   const [teammateSearch, setTeammateSearch] = useState('');
+  const [createChannelError, setCreateChannelError] = useState('');
   const avatarMenuRef = useRef<HTMLDivElement>(null);
 
   // Close avatar menu when clicking outside
@@ -63,6 +64,7 @@ export function Sidebar() {
     setAddChannelMode('create');
     setShowAddChannelDialog(true);
     setNewChannelName('');
+    setCreateChannelError('');
   };
 
   const handleBrowseChannels = async () => {
@@ -339,9 +341,14 @@ export function Sidebar() {
                     e.preventDefault();
                     const name = newChannelName.trim();
                     if (!name) return;
-                    await createChannel(name);
-                    setNewChannelName('');
-                    setShowAddChannelDialog(false);
+                    try {
+                      await createChannel(name);
+                      setNewChannelName('');
+                      setCreateChannelError('');
+                      setShowAddChannelDialog(false);
+                    } catch {
+                      setCreateChannelError('Channel name already exists');
+                    }
                   }}
                 >
                   <label className="block text-[14px] font-medium text-[#1D1C1D] mb-1">
@@ -350,17 +357,26 @@ export function Sidebar() {
                   <input
                     type="text"
                     value={newChannelName}
-                    onChange={(e) => setNewChannelName(e.target.value)}
+                    onChange={(e) => {
+                      setNewChannelName(e.target.value);
+                      if (createChannelError) setCreateChannelError('');
+                    }}
                     placeholder="e.g. plan-budget"
                     autoFocus
                     className="w-full rounded border border-gray-300 px-3 py-2 text-[15px] text-[#1D1C1D] outline-none focus:border-[#1264A3] focus:ring-1 focus:ring-[#1264A3]"
                   />
+                  {createChannelError && (
+                    <p data-testid="channel-error" className="mt-1 text-[13px] text-red-600">
+                      {createChannelError}
+                    </p>
+                  )}
                   <div className="mt-4 flex justify-end gap-2">
                     <button
                       type="button"
                       onClick={() => {
                         setShowAddChannelDialog(false);
                         setNewChannelName('');
+                        setCreateChannelError('');
                       }}
                       className="rounded px-4 py-2 text-[14px] font-medium text-[#1D1C1D] hover:bg-gray-100"
                     >

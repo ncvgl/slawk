@@ -109,6 +109,7 @@ export const useChannelStore = create<ChannelState>((set, get) => ({
       }));
     } catch (err) {
       console.error('Failed to create channel:', err);
+      throw err;
     }
   },
 
