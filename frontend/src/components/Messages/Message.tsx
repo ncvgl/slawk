@@ -8,6 +8,7 @@ import { MessageReactions } from './MessageReactions';
 import { useMessageStore } from '@/stores/useMessageStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useProfileStore } from '@/stores/useProfileStore';
+import { useBookmarkStore } from '@/stores/useBookmarkStore';
 import { pinMessage, unpinMessage } from '@/lib/api';
 import type { Message as MessageType } from '@/lib/types';
 import { renderMessageContent } from '@/lib/renderMessageContent';
@@ -25,12 +26,13 @@ export function Message({ message, showAvatar, isCompact, onOpenThread }: Messag
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
-  const [isBookmarked, setIsBookmarked] = useState(false);
   const editInputRef = useRef<HTMLTextAreaElement>(null);
   const hoverLeaveTimer = useRef<ReturnType<typeof setTimeout>>();
   const { addReaction, editMessage, deleteMessage } = useMessageStore();
   const currentUser = useAuthStore((s) => s.user);
   const { openProfile } = useProfileStore();
+  const toggleBookmark = useBookmarkStore((s) => s.toggle);
+  const isBookmarked = useBookmarkStore((s) => s.bookmarkedIds.has(message.id));
   const isOwner = currentUser?.id === message.userId;
 
   const formattedTime = format(message.createdAt, 'h:mm a');
@@ -266,11 +268,12 @@ export function Message({ message, showAvatar, isCompact, onOpenThread }: Messag
             <MessageSquare className="h-4 w-4 text-[#616061]" />
           </button>
           <button
-            onClick={() => setIsBookmarked(!isBookmarked)}
+            data-testid="bookmark-button"
+            onClick={() => toggleBookmark(message.id)}
             className="flex h-7 w-7 items-center justify-center rounded hover:bg-[#F8F8F8]"
             title={isBookmarked ? 'Remove bookmark' : 'Bookmark this message'}
           >
-            <Bookmark className={cn('h-4 w-4', isBookmarked ? 'text-yellow-500 fill-current' : 'text-[#616061]')} />
+            <Bookmark data-testid="bookmark-icon" className={cn('h-4 w-4', isBookmarked ? 'text-yellow-500 fill-current' : 'text-[#616061]')} />
           </button>
           <button
             onClick={() => setShowMoreMenu(!showMoreMenu)}

@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet, useNavigate, useParams 
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useChannelStore } from '@/stores/useChannelStore';
 import { useMessageStore } from '@/stores/useMessageStore';
+import { useBookmarkStore } from '@/stores/useBookmarkStore';
 import { connectSocket, disconnectSocket, getSocket } from '@/lib/socket';
 import { AppLayout } from '@/components/Layout/AppLayout';
 import { LoginPage } from '@/components/Auth/LoginPage';
@@ -80,11 +81,13 @@ function AppShell() {
   const joinedChannelsRef = useRef<Set<number>>(new Set());
 
   const fetchDirectMessages = useChannelStore((s) => s.fetchDirectMessages);
+  const loadBookmarks = useBookmarkStore((s) => s.load);
 
   useEffect(() => {
     fetchChannels();
     fetchDirectMessages();
-  }, [fetchChannels, fetchDirectMessages]);
+    loadBookmarks();
+  }, [fetchChannels, fetchDirectMessages, loadBookmarks]);
 
   // Connect socket and set up event listeners
   useEffect(() => {

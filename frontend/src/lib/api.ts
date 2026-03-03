@@ -350,6 +350,25 @@ export function deleteDM(dmId: number) {
   });
 }
 
+// ---- Bookmarks ----
+
+export interface ApiBookmark {
+  messageId: number;
+  createdAt: string;
+}
+
+export function getBookmarks() {
+  return request<ApiBookmark[]>('/bookmarks');
+}
+
+export function addBookmark(messageId: number) {
+  return request<ApiBookmark>(`/messages/${messageId}/bookmark`, { method: 'POST' });
+}
+
+export function removeBookmark(messageId: number) {
+  return request<{ message: string }>(`/messages/${messageId}/bookmark`, { method: 'DELETE' });
+}
+
 // ---- Channel Members ----
 
 export interface ChannelMember {

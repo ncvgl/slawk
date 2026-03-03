@@ -14,6 +14,7 @@ import reactionRoutes from './routes/reactions.js';
 import fileRoutes from './routes/files.js';
 import userRoutes from './routes/users.js';
 import dmRoutes from './routes/dms.js';
+import bookmarkRoutes from './routes/bookmarks.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 const app = express();
@@ -34,6 +35,8 @@ app.use('/search', searchRoutes);
 app.use('/files', fileRoutes);
 app.use('/users', userRoutes);
 app.use('/dms', dmRoutes);
+app.use('/messages', bookmarkRoutes);
+app.use('/bookmarks', bookmarkRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

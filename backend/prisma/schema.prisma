@@ -26,6 +26,7 @@ model User {
   sentDMs       DirectMessage[] @relation("SentMessages")
   receivedDMs   DirectMessage[] @relation("ReceivedMessages")
   channelReads  ChannelRead[]
+  bookmarks     Bookmark[]
 }
 
 model Channel {
@@ -70,6 +71,7 @@ model Message {
   files     File[]
   parent    Message?   @relation("MessageThread", fields: [threadId], references: [id])
   replies   Message[]  @relation("MessageThread")
+  bookmarks Bookmark[]
 
   @@index([channelId, createdAt])
   @@index([threadId])
@@ -124,6 +126,19 @@ model DirectMessage {
 
   @@index([fromUserId, toUserId])
   @@index([toUserId, fromUserId])
+}
+
+model Bookmark {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  messageId Int
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id])
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, messageId])
+  @@index([userId])
 }
 
 model ChannelRead {
