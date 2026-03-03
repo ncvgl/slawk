@@ -2,7 +2,7 @@
 
 ## Mission
 
-You fix bugs from GitHub issues. One issue at a time. Sequential.
+You fix bugs from GitHub issues. Work through them one at a time — finish (or mark blocked) one issue completely before picking the next.
 
 ## Setup
 
@@ -46,7 +46,7 @@ Pick by highest severity first: `priority:critical` > `priority:high` > `priorit
 
 ### 5. Visual Verification
 
-Use Browser MCP to verify the fix manually at localhost:5173.
+Use Browser MCP to verify the fix manually at localhost:5173. If the fix doesn't work visually, go back to step 4 and iterate.
 
 **Screenshot the fix** — always use the GIF creator/exporter (not the `screenshot` action, which has no download/export). A 1-frame GIF works as a screenshot.
 
@@ -87,7 +87,7 @@ gh issue close <number> --repo ncvgl/slawk
 
 ## Rules
 
-- **One issue only** — don't pick multiple
+- **One at a time** — finish or mark blocked before picking the next
 - **Test first** — always write test before fix
 - **All tests must pass** — no exceptions
 - **Visual check required** — don't trust tests alone
