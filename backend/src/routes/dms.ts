@@ -219,6 +219,91 @@ router.get('/:userId', authMiddleware, async (req: AuthRequest, res: Response) =
   }
 });
 
+// PATCH /dms/messages/:id - Edit a direct message
+router.patch('/messages/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const dmId = parseInt(req.params.id);
+    const userId = req.user!.userId;
+
+    if (isNaN(dmId)) {
+      res.status(400).json({ error: 'Invalid message ID' });
+      return;
+    }
+
+    const contentSchema = z.object({ content: z.string().min(1).max(4000) });
+    const { content } = contentSchema.parse(req.body);
+
+    const dm = await prisma.directMessage.findUnique({
+      where: { id: dmId },
+    });
+
+    if (!dm || dm.deletedAt !== null) {
+      res.status(404).json({ error: 'Message not found' });
+      return;
+    }
+
+    if (dm.fromUserId !== userId) {
+      res.status(403).json({ error: 'You can only edit your own messages' });
+      return;
+    }
+
+    const updated = await prisma.directMessage.update({
+      where: { id: dmId },
+      data: { content, editedAt: new Date() },
+      include: {
+        fromUser: { select: { id: true, name: true, email: true, avatar: true } },
+        toUser: { select: { id: true, name: true, email: true, avatar: true } },
+      },
+    });
+
+    res.json(updated);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: error.issues });
+      return;
+    }
+    console.error('Edit DM error:', error);
+    res.status(500).json({ error: 'Failed to edit message' });
+  }
+});
+
+// DELETE /dms/messages/:id - Delete a direct message (soft delete)
+router.delete('/messages/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const dmId = parseInt(req.params.id);
+    const userId = req.user!.userId;
+
+    if (isNaN(dmId)) {
+      res.status(400).json({ error: 'Invalid message ID' });
+      return;
+    }
+
+    const dm = await prisma.directMessage.findUnique({
+      where: { id: dmId },
+    });
+
+    if (!dm || dm.deletedAt !== null) {
+      res.status(404).json({ error: 'Message not found' });
+      return;
+    }
+
+    if (dm.fromUserId !== userId) {
+      res.status(403).json({ error: 'You can only delete your own messages' });
+      return;
+    }
+
+    await prisma.directMessage.update({
+      where: { id: dmId },
+      data: { deletedAt: new Date() },
+    });
+
+    res.json({ message: 'Message deleted successfully' });
+  } catch (error) {
+    console.error('Delete DM error:', error);
+    res.status(500).json({ error: 'Failed to delete message' });
+  }
+});
+
 // POST /dms/:userId/read - Mark all messages from a user as read
 router.post('/:userId/read', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {

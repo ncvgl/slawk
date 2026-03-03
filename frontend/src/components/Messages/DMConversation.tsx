@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { format, isToday, isYesterday } from 'date-fns';
-import { SendHorizontal, Smile, MessageSquare, MoreHorizontal } from 'lucide-react';
+import { SendHorizontal, Smile, MessageSquare, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { Avatar } from '@/components/ui/avatar';
-import { getConversation, sendDM, type ApiDirectMessage } from '@/lib/api';
+import { EmojiPicker } from '@/components/ui/emoji-picker';
+import { getConversation, sendDM, editDM, deleteDM, type ApiDirectMessage } from '@/lib/api';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { cn } from '@/lib/utils';
 
@@ -18,6 +19,7 @@ interface DMMessage {
   fromUserId: number;
   fromUser: { id: number; name: string; avatar?: string | null };
   createdAt: Date;
+  editedAt?: Date | null;
 }
 
 function formatDateSeparator(date: Date): string {
@@ -32,7 +34,13 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
   const [messageText, setMessageText] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [hoveredMessageId, setHoveredMessageId] = useState<number | null>(null);
+  const [showMoreMenuId, setShowMoreMenuId] = useState<number | null>(null);
+  const [showEmojiPickerId, setShowEmojiPickerId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editContent, setEditContent] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const editInputRef = useRef<HTMLTextAreaElement>(null);
+  const hoverLeaveTimer = useRef<ReturnType<typeof setTimeout>>();
   const currentUser = useAuthStore((s) => s.user);
 
   const transformDM = (dm: ApiDirectMessage): DMMessage => ({
@@ -41,6 +49,7 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
     fromUserId: dm.fromUserId,
     fromUser: dm.fromUser,
     createdAt: new Date(dm.createdAt),
+    editedAt: (dm as any).editedAt ? new Date((dm as any).editedAt) : null,
   });
 
   useEffect(() => {
@@ -67,6 +76,14 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
 
+  useEffect(() => {
+    if (editingId !== null && editInputRef.current) {
+      editInputRef.current.focus();
+      const len = editContent.length;
+      editInputRef.current.setSelectionRange(len, len);
+    }
+  }, [editingId]);
+
   const handleSend = async () => {
     const text = messageText.trim();
     if (!text || isSending) return;
@@ -89,6 +106,57 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
       handleSend();
     }
   };
+
+  const handleStartEdit = (msg: DMMessage) => {
+    setEditingId(msg.id);
+    setEditContent(msg.content);
+    setShowMoreMenuId(null);
+  };
+
+  const handleSaveEdit = async () => {
+    if (editingId === null) return;
+    const trimmed = editContent.trim();
+    const original = messages.find((m) => m.id === editingId);
+    if (trimmed && original && trimmed !== original.content) {
+      try {
+        const updated = await editDM(editingId, trimmed);
+        setMessages((prev) =>
+          prev.map((m) => (m.id === editingId ? transformDM(updated) : m))
+        );
+      } catch (err) {
+        console.error('Failed to edit DM:', err);
+      }
+    }
+    setEditingId(null);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditContent('');
+  };
+
+  const handleEditKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSaveEdit();
+    }
+    if (e.key === 'Escape') {
+      handleCancelEdit();
+    }
+  };
+
+  const handleDelete = async (msgId: number) => {
+    setShowMoreMenuId(null);
+    try {
+      await deleteDM(msgId);
+      setMessages((prev) => prev.filter((m) => m.id !== msgId));
+    } catch (err) {
+      console.error('Failed to delete DM:', err);
+    }
+  };
+
+  const keepToolbarOpen = (msgId: number) =>
+    showMoreMenuId === msgId || showEmojiPickerId === msgId || editingId === msgId;
 
   return (
     <div data-testid="dm-conversation" className="flex h-full flex-col">
@@ -121,6 +189,9 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
               const prevMsg = messages[i - 1];
               const showDate = !prevMsg || !isToday(prevMsg.createdAt) && format(msg.createdAt, 'yyyy-MM-dd') !== format(prevMsg.createdAt, 'yyyy-MM-dd');
               const showAvatar = !prevMsg || prevMsg.fromUserId !== msg.fromUserId;
+              const isOwner = currentUser?.id === msg.fromUserId;
+              const isHovered = hoveredMessageId === msg.id;
+              const isEditing = editingId === msg.id;
 
               return (
                 <div key={msg.id}>
@@ -138,8 +209,16 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
                       'group relative flex px-0 hover:bg-[#F8F8F8]',
                       showAvatar ? 'pt-4 pb-2' : 'py-0.5'
                     )}
-                    onMouseEnter={() => setHoveredMessageId(msg.id)}
-                    onMouseLeave={() => setHoveredMessageId(null)}
+                    onMouseEnter={() => {
+                      clearTimeout(hoverLeaveTimer.current);
+                      setHoveredMessageId(msg.id);
+                    }}
+                    onMouseLeave={() => {
+                      hoverLeaveTimer.current = setTimeout(() => {
+                        setHoveredMessageId(null);
+                        setShowMoreMenuId(null);
+                      }, 150);
+                    }}
                   >
                     <div className="w-9 flex-shrink-0 mr-2">
                       {showAvatar ? (
@@ -165,22 +244,61 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
                           <span className="text-[12px] text-[#616061]">
                             {format(msg.createdAt, 'h:mm a')}
                           </span>
+                          {msg.editedAt && (
+                            <span className="text-[12px] text-[#616061]">(edited)</span>
+                          )}
                         </div>
                       )}
-                      <p className="text-[15px] text-[#1D1C1D] leading-[22px] whitespace-pre-wrap break-words">
-                        {msg.content}
-                      </p>
+                      {isEditing ? (
+                        <div className="mt-1">
+                          <textarea
+                            ref={editInputRef}
+                            data-testid="dm-edit-input"
+                            value={editContent}
+                            onChange={(e) => setEditContent(e.target.value)}
+                            onKeyDown={handleEditKeyDown}
+                            className="w-full rounded border border-[#1264A3] bg-white p-2 text-[15px] text-[#1D1C1D] leading-[22px] resize-none outline-none"
+                            rows={2}
+                          />
+                          <div className="mt-1 flex items-center gap-2 text-[12px]">
+                            <button
+                              onClick={handleCancelEdit}
+                              className="text-[#616061] hover:underline"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              data-testid="dm-edit-save"
+                              onClick={handleSaveEdit}
+                              className="rounded bg-[#007a5a] px-3 py-1 text-white hover:bg-[#005e46]"
+                            >
+                              Save
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-[15px] text-[#1D1C1D] leading-[22px] whitespace-pre-wrap break-words">
+                          {msg.content}
+                          {!showAvatar && msg.editedAt && (
+                            <span className="text-[12px] text-[#616061] ml-1">(edited)</span>
+                          )}
+                        </p>
+                      )}
                     </div>
 
                     {/* Hover action toolbar */}
-                    {hoveredMessageId === msg.id && (
+                    {(isHovered || keepToolbarOpen(msg.id)) && !isEditing && (
                       <div
                         data-testid="dm-message-toolbar"
                         className="absolute -top-4 right-2 flex items-center gap-0.5 rounded-lg border border-[#E0E0E0] bg-white p-0.5 shadow-sm"
                       >
                         <button
+                          data-testid="dm-emoji-btn"
                           className="flex h-7 w-7 items-center justify-center rounded hover:bg-[#F8F8F8]"
                           title="Add reaction"
+                          onClick={() =>
+                            setShowEmojiPickerId((prev) => (prev === msg.id ? null : msg.id))
+                          }
                         >
                           <Smile className="h-4 w-4 text-[#616061]" />
                         </button>
@@ -191,11 +309,62 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
                           <MessageSquare className="h-4 w-4 text-[#616061]" />
                         </button>
                         <button
+                          data-testid="dm-more-btn"
                           className="flex h-7 w-7 items-center justify-center rounded hover:bg-[#F8F8F8]"
                           title="More actions"
+                          onClick={() =>
+                            setShowMoreMenuId((prev) => (prev === msg.id ? null : msg.id))
+                          }
                         >
                           <MoreHorizontal className="h-4 w-4 text-[#616061]" />
                         </button>
+                      </div>
+                    )}
+
+                    {/* More actions dropdown */}
+                    {showMoreMenuId === msg.id && (
+                      <div
+                        data-testid="dm-more-menu"
+                        className="absolute -top-4 right-2 mt-9 z-50 w-48 rounded-lg border border-[#E0E0E0] bg-white py-1 shadow-lg"
+                      >
+                        {isOwner && (
+                          <>
+                            <button
+                              data-testid="dm-edit-btn"
+                              onClick={() => handleStartEdit(msg)}
+                              className="flex w-full items-center gap-2 px-4 py-1.5 text-[14px] text-[#1D1C1D] hover:bg-[#F8F8F8]"
+                            >
+                              <Pencil className="h-4 w-4" />
+                              Edit message
+                            </button>
+                            <button
+                              data-testid="dm-delete-btn"
+                              onClick={() => handleDelete(msg.id)}
+                              className="flex w-full items-center gap-2 px-4 py-1.5 text-[14px] text-red-600 hover:bg-[#F8F8F8]"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Delete message
+                            </button>
+                          </>
+                        )}
+                        {!isOwner && (
+                          <div className="px-4 py-1.5 text-[13px] text-[#616061]">
+                            No actions available
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Emoji picker */}
+                    {showEmojiPickerId === msg.id && (
+                      <div className="absolute -top-4 right-2 mt-9 z-50">
+                        <EmojiPicker
+                          onEmojiSelect={(_emoji) => {
+                            // Reactions on DMs not supported by backend yet
+                            setShowEmojiPickerId(null);
+                          }}
+                          onClickOutside={() => setShowEmojiPickerId(null)}
+                        />
                       </div>
                     )}
                   </div>

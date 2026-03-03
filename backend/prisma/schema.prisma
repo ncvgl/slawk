@@ -115,6 +115,7 @@ model DirectMessage {
   toUserId   Int
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @default(now()) @updatedAt
+  editedAt   DateTime?
   deletedAt  DateTime?
   readAt     DateTime?
 

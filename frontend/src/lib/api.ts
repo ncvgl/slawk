@@ -337,6 +337,19 @@ export function sendDM(toUserId: number, content: string) {
   });
 }
 
+export function editDM(dmId: number, content: string) {
+  return request<ApiDirectMessage>(`/dms/messages/${dmId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ content }),
+  });
+}
+
+export function deleteDM(dmId: number) {
+  return request<{ message: string }>(`/dms/messages/${dmId}`, {
+    method: 'DELETE',
+  });
+}
+
 // ---- Channel Members ----
 
 export interface ChannelMember {
