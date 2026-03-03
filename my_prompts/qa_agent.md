@@ -24,6 +24,12 @@ gh issue list --repo ncvgl/slawk --state open
 
 Don't report known bugs. Use this to focus on untested areas.
 
+To view an issue's screenshot, download it locally then use Read (WebFetch can't render images):
+```bash
+curl -s -o /tmp/bug.gif "https://storage.googleapis.com/slawk-screenshots/<filename>.gif"
+```
+Then read `/tmp/bug.gif` — Claude can see and understand local image files.
+
 ### 2. Plan Your Testing
 
 Prioritize: features not covered by existing issues, recently changed code, and complex features.
