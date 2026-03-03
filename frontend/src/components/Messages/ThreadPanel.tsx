@@ -24,8 +24,10 @@ export function ThreadPanel({ messageId, onClose, onReplyCountChange }: ThreadPa
   const [parentMessage, setParentMessage] = useState<ThreadMessage | null>(null);
   const [replies, setReplies] = useState<ThreadMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [replyError, setReplyError] = useState<string | null>(null);
   const repliesEndRef = useRef<HTMLDivElement>(null);
 
   const transformMessage = (msg: ApiMessage): ThreadMessage => ({
@@ -39,6 +41,7 @@ export function ThreadPanel({ messageId, onClose, onReplyCountChange }: ThreadPa
   useEffect(() => {
     let cancelled = false;
     setIsLoading(true);
+    setLoadError(null);
 
     getThread(messageId)
       .then((data) => {
@@ -46,7 +49,9 @@ export function ThreadPanel({ messageId, onClose, onReplyCountChange }: ThreadPa
         setParentMessage(transformMessage(data.parent));
         setReplies(data.replies.map(transformMessage));
       })
-      .catch(() => {})
+      .catch(() => {
+        if (!cancelled) setLoadError('Failed to load thread. Please try again.');
+      })
       .finally(() => {
         if (!cancelled) setIsLoading(false);
       });
@@ -65,6 +70,7 @@ export function ThreadPanel({ messageId, onClose, onReplyCountChange }: ThreadPa
     if (!text || isSending) return;
 
     setIsSending(true);
+    setReplyError(null);
     try {
       const apiReply = await replyToMessage(messageId, text);
       const reply = transformMessage(apiReply);
@@ -73,6 +79,7 @@ export function ThreadPanel({ messageId, onClose, onReplyCountChange }: ThreadPa
       onReplyCountChange?.(messageId, replies.length + 1);
     } catch (err) {
       console.error('Failed to send reply:', err);
+      setReplyError('Failed to send reply. Please try again.');
     } finally {
       setIsSending(false);
     }
@@ -105,6 +112,8 @@ export function ThreadPanel({ messageId, onClose, onReplyCountChange }: ThreadPa
       <div className="flex-1 overflow-y-auto px-4 py-3">
         {isLoading ? (
           <div className="text-center text-sm text-gray-500 py-4">Loading thread...</div>
+        ) : loadError ? (
+          <div data-testid="thread-load-error" className="text-center text-sm text-red-600 py-4">{loadError}</div>
         ) : (
           <>
             {/* Parent message */}
@@ -174,12 +183,15 @@ export function ThreadPanel({ messageId, onClose, onReplyCountChange }: ThreadPa
 
       {/* Reply input */}
       <div className="border-t border-[#E0E0E0] px-4 py-3">
+        {replyError && (
+          <p data-testid="thread-reply-error" className="mb-2 text-xs text-red-600">{replyError}</p>
+        )}
         <div className="flex items-center gap-2 rounded-lg border border-[rgba(29,28,29,0.13)] px-3 py-2 focus-within:border-[#1264A3]">
           <input
             data-testid="thread-reply-input"
             type="text"
             value={replyText}
-            onChange={(e) => setReplyText(e.target.value)}
+            onChange={(e) => { setReplyText(e.target.value); setReplyError(null); }}
             onKeyDown={handleKeyDown}
             placeholder="Reply..."
             className="flex-1 text-[14px] text-[#1D1C1D] outline-none placeholder:text-[#616061]"
