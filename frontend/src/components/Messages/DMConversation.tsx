@@ -4,11 +4,16 @@ import {
   Pin,
   FileText,
   X,
+  Star,
+  Bell,
+  Search,
+  MoreVertical,
 } from 'lucide-react';
 import { Avatar } from '@/components/ui/avatar';
 import { EmojiPicker } from '@/components/ui/emoji-picker';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useDMStore } from '@/stores/useDMStore';
+import { useChannelStore } from '@/stores/useChannelStore';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useMessageEdit } from '@/hooks/useMessageEdit';
@@ -16,6 +21,7 @@ import { MessageToolbar } from './MessageToolbar';
 import { MessageActionsMenu } from './MessageActionsMenu';
 import { MessageInput } from './MessageInput';
 import { renderMessageContent } from '@/lib/renderMessageContent';
+import { searchMessages, type SearchResult } from '@/lib/api';
 import type { DMMessage } from '@/stores/useDMStore';
 
 interface DMConversationProps {
@@ -53,9 +59,21 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
   const [showEmojiPickerId, setShowEmojiPickerId] = useState<number | null>(null);
   const [showPins, setShowPins] = useState(false);
   const [showFiles, setShowFiles] = useState(false);
+  const [isStarred, setIsStarred] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showHeaderMenu, setShowHeaderMenu] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const hoverLeaveTimer = useRef<ReturnType<typeof setTimeout>>();
+  const searchRef = useRef<HTMLDivElement>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const currentUser = useAuthStore((s) => s.user);
+  const channels = useChannelStore((s) => s.channels);
+  const setActiveChannel = useChannelStore((s) => s.setActiveChannel);
   const {
     editingId, editContent, setEditContent, editInputRef,
     startEdit, cancelEdit, saveEdit, handleEditKeyDown,
@@ -70,6 +88,79 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
+
+  // Close search results when clicking outside
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowSearchResults(false);
+      }
+    }
+    if (showSearchResults) {
+      document.addEventListener('mousedown', handleClick);
+      return () => document.removeEventListener('mousedown', handleClick);
+    }
+  }, [showSearchResults]);
+
+  // Close notifications when clicking outside
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setShowNotifications(false);
+      }
+    }
+    if (showNotifications) {
+      document.addEventListener('mousedown', handleClick);
+      return () => document.removeEventListener('mousedown', handleClick);
+    }
+  }, [showNotifications]);
+
+  // Close header menu when clicking outside
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowHeaderMenu(false);
+      }
+    }
+    if (showHeaderMenu) {
+      document.addEventListener('mousedown', handleClick);
+      return () => document.removeEventListener('mousedown', handleClick);
+    }
+  }, [showHeaderMenu]);
+
+  const handleSearch = async () => {
+    const q = searchQuery.trim();
+    if (q.length < 2) return;
+    setIsSearching(true);
+    try {
+      const data = await searchMessages(q);
+      setSearchResults(data.results);
+      setShowSearchResults(true);
+    } catch {
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    } else if (e.key === 'Escape') {
+      setSearchQuery('');
+      setShowSearchResults(false);
+      setSearchResults([]);
+    }
+  };
+
+  const handleSearchResultClick = (result: SearchResult) => {
+    if (result.channel) {
+      setActiveChannel(result.channel.id, result.id);
+    }
+    setSearchQuery('');
+    setShowSearchResults(false);
+    setSearchResults([]);
+  };
 
   const handleStartEdit = (msg: { id: number; content: string }) => {
     startEdit(msg.id, msg.content);
@@ -89,15 +180,139 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
       {/* Header */}
       <header className="flex flex-col border-b border-slack-border bg-white">
         {/* Top Row */}
-        <div className="flex h-[49px] items-center px-4">
-          <Avatar
-            src={userAvatar || undefined}
-            alt={userName}
-            fallback={userName}
-            size="md"
-            status="online"
-          />
-          <span className="ml-2 text-[18px] font-bold text-slack-primary">{userName}</span>
+        <div className="flex h-[49px] items-center justify-between px-4">
+          {/* Left Section */}
+          <div className="flex items-center gap-1">
+            <Avatar
+              src={userAvatar || undefined}
+              alt={userName}
+              fallback={userName}
+              size="md"
+              status="online"
+            />
+            <span className="ml-2 text-[18px] font-bold text-slack-primary">{userName}</span>
+            <Button
+              variant="toolbar"
+              size="icon-xs"
+              data-testid="dm-star-button"
+              onClick={() => setIsStarred((v) => !v)}
+              title={isStarred ? 'Remove from Starred' : 'Add to Starred'}
+            >
+              <Star className={cn('h-4 w-4', isStarred ? 'fill-yellow-400 text-yellow-400' : 'text-slack-secondary')} />
+            </Button>
+          </div>
+
+          {/* Right Section */}
+          <div className="flex items-center gap-2">
+            <div className="relative" ref={notifRef}>
+              <Button
+                variant="toolbar"
+                size="icon-xs"
+                data-testid="dm-notification-bell"
+                title="Notifications"
+                onClick={() => setShowNotifications((v) => !v)}
+              >
+                <Bell className={cn('h-4 w-4', showNotifications ? 'text-slack-link' : 'text-slack-secondary')} />
+              </Button>
+              {showNotifications && (
+                <div data-testid="dm-notifications-panel" className="absolute right-0 top-7 z-50 w-[300px] max-h-[360px] overflow-y-auto rounded-lg border border-slack-border bg-white shadow-lg">
+                  <div className="px-3 py-2 border-b border-slack-border">
+                    <h3 className="text-[13px] font-bold text-slack-primary">Activity</h3>
+                  </div>
+                  {(() => {
+                    const unread = channels.filter((ch) => ch.unreadCount > 0);
+                    if (unread.length === 0) {
+                      return <p className="px-3 py-6 text-center text-[13px] text-slack-hint">No new notifications</p>;
+                    }
+                    return unread.map((ch) => (
+                      <button
+                        key={ch.id}
+                        onClick={() => { setActiveChannel(ch.id); setShowNotifications(false); }}
+                        className="w-full text-left px-3 py-2 hover:bg-slack-hover border-b border-slack-border-light last:border-b-0"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-[13px] font-medium text-slack-primary">#{ch.name}</span>
+                          <span className="text-[12px] bg-slack-badge text-white rounded-full px-1.5 min-w-[20px] text-center">{ch.unreadCount}</span>
+                        </div>
+                      </button>
+                    ));
+                  })()}
+                </div>
+              )}
+            </div>
+            <div className="h-4 w-px bg-slack-border" />
+            <div className="relative" ref={searchRef}>
+              <Search className="absolute left-2 top-1/2 h-[14px] w-[14px] -translate-y-1/2 text-slack-secondary" />
+              <input
+                type="text"
+                placeholder="Search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                className="h-[26px] w-[140px] rounded-md border border-slack-border bg-white pl-7 pr-2 text-[13px] placeholder:text-slack-secondary focus:outline-none focus:border-slack-link focus:w-[240px] transition-all"
+              />
+              {showSearchResults && (
+                <div data-testid="dm-search-results-dropdown" className="absolute right-0 top-8 z-50 w-[360px] max-h-[400px] overflow-y-auto rounded-lg border border-slack-border bg-white shadow-lg">
+                  {isSearching ? (
+                    <div className="p-4 text-center text-sm text-slack-hint">Searching...</div>
+                  ) : searchResults.length === 0 ? (
+                    <div className="p-4 text-center text-sm text-slack-hint">No results found</div>
+                  ) : (
+                    <div>
+                      <div className="px-3 py-2 text-xs font-medium text-slack-hint border-b">
+                        {searchResults.length} result{searchResults.length !== 1 ? 's' : ''}
+                      </div>
+                      {searchResults.map((result) => (
+                        <button
+                          key={`${result.type}-${result.id}`}
+                          onClick={() => handleSearchResultClick(result)}
+                          className="w-full text-left px-3 py-2 hover:bg-slack-hover border-b border-slack-border-light last:border-b-0"
+                        >
+                          <div className="flex items-start gap-2">
+                            <Avatar
+                              src={result.user.avatar ?? undefined}
+                              alt={result.user.name}
+                              fallback={result.user.name}
+                              size="sm"
+                              className="flex-shrink-0 mt-0.5"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1 text-xs text-slack-hint">
+                                <span className="font-medium text-slack-primary">{result.user.name}</span>
+                                <span className="text-slack-disabled">{format(new Date(result.createdAt), 'h:mm a')}</span>
+                                {result.channel && (
+                                  <>
+                                    <span>in</span>
+                                    <span className="font-medium">#{result.channel.name}</span>
+                                  </>
+                                )}
+                              </div>
+                              <p className="mt-0.5 text-sm text-slack-primary line-clamp-2">{renderMessageContent(result.content)}</p>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="relative" ref={menuRef}>
+              <Button
+                variant="toolbar"
+                size="icon-xs"
+                data-testid="dm-header-menu"
+                onClick={() => setShowHeaderMenu((v) => !v)}
+              >
+                <MoreVertical className="h-4 w-4 text-slack-secondary" />
+              </Button>
+              {showHeaderMenu && (
+                <div className="absolute right-0 top-7 z-50 min-w-[160px] rounded-lg border border-slack-border bg-white shadow-lg py-1">
+                  <p className="px-3 py-2 text-[13px] text-slack-hint">No actions available</p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
         {/* Tabs Row */}
         <div className="flex items-center gap-0.5 px-4 pb-[6px]">
