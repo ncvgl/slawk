@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { FileText, FileImage, FileArchive, Download } from 'lucide-react';
 import { format } from 'date-fns';
-import { getUserFiles, type ApiFileWithUser } from '@/lib/api';
+import { getUserFiles, getAuthFileUrl, type ApiFileWithUser } from '@/lib/api';
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -57,9 +57,9 @@ export function FilesPage() {
             {files.map((file) => (
               <div key={file.id} className="flex items-start gap-3 rounded-lg p-3 hover:bg-slack-hover">
                 {file.mimetype.startsWith('image/') ? (
-                  <a href={file.url} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
+                  <a href={getAuthFileUrl(file.url)} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
                     <img
-                      src={file.url}
+                      src={getAuthFileUrl(file.url)}
                       alt={file.originalName}
                       className="h-10 w-10 rounded object-cover"
                     />
@@ -71,7 +71,7 @@ export function FilesPage() {
                 )}
                 <div className="flex-1 min-w-0">
                   <a
-                    href={file.url}
+                    href={getAuthFileUrl(file.url)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block text-[14px] font-medium text-slack-link hover:underline truncate"
@@ -84,7 +84,7 @@ export function FilesPage() {
                   </p>
                 </div>
                 <a
-                  href={file.url}
+                  href={getAuthFileUrl(file.url)}
                   download={file.originalName}
                   className="flex-shrink-0 flex h-8 w-8 items-center justify-center rounded hover:bg-slack-border-light"
                   title="Download"

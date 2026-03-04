@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { X, FileText, FileImage, FileArchive, Download } from 'lucide-react';
 import { format } from 'date-fns';
-import { getChannelFiles, getUserFiles, type ApiFileWithUser } from '@/lib/api';
+import { getChannelFiles, getUserFiles, getAuthFileUrl, type ApiFileWithUser } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 
 interface FilesPanelProps {
@@ -68,9 +68,9 @@ export function FilesPanel({ channelId, onClose, title }: FilesPanelProps) {
           files.map((file) => (
             <div key={file.id} className="border-b border-slack-border-light px-4 py-3">
               {file.mimetype.startsWith('image/') ? (
-                <a href={file.url} target="_blank" rel="noopener noreferrer" className="block mb-2">
+                <a href={getAuthFileUrl(file.url)} target="_blank" rel="noopener noreferrer" className="block mb-2">
                   <img
-                    src={file.url}
+                    src={getAuthFileUrl(file.url)}
                     alt={file.originalName}
                     className="w-full max-h-[140px] rounded object-cover"
                   />
@@ -82,7 +82,7 @@ export function FilesPanel({ channelId, onClose, title }: FilesPanelProps) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <a
-                    href={file.url}
+                    href={getAuthFileUrl(file.url)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block text-[13px] font-medium text-slack-link hover:underline truncate"
@@ -95,7 +95,7 @@ export function FilesPanel({ channelId, onClose, title }: FilesPanelProps) {
                   </p>
                 </div>
                 <a
-                  href={file.url}
+                  href={getAuthFileUrl(file.url)}
                   download={file.originalName}
                   className="flex-shrink-0 flex h-6 w-6 items-center justify-center rounded hover:bg-slack-hover"
                   title="Download"

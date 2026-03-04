@@ -13,6 +13,7 @@ import { useMessageActions } from '@/hooks/useMessageActions';
 import { useMessageHover } from '@/hooks/useMessageHover';
 import { useMessageEdit } from '@/hooks/useMessageEdit';
 import type { Message as MessageType } from '@/lib/types';
+import { getAuthFileUrl } from '@/lib/api';
 import { renderMessageContent } from '@/lib/renderMessageContent';
 import { ImageLightbox } from './ImageLightbox';
 import { MessageToolbar } from './MessageToolbar';
@@ -158,11 +159,11 @@ export function Message({ message, showAvatar, isCompact, onOpenThread }: Messag
                   <div>
                     <button
                       data-testid="image-thumbnail"
-                      onClick={() => { setLightboxSrc(file.url); setLightboxAlt(file.originalName); }}
+                      onClick={() => { setLightboxSrc(getAuthFileUrl(file.url)); setLightboxAlt(file.originalName); }}
                       className="block cursor-zoom-in focus:outline-none"
                     >
                       <img
-                        src={file.url}
+                        src={getAuthFileUrl(file.url)}
                         alt={file.originalName}
                         className="max-h-[200px] max-w-[300px] object-contain"
                       />
@@ -176,7 +177,7 @@ export function Message({ message, showAvatar, isCompact, onOpenThread }: Messag
                       </span>
                       <a
                         data-testid="image-download"
-                        href={file.url}
+                        href={getAuthFileUrl(file.url)}
                         download={file.originalName}
                         className="ml-auto flex-shrink-0 text-slack-disabled hover:text-slack-primary"
                         onClick={(e) => e.stopPropagation()}
@@ -187,7 +188,7 @@ export function Message({ message, showAvatar, isCompact, onOpenThread }: Messag
                   </div>
                 ) : (
                   <a
-                    href={file.url}
+                    href={getAuthFileUrl(file.url)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-2 px-3 py-2 hover:bg-slack-hover"

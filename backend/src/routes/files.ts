@@ -128,7 +128,8 @@ router.post('/', authMiddleware, upload.single('file'), async (req: AuthRequest,
       url = gcsResult.signedUrl;
       gcsPath = gcsResult.gcsPath;
     } else {
-      url = `/uploads/${file.filename}`;
+      // URL will be updated after creation to use authenticated download endpoint
+      url = '';
     }
 
     const fileRecord = await prisma.file.create({
@@ -148,6 +149,15 @@ router.post('/', authMiddleware, upload.single('file'), async (req: AuthRequest,
         },
       },
     });
+
+    // For local files, set URL to authenticated download endpoint
+    if (!gcsPath) {
+      await prisma.file.update({
+        where: { id: fileRecord.id },
+        data: { url: `/files/${fileRecord.id}/download` },
+      });
+      fileRecord.url = `/files/${fileRecord.id}/download`;
+    }
 
     res.status(201).json(fileRecord);
   } catch (error) {
@@ -175,6 +185,43 @@ router.get('/:id', authMiddleware, requireFileAccess, async (req: AuthRequest, r
   } catch (error) {
     console.error('Get file error:', error);
     res.status(500).json({ error: 'Failed to get file' });
+  }
+});
+
+// GET /files/:id/download - Download file content (authenticated via header or query token)
+router.get('/:id/download', (req: AuthRequest, res: Response, next) => {
+  // Allow token via query parameter for <img> tags that can't send headers
+  if (!req.headers.authorization && req.query.token) {
+    req.headers.authorization = `Bearer ${req.query.token}`;
+  }
+  next();
+}, authMiddleware, requireFileAccess, async (req: AuthRequest, res: Response) => {
+  try {
+    const file = req.file;
+
+    // GCS files: redirect to signed URL
+    if (file.gcsPath && bucket) {
+      const [signedUrl] = await bucket.file(file.gcsPath).getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 15 * 60 * 1000, // 15 min
+      });
+      res.redirect(signedUrl);
+      return;
+    }
+
+    // Local files: stream from disk
+    const filePath = path.join(uploadDir, file.filename);
+    if (!fs.existsSync(filePath)) {
+      res.status(404).json({ error: 'File not found on disk' });
+      return;
+    }
+
+    res.setHeader('Content-Type', file.mimetype);
+    res.setHeader('Content-Disposition', `inline; filename="${file.originalName}"`);
+    fs.createReadStream(filePath).pipe(res);
+  } catch (error) {
+    console.error('Download file error:', error);
+    res.status(500).json({ error: 'Failed to download file' });
   }
 });
 

@@ -17,6 +17,7 @@ import dmRoutes from './routes/dms.js';
 import bookmarkRoutes from './routes/bookmarks.js';
 import scheduledMessageRoutes from './routes/scheduled-messages.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { authMiddleware } from './middleware/auth.js';
 
 const app = express();
 
@@ -24,8 +25,8 @@ const corsOrigin = process.env.CORS_ORIGIN || (process.env.NODE_ENV === 'product
 app.use(cors({ origin: corsOrigin as string | boolean }));
 app.use(express.json());
 
-// Serve uploaded files
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+// Note: /uploads is NOT served via express.static to prevent unauthenticated access.
+// Files are served through the authenticated GET /files/:id/download endpoint.
 
 // Routes
 app.use('/auth', authRoutes);
