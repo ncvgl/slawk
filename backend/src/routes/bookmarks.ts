@@ -1,29 +1,16 @@
 import { Router, Response } from 'express';
 import prisma from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
+import { requireMessageAccess } from '../middleware/authorize.js';
 import { AuthRequest } from '../types.js';
 
 const router = Router();
 
 // POST /messages/:id/bookmark - Bookmark a message
-router.post('/:id/bookmark', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.post('/:id/bookmark', authMiddleware, requireMessageAccess, async (req: AuthRequest, res: Response) => {
   try {
     const messageId = parseInt(req.params.id);
     const userId = req.user!.userId;
-
-    if (isNaN(messageId)) {
-      res.status(400).json({ error: 'Invalid message ID' });
-      return;
-    }
-
-    const message = await prisma.message.findUnique({
-      where: { id: messageId },
-    });
-
-    if (!message || message.deletedAt !== null) {
-      res.status(404).json({ error: 'Message not found' });
-      return;
-    }
 
     const existing = await prisma.bookmark.findUnique({
       where: { userId_messageId: { userId, messageId } },
@@ -46,15 +33,10 @@ router.post('/:id/bookmark', authMiddleware, async (req: AuthRequest, res: Respo
 });
 
 // DELETE /messages/:id/bookmark - Remove bookmark
-router.delete('/:id/bookmark', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.delete('/:id/bookmark', authMiddleware, requireMessageAccess, async (req: AuthRequest, res: Response) => {
   try {
     const messageId = parseInt(req.params.id);
     const userId = req.user!.userId;
-
-    if (isNaN(messageId)) {
-      res.status(400).json({ error: 'Invalid message ID' });
-      return;
-    }
 
     const bookmark = await prisma.bookmark.findUnique({
       where: { userId_messageId: { userId, messageId } },

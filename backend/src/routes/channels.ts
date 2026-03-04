@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import prisma from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
+import { requireChannelMembership } from '../middleware/authorize.js';
 import { AuthRequest } from '../types.js';
 import { isUserOnline } from '../websocket/index.js';
 
@@ -221,9 +222,9 @@ router.post('/:id/join', authMiddleware, async (req: AuthRequest, res: Response)
 });
 
 // POST /channels/:id/leave - Leave a channel
-router.post('/:id/leave', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.post('/:id/leave', authMiddleware, requireChannelMembership, async (req: AuthRequest, res: Response) => {
   try {
-    const channelId = parseInt(req.params.id);
+    const channelId = req.channelId!;
     const userId = req.user!.userId;
 
     // Check if user is the last member
@@ -250,9 +251,9 @@ router.post('/:id/leave', authMiddleware, async (req: AuthRequest, res: Response
 });
 
 // GET /channels/:id/members - List channel members
-router.get('/:id/members', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.get('/:id/members', authMiddleware, requireChannelMembership, async (req: AuthRequest, res: Response) => {
   try {
-    const channelId = parseInt(req.params.id);
+    const channelId = req.channelId!;
 
     const members = await prisma.channelMember.findMany({
       where: { channelId },
@@ -286,21 +287,11 @@ const markReadSchema = z.object({
   messageId: z.number().int().positive(),
 });
 
-router.post('/:id/read', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.post('/:id/read', authMiddleware, requireChannelMembership, async (req: AuthRequest, res: Response) => {
   try {
-    const channelId = parseInt(req.params.id);
+    const channelId = req.channelId!;
     const userId = req.user!.userId;
     const { messageId } = markReadSchema.parse(req.body);
-
-    // Verify membership
-    const membership = await prisma.channelMember.findUnique({
-      where: { userId_channelId: { userId, channelId } },
-    });
-
-    if (!membership) {
-      res.status(403).json({ error: 'You must be a member of this channel' });
-      return;
-    }
 
     // Verify the message exists in this channel
     const message = await prisma.message.findFirst({
@@ -330,19 +321,9 @@ router.post('/:id/read', authMiddleware, async (req: AuthRequest, res: Response)
 });
 
 // GET /channels/:id/files - Get files uploaded in channel
-router.get('/:id/files', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.get('/:id/files', authMiddleware, requireChannelMembership, async (req: AuthRequest, res: Response) => {
   try {
-    const channelId = parseInt(req.params.id);
-    const userId = req.user!.userId;
-
-    const membership = await prisma.channelMember.findUnique({
-      where: { userId_channelId: { userId, channelId } },
-    });
-
-    if (!membership) {
-      res.status(403).json({ error: 'You must be a member of this channel' });
-      return;
-    }
+    const channelId = req.channelId!;
 
     const files = await prisma.file.findMany({
       where: {
@@ -362,19 +343,9 @@ router.get('/:id/files', authMiddleware, async (req: AuthRequest, res: Response)
 });
 
 // GET /channels/:id/pins - Get pinned messages
-router.get('/:id/pins', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.get('/:id/pins', authMiddleware, requireChannelMembership, async (req: AuthRequest, res: Response) => {
   try {
-    const channelId = parseInt(req.params.id);
-    const userId = req.user!.userId;
-
-    const membership = await prisma.channelMember.findUnique({
-      where: { userId_channelId: { userId, channelId } },
-    });
-
-    if (!membership) {
-      res.status(403).json({ error: 'You must be a member of this channel' });
-      return;
-    }
+    const channelId = req.channelId!;
 
     const pins = await prisma.message.findMany({
       where: { channelId, isPinned: true, deletedAt: null },

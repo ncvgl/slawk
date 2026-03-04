@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import prisma from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
+import { requireMessageAccess } from '../middleware/authorize.js';
 import { AuthRequest } from '../types.js';
 
 const router = Router();
@@ -11,38 +12,11 @@ const reactionSchema = z.object({
 });
 
 // POST /messages/:id/reactions - Add reaction to message
-router.post('/:id/reactions', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.post('/:id/reactions', authMiddleware, requireMessageAccess, async (req: AuthRequest, res: Response) => {
   try {
     const messageId = parseInt(req.params.id);
     const userId = req.user!.userId;
     const { emoji } = reactionSchema.parse(req.body);
-
-    if (isNaN(messageId)) {
-      res.status(400).json({ error: 'Invalid message ID' });
-      return;
-    }
-
-    // Check if message exists and is not deleted
-    const message = await prisma.message.findUnique({
-      where: { id: messageId },
-    });
-
-    if (!message || message.deletedAt !== null) {
-      res.status(404).json({ error: 'Message not found' });
-      return;
-    }
-
-    // Check if user is a member of the channel
-    const membership = await prisma.channelMember.findUnique({
-      where: {
-        userId_channelId: { userId, channelId: message.channelId },
-      },
-    });
-
-    if (!membership) {
-      res.status(403).json({ error: 'You must be a member of the channel' });
-      return;
-    }
 
     // Check if reaction already exists
     const existingReaction = await prisma.reaction.findUnique({
@@ -81,7 +55,7 @@ router.post('/:id/reactions', authMiddleware, async (req: AuthRequest, res: Resp
 });
 
 // DELETE /messages/:id/reactions/:emoji - Remove reaction from message
-router.delete('/:id/reactions/:emoji', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.delete('/:id/reactions/:emoji', authMiddleware, requireMessageAccess, async (req: AuthRequest, res: Response) => {
   try {
     const messageId = parseInt(req.params.id);
     const emoji = decodeURIComponent(req.params.emoji);
@@ -115,14 +89,9 @@ router.delete('/:id/reactions/:emoji', authMiddleware, async (req: AuthRequest, 
 });
 
 // GET /messages/:id/reactions - Get all reactions for a message
-router.get('/:id/reactions', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.get('/:id/reactions', authMiddleware, requireMessageAccess, async (req: AuthRequest, res: Response) => {
   try {
     const messageId = parseInt(req.params.id);
-
-    if (isNaN(messageId)) {
-      res.status(400).json({ error: 'Invalid message ID' });
-      return;
-    }
 
     const reactions = await prisma.reaction.findMany({
       where: { messageId },

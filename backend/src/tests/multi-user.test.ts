@@ -122,7 +122,7 @@ describe('Multi-User Scenarios', () => {
         .send({ content: 'Can I join?' });
 
       expect(res.status).toBe(403);
-      expect(res.body.error).toBe('You must join the channel to send messages');
+      expect(res.body.error).toBe('You must be a member of this channel');
     });
 
     it('should allow non-member to send after joining', async () => {

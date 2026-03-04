@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import prisma from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
+import { requireMessageAccess } from '../middleware/authorize.js';
 import { AuthRequest } from '../types.js';
 import { getIO } from '../websocket/index.js';
 
@@ -16,41 +17,16 @@ const editMessageSchema = z.object({
 });
 
 // POST /messages/:id/reply - Reply to message (creates thread)
-router.post('/:id/reply', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.post('/:id/reply', authMiddleware, requireMessageAccess, async (req: AuthRequest, res: Response) => {
   try {
     const parentId = parseInt(req.params.id);
     const userId = req.user!.userId;
     const { content } = replySchema.parse(req.body);
-
-    if (isNaN(parentId)) {
-      res.status(400).json({ error: 'Invalid message ID' });
-      return;
-    }
-
-    const parentMessage = await prisma.message.findUnique({
-      where: { id: parentId },
-    });
-
-    if (!parentMessage) {
-      res.status(404).json({ error: 'Parent message not found' });
-      return;
-    }
+    const parentMessage = req.message;
 
     // Prevent nested threads - cannot reply to a reply
     if (parentMessage.threadId !== null) {
       res.status(400).json({ error: 'Cannot reply to a reply. Reply to the parent message instead.' });
-      return;
-    }
-
-    // Check if user is a member of the channel
-    const membership = await prisma.channelMember.findUnique({
-      where: {
-        userId_channelId: { userId, channelId: parentMessage.channelId },
-      },
-    });
-
-    if (!membership) {
-      res.status(403).json({ error: 'You must join the channel to reply' });
       return;
     }
 
@@ -80,15 +56,11 @@ router.post('/:id/reply', authMiddleware, async (req: AuthRequest, res: Response
 });
 
 // GET /messages/:id/thread - Get thread messages
-router.get('/:id/thread', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.get('/:id/thread', authMiddleware, requireMessageAccess, async (req: AuthRequest, res: Response) => {
   try {
     const parentId = parseInt(req.params.id);
 
-    if (isNaN(parentId)) {
-      res.status(400).json({ error: 'Invalid message ID' });
-      return;
-    }
-
+    // Re-fetch parent with user details for the response
     const parentMessage = await prisma.message.findUnique({
       where: { id: parentId },
       include: {
@@ -98,7 +70,7 @@ router.get('/:id/thread', authMiddleware, async (req: AuthRequest, res: Response
       },
     });
 
-    if (!parentMessage || parentMessage.deletedAt) {
+    if (!parentMessage) {
       res.status(404).json({ error: 'Message not found' });
       return;
     }
@@ -124,30 +96,12 @@ router.get('/:id/thread', authMiddleware, async (req: AuthRequest, res: Response
 });
 
 // PATCH /messages/:id - Edit message
-router.patch('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.patch('/:id', authMiddleware, requireMessageAccess, async (req: AuthRequest, res: Response) => {
   try {
     const messageId = parseInt(req.params.id);
     const userId = req.user!.userId;
     const { content } = editMessageSchema.parse(req.body);
-
-    if (isNaN(messageId)) {
-      res.status(400).json({ error: 'Invalid message ID' });
-      return;
-    }
-
-    const message = await prisma.message.findUnique({
-      where: { id: messageId },
-    });
-
-    if (!message) {
-      res.status(404).json({ error: 'Message not found' });
-      return;
-    }
-
-    if (message.deletedAt) {
-      res.status(404).json({ error: 'Message not found' });
-      return;
-    }
+    const message = req.message;
 
     if (message.userId !== userId) {
       res.status(403).json({ error: 'You can only edit your own messages' });
@@ -183,29 +137,11 @@ router.patch('/:id', authMiddleware, async (req: AuthRequest, res: Response) => 
 });
 
 // DELETE /messages/:id - Soft delete message
-router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.delete('/:id', authMiddleware, requireMessageAccess, async (req: AuthRequest, res: Response) => {
   try {
     const messageId = parseInt(req.params.id);
     const userId = req.user!.userId;
-
-    if (isNaN(messageId)) {
-      res.status(400).json({ error: 'Invalid message ID' });
-      return;
-    }
-
-    const message = await prisma.message.findUnique({
-      where: { id: messageId },
-    });
-
-    if (!message) {
-      res.status(404).json({ error: 'Message not found' });
-      return;
-    }
-
-    if (message.deletedAt) {
-      res.status(404).json({ error: 'Message not found' });
-      return;
-    }
+    const message = req.message;
 
     if (message.userId !== userId) {
       res.status(403).json({ error: 'You can only delete your own messages' });
@@ -225,34 +161,10 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response) =>
 });
 
 // POST /messages/:id/pin - Pin a message
-router.post('/:id/pin', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.post('/:id/pin', authMiddleware, requireMessageAccess, async (req: AuthRequest, res: Response) => {
   try {
     const messageId = parseInt(req.params.id);
     const userId = req.user!.userId;
-
-    if (isNaN(messageId)) {
-      res.status(400).json({ error: 'Invalid message ID' });
-      return;
-    }
-
-    const message = await prisma.message.findUnique({
-      where: { id: messageId },
-    });
-
-    if (!message || message.deletedAt) {
-      res.status(404).json({ error: 'Message not found' });
-      return;
-    }
-
-    // Check membership
-    const membership = await prisma.channelMember.findUnique({
-      where: { userId_channelId: { userId, channelId: message.channelId } },
-    });
-
-    if (!membership) {
-      res.status(403).json({ error: 'You must be a member of this channel' });
-      return;
-    }
 
     const updated = await prisma.message.update({
       where: { id: messageId },
@@ -279,33 +191,11 @@ router.post('/:id/pin', authMiddleware, async (req: AuthRequest, res: Response) 
 });
 
 // DELETE /messages/:id/pin - Unpin a message
-router.delete('/:id/pin', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.delete('/:id/pin', authMiddleware, requireMessageAccess, async (req: AuthRequest, res: Response) => {
   try {
     const messageId = parseInt(req.params.id);
     const userId = req.user!.userId;
-
-    if (isNaN(messageId)) {
-      res.status(400).json({ error: 'Invalid message ID' });
-      return;
-    }
-
-    const message = await prisma.message.findUnique({
-      where: { id: messageId },
-    });
-
-    if (!message || message.deletedAt) {
-      res.status(404).json({ error: 'Message not found' });
-      return;
-    }
-
-    const membership = await prisma.channelMember.findUnique({
-      where: { userId_channelId: { userId, channelId: message.channelId } },
-    });
-
-    if (!membership) {
-      res.status(403).json({ error: 'You must be a member of this channel' });
-      return;
-    }
+    const message = req.message;
 
     const updated = await prisma.message.update({
       where: { id: messageId },

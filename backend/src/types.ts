@@ -7,4 +7,7 @@ export interface JwtPayload {
 
 export interface AuthRequest extends Request {
   user?: JwtPayload;
+  channelId?: number;
+  message?: any;
+  file?: any;
 }

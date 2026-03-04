@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import prisma from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
+import { requireChannelMembership } from '../middleware/authorize.js';
 import { AuthRequest } from '../types.js';
 
 const router = Router();
@@ -23,22 +24,21 @@ const createMessageSchema = z.object({
 });
 
 // POST /channels/:id/messages - Send message
-router.post('/:id/messages', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.post('/:id/messages', authMiddleware, requireChannelMembership, async (req: AuthRequest, res: Response) => {
   try {
-    const channelId = parseInt(req.params.id);
+    const channelId = req.channelId!;
     const userId = req.user!.userId;
     const { content, threadId, fileIds } = createMessageSchema.parse(req.body);
 
-    // Check if user is a member of the channel
-    const membership = await prisma.channelMember.findUnique({
-      where: {
-        userId_channelId: { userId, channelId },
-      },
-    });
-
-    if (!membership) {
-      res.status(403).json({ error: 'You must join the channel to send messages' });
-      return;
+    // Validate threadId belongs to the same channel (prevent cross-channel thread injection)
+    if (threadId) {
+      const parentMessage = await prisma.message.findUnique({
+        where: { id: threadId },
+      });
+      if (!parentMessage || parentMessage.channelId !== channelId) {
+        res.status(400).json({ error: 'Thread parent must belong to the same channel' });
+        return;
+      }
     }
 
     // Validate fileIds belong to the user and are not already attached
@@ -110,24 +110,11 @@ router.post('/:id/messages', authMiddleware, async (req: AuthRequest, res: Respo
 });
 
 // GET /channels/:id/messages - Get messages (paginated)
-router.get('/:id/messages', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.get('/:id/messages', authMiddleware, requireChannelMembership, async (req: AuthRequest, res: Response) => {
   try {
-    const channelId = parseInt(req.params.id);
-    const userId = req.user!.userId;
+    const channelId = req.channelId!;
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
     const cursor = req.query.cursor ? parseInt(req.query.cursor as string) : undefined;
-
-    // Check if user is a member of the channel
-    const membership = await prisma.channelMember.findUnique({
-      where: {
-        userId_channelId: { userId, channelId },
-      },
-    });
-
-    if (!membership) {
-      res.status(403).json({ error: 'You must be a member of this channel' });
-      return;
-    }
 
     const messages = await prisma.message.findMany({
       where: {

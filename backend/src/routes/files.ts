@@ -5,6 +5,7 @@ import fs from 'fs';
 import { Storage } from '@google-cloud/storage';
 import prisma from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
+import { requireFileAccess } from '../middleware/authorize.js';
 import { AuthRequest } from '../types.js';
 
 // GCS setup - only initialize if bucket name is configured
@@ -156,28 +157,9 @@ router.post('/', authMiddleware, upload.single('file'), async (req: AuthRequest,
 });
 
 // GET /files/:id - Get file info (refreshes signed URL for GCS files)
-router.get('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.get('/:id', authMiddleware, requireFileAccess, async (req: AuthRequest, res: Response) => {
   try {
-    const fileId = parseInt(req.params.id);
-
-    if (isNaN(fileId)) {
-      res.status(400).json({ error: 'Invalid file ID' });
-      return;
-    }
-
-    const file = await prisma.file.findUnique({
-      where: { id: fileId },
-      include: {
-        user: {
-          select: { id: true, name: true, email: true },
-        },
-      },
-    });
-
-    if (!file) {
-      res.status(404).json({ error: 'File not found' });
-      return;
-    }
+    const file = req.file;
 
     // Generate fresh signed URL for GCS files
     if (file.gcsPath && bucket) {

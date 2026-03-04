@@ -3,6 +3,15 @@ import { Server, Socket } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import prisma from '../db.js';
 import { JwtPayload } from '../types.js';
+import {
+  checkChannelMembership,
+  wsMessageSendSchema,
+  wsMessageEditSchema,
+  wsMessageDeleteSchema,
+  wsDmSendSchema,
+  wsChannelIdSchema,
+  wsUserIdSchema,
+} from '../middleware/authorize.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? (() => { throw new Error('JWT_SECRET is required in production'); })() : 'your-secret-key');
 
@@ -116,17 +125,18 @@ export function initializeWebSocket(httpServer: HttpServer) {
     }
 
     // Join channel room
-    socket.on('join:channel', async (channelId: number) => {
+    socket.on('join:channel', async (rawChannelId: unknown) => {
       if (!socket.user) return;
 
-      // Verify user is a member of the channel
-      const membership = await prisma.channelMember.findUnique({
-        where: {
-          userId_channelId: { userId: socket.user.userId, channelId },
-        },
-      });
+      const parsed = wsChannelIdSchema.safeParse(rawChannelId);
+      if (!parsed.success) {
+        socket.emit('error', { message: 'Invalid channel ID' });
+        return;
+      }
+      const channelId = parsed.data;
 
-      if (!membership) {
+      const isMember = await checkChannelMembership(socket.user.userId, channelId);
+      if (!isMember) {
         socket.emit('error', { message: 'You must join the channel first' });
         return;
       }
@@ -142,18 +152,20 @@ export function initializeWebSocket(httpServer: HttpServer) {
     });
 
     // Send message
-    socket.on('message:send', async (data: { channelId: number; content: string; threadId?: number; fileIds?: number[] }) => {
+    socket.on('message:send', async (rawData: unknown) => {
       if (!socket.user) return;
 
       try {
-        // Verify user is a member of the channel
-        const membership = await prisma.channelMember.findUnique({
-          where: {
-            userId_channelId: { userId: socket.user.userId, channelId: data.channelId },
-          },
-        });
+        const parsed = wsMessageSendSchema.safeParse(rawData);
+        if (!parsed.success) {
+          socket.emit('error', { message: 'Invalid message payload' });
+          return;
+        }
+        const data = parsed.data;
 
-        if (!membership) {
+        // Verify user is a member of the channel
+        const isMember = await checkChannelMembership(socket.user.userId, data.channelId);
+        if (!isMember) {
           socket.emit('error', { message: 'You must join the channel to send messages' });
           return;
         }
@@ -224,16 +236,29 @@ export function initializeWebSocket(httpServer: HttpServer) {
     });
 
     // Edit message
-    socket.on('message:edit', async (data: { messageId: number; content: string }) => {
+    socket.on('message:edit', async (rawData: unknown) => {
       if (!socket.user) return;
 
       try {
+        const parsed = wsMessageEditSchema.safeParse(rawData);
+        if (!parsed.success) {
+          socket.emit('error', { message: 'Invalid edit payload' });
+          return;
+        }
+        const data = parsed.data;
+
         const message = await prisma.message.findUnique({
           where: { id: data.messageId },
         });
 
         if (!message || message.deletedAt) {
           socket.emit('error', { message: 'Message not found' });
+          return;
+        }
+
+        const isMember = await checkChannelMembership(socket.user.userId, message.channelId);
+        if (!isMember) {
+          socket.emit('error', { message: 'You must be a member of this channel' });
           return;
         }
 
@@ -260,16 +285,29 @@ export function initializeWebSocket(httpServer: HttpServer) {
     });
 
     // Delete message
-    socket.on('message:delete', async (data: { messageId: number }) => {
+    socket.on('message:delete', async (rawData: unknown) => {
       if (!socket.user) return;
 
       try {
+        const parsed = wsMessageDeleteSchema.safeParse(rawData);
+        if (!parsed.success) {
+          socket.emit('error', { message: 'Invalid delete payload' });
+          return;
+        }
+        const data = parsed.data;
+
         const message = await prisma.message.findUnique({
           where: { id: data.messageId },
         });
 
         if (!message || message.deletedAt) {
           socket.emit('error', { message: 'Message not found' });
+          return;
+        }
+
+        const isMember = await checkChannelMembership(socket.user.userId, message.channelId);
+        if (!isMember) {
+          socket.emit('error', { message: 'You must be a member of this channel' });
           return;
         }
 
@@ -291,16 +329,32 @@ export function initializeWebSocket(httpServer: HttpServer) {
     });
 
     // Typing indicator
-    socket.on('typing:start', (channelId: number) => {
+    socket.on('typing:start', async (rawChannelId: unknown) => {
+      if (!socket.user) return;
+      const parsed = wsChannelIdSchema.safeParse(rawChannelId);
+      if (!parsed.success) return;
+      const channelId = parsed.data;
+
+      const isMember = await checkChannelMembership(socket.user.userId, channelId);
+      if (!isMember) return;
+
       socket.to(`channel:${channelId}`).emit('typing:start', {
-        userId: socket.user?.userId,
-        email: socket.user?.email,
+        userId: socket.user.userId,
+        email: socket.user.email,
       });
     });
 
-    socket.on('typing:stop', (channelId: number) => {
+    socket.on('typing:stop', async (rawChannelId: unknown) => {
+      if (!socket.user) return;
+      const parsed = wsChannelIdSchema.safeParse(rawChannelId);
+      if (!parsed.success) return;
+      const channelId = parsed.data;
+
+      const isMember = await checkChannelMembership(socket.user.userId, channelId);
+      if (!isMember) return;
+
       socket.to(`channel:${channelId}`).emit('typing:stop', {
-        userId: socket.user?.userId,
+        userId: socket.user.userId,
       });
     });
 
@@ -310,8 +364,34 @@ export function initializeWebSocket(httpServer: HttpServer) {
     }
 
     // Join DM conversation room
-    socket.on('dm:join', (otherUserId: number) => {
+    socket.on('dm:join', async (rawOtherUserId: unknown) => {
       if (!socket.user) return;
+
+      const parsed = wsUserIdSchema.safeParse(rawOtherUserId);
+      if (!parsed.success) {
+        socket.emit('error', { message: 'Invalid user ID' });
+        return;
+      }
+      const otherUserId = parsed.data;
+
+      // Verify both users have exchanged DMs before allowing room join
+      const hasDmHistory = await prisma.directMessage.findFirst({
+        where: {
+          OR: [
+            { fromUserId: socket.user.userId, toUserId: otherUserId },
+            { fromUserId: otherUserId, toUserId: socket.user.userId },
+          ],
+        },
+      });
+
+      if (!hasDmHistory) {
+        // Allow joining if the other user exists (first DM scenario)
+        const otherUser = await prisma.user.findUnique({ where: { id: otherUserId } });
+        if (!otherUser) {
+          socket.emit('error', { message: 'User not found' });
+          return;
+        }
+      }
 
       // Create a consistent room name regardless of who initiates
       const roomId = [socket.user.userId, otherUserId].sort().join('-');
@@ -329,10 +409,17 @@ export function initializeWebSocket(httpServer: HttpServer) {
     });
 
     // Send DM via WebSocket
-    socket.on('dm:send', async (data: { toUserId: number; content: string }) => {
+    socket.on('dm:send', async (rawData: unknown) => {
       if (!socket.user) return;
 
       try {
+        const parsed = wsDmSendSchema.safeParse(rawData);
+        if (!parsed.success) {
+          socket.emit('error', { message: 'Invalid DM payload' });
+          return;
+        }
+        const data = parsed.data;
+
         if (socket.user.userId === data.toUserId) {
           socket.emit('error', { message: 'Cannot send DM to yourself' });
           return;
@@ -378,16 +465,24 @@ export function initializeWebSocket(httpServer: HttpServer) {
     });
 
     // DM typing indicator
-    socket.on('dm:typing:start', (toUserId: number) => {
+    socket.on('dm:typing:start', (rawToUserId: unknown) => {
       if (!socket.user) return;
+      const parsed = wsUserIdSchema.safeParse(rawToUserId);
+      if (!parsed.success) return;
+      const toUserId = parsed.data;
+
       io.to(`user:${toUserId}`).emit('dm:typing:start', {
         userId: socket.user.userId,
         email: socket.user.email,
       });
     });
 
-    socket.on('dm:typing:stop', (toUserId: number) => {
+    socket.on('dm:typing:stop', (rawToUserId: unknown) => {
       if (!socket.user) return;
+      const parsed = wsUserIdSchema.safeParse(rawToUserId);
+      if (!parsed.success) return;
+      const toUserId = parsed.data;
+
       io.to(`user:${toUserId}`).emit('dm:typing:stop', {
         userId: socket.user.userId,
       });
