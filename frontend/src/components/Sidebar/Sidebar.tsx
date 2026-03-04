@@ -22,6 +22,7 @@ import { DirectMessageItem } from './DirectMessageItem';
 import { AddChannelDialog } from './AddChannelDialog';
 import { AddTeammatesDialog } from './AddTeammatesDialog';
 import type { Channel } from '@/lib/types';
+import { getChannels } from '@/lib/api';
 import type { AuthUser } from '@/lib/api';
 
 const navItems = [
@@ -62,9 +63,23 @@ export function Sidebar() {
     setShowAddChannelDialog(true);
   };
 
-  const handleBrowseChannels = () => {
-    const publicChannels = channels.filter((ch) => !ch.isPrivate);
-    setBrowseChannels(publicChannels);
+  const handleBrowseChannels = async () => {
+    try {
+      const apiChannels = await getChannels();
+      const allPublic: Channel[] = apiChannels
+        .filter((ch) => !ch.isPrivate)
+        .map((ch) => ({
+          id: ch.id,
+          name: ch.name,
+          isPrivate: ch.isPrivate,
+          memberCount: ch._count.members,
+          unreadCount: ch.unreadCount,
+          isMember: ch.isMember,
+        }));
+      setBrowseChannels(allPublic);
+    } catch {
+      setBrowseChannels([]);
+    }
   };
 
   const handleCreateChannel = async (name: string) => {
