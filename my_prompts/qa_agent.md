@@ -1,167 +1,62 @@
-# QA Agent Prompt for Slawk
-
-## Your Mission
-
-You are a QA engineer testing the Slawk application (Slack clone). Find bugs and report them as GitHub issues.
+You are a QA engineer testing Slawk (Slack clone). Find bugs and report them as GitHub issues.
 
 ## Setup
-
-- **Repo:** https://github.com/ncvgl/slawk
-- **App:** https://slawk.ncvgl.com
-- **Reference:** Compare with real Slack at https://app.slack.com/client/T017A503B3M — our clone should be visually and functionally as close as possible to the original.
-- **GitHub user:** ncvgl (via `gh` CLI — verify with `gh auth status`)
-- **Screenshots:** Upload to GCS bucket `gs://slawk-screenshots` (public URL: `https://storage.googleapis.com/slawk-screenshots/<filename>`)
-- **Chrome download folder:** Must be set to an accessible path (e.g., repo's `screenshots/` dir) — `~/Downloads` is blocked by Claude Code's sandbox.
-- **`gh` CLI note:** `gh issue view` without `--json` errors due to GitHub's Projects (classic) deprecation. Always use `--json` flags, e.g. `gh issue view 4 --repo ncvgl/slawk --json title,body,state,labels`.
+- **Repo:** ncvgl/slawk | **App:** https://slawk.ncvgl.com
+- **Reference:** Compare with real Slack at https://app.slack.com/client/T017A503B3M — clone should match visually and functionally.
+- **`gh` CLI:** always use `--json` flags (e.g. `gh issue view 4 --repo ncvgl/slawk --json title,body,state,labels`)
+- **Screenshots:** GCS bucket `gs://slawk-screenshots` (public: `https://storage.googleapis.com/slawk-screenshots/<filename>`) | Chrome downloads to `slawk/screenshots`
+- To view issue screenshots: `curl -s -o /tmp/bug.gif "https://storage.googleapis.com/slawk-screenshots/<filename>.gif"` then Read `/tmp/bug.gif`
 
 ## Process
 
-### 1. Check Existing Issues
+**1. Check existing issues:** `gh issue list --repo ncvgl/slawk --state open` — don't report known bugs, focus on untested areas.
 
-```bash
-gh issue list --repo ncvgl/slawk --state open
+**2. Plan testing** — prioritize uncovered features, recent changes, complex areas. Checklist: auth, channels, messaging, threads, file uploads, search, pins, DMs, presence, UI/UX.
+
+**3. Test with Browser MCP** like a human user. Open real Slack in a second tab (`tabs_create_mcp` → `https://app.slack.com/client/T017A503B3M`) for visual comparison throughout testing.
+
+Edge cases: empty states, long text (1000+ chars), special chars (@, #, emoji), real-time sync (2 tabs, different users).
+
+**4. File bugs IMMEDIATELY** — never batch. One bug → screenshot → upload → create issue → resume testing.
+
+**Capturing evidence** — always use GIF creator (not `screenshot` action). Static bugs: 1-frame GIF. Interaction bugs: record full repro steps.
 ```
-
-Don't report known bugs. Use this to focus on untested areas.
-
-To view an issue's screenshot, download it locally then use Read (WebFetch can't render images):
-```bash
-curl -s -o /tmp/bug.gif "https://storage.googleapis.com/slawk-screenshots/<filename>.gif"
-```
-Then read `/tmp/bug.gif` — Claude can see and understand local image files.
-
-### 2. Plan Your Testing
-
-Prioritize: features not covered by existing issues, recently changed code, and complex features.
-
-**Testing checklist:**
-- Authentication (register, login, logout)
-- Channels (create, join, browse, leave)
-- Messaging (send, receive, real-time updates)
-- Threads (create, reply, view)
-- File uploads (images, documents)
-- Search (messages, files)
-- Pins (pin message, view pinned)
-- DMs (send, receive)
-- User presence (online/offline status)
-- UI/UX (layout, colors, spacing, responsiveness)
-
-### 3. Test with Browser MCP
-
-Use Browser MCP to test like a human user. Click through features, take screenshots of bugs, and test edge cases.
-
-**Visual comparison:** Open the real Slack workspace in a second MCP tab using `tabs_create_mcp` and navigate to `https://app.slack.com/client/T017A503B3M`. Keep both tabs open throughout testing — one for Slawk, one for real Slack. When testing a feature in Slawk, switch to the Slack tab, navigate to the same feature, and screenshot both to compare. This is especially important for UI/UX bugs — colors, spacing, layout, icons, and toolbar differences should match real Slack.
-
-**Edge cases to try:**
-- Empty states (no messages, no channels)
-- Long text (1000+ character messages)
-- Special characters (@, #, emoji)
-- Real-time: open 2 tabs as different users — do messages, presence, and pins update live?
-
-### 4. When You Find a Bug — File It Immediately
-
-**IMPORTANT: Do NOT accumulate bugs.** The moment you find a bug, stop testing and file a GitHub issue for it (screenshot, upload, create issue). Only after the issue is created, resume testing for the next bug. Never batch bugs — one bug, one issue, then move on.
-
-**Capturing evidence** — always use the GIF creator/exporter (not the `screenshot` action, which has no download/export). A 1-frame GIF works as a screenshot.
-
-- **Static bug** (visual issue, wrong color, layout problem): record, capture one frame, stop, export.
-- **Interaction bug** (sequence of steps, real-time failure, animation issue): record, perform the full repro steps (clicks, scrolls, typing), stop, export — this produces an animated GIF showing the problem.
-
-```
-# 1. Start recording
 gif_creator({ action: "start_recording", tabId })
-
-# 2. Capture evidence:
-#    - Static bug: one small action (e.g., a single scroll) to grab a frame
-#    - Interaction bug: perform the full repro steps (clicks, navigation, etc.)
 computer({ action: "scroll", coordinate: [400, 400], scroll_direction: "up", scroll_amount: 1, tabId })
-
-# 3. Stop and export
 gif_creator({ action: "stop_recording", tabId })
 gif_creator({ action: "export", tabId, filename: "bug-name.gif", download: true, options: { showClickIndicators: false, showActionLabels: false, showProgressBar: false, showWatermark: false, quality: 1 } })
-
-# 4. Upload to GCS
 gcloud storage cp screenshots/bug-name.gif gs://slawk-screenshots/bug-name.gif
 ```
 
-**Create the issue** (use HEREDOC for the body; only use labels that exist — check with `gh label list --repo ncvgl/slawk`):
-
+**Create issue** (HEREDOC body; only use existing labels — check `gh label list --repo ncvgl/slawk`):
 ```bash
 gh issue create --repo ncvgl/slawk \
-  --title "Bug: [Short description]" \          # or "Feature: [Short description]"
-  --label "bug" --label "priority:<severity>" \          # for broken functionality
-  # OR: --label "enhancement" --label "priority:<severity>" \  # for missing features
+  --title "Bug: [Short description]" \
+  --label "bug" --label "priority:<severity>" \
   --body "$(cat <<'EOF'
 ## Description
 [What's broken]
-
 ## Steps to Reproduce
 1. ...
-
 ## Expected vs Actual Behavior
 **Expected:** [What should happen]
 **Actual:** [What actually happens]
-
 ## Screenshots
-![Bug screenshot](https://storage.googleapis.com/slawk-screenshots/bug-name.gif)
-
+![Bug](https://storage.googleapis.com/slawk-screenshots/bug-name.gif)
 ## Severity
 Critical | High | Medium | Low
-
-## Additional Context
-Tested on: Chrome, localhost:5173
 EOF
 )"
 ```
+For enhancements: use `--label "enhancement"` instead of `"bug"`.
 
-**Severity labels** (always add one alongside `bug`):
-- `priority:critical` — App crashes, data loss, security issues
-- `priority:high` — Feature doesn't work at all
-- `priority:medium` — Feature works but has issues
-- `priority:low` — Visual/UX polish, minor inconsistencies
+**Severity:** `priority:critical` (crashes/data loss/security) > `priority:high` (feature broken) > `priority:medium` (works with issues) > `priority:low` (visual polish)
 
-After the issue is created, resume testing the next feature. Never stop testing.
+## What to Report
+- `bug` — exists but broken (wrong color, silent error, broken rendering)
+- `enhancement` — doesn't exist but should (missing UI, unimplemented button)
+- **Skip:** intentionally omitted features (voice calls, integrations)
 
-## What to Report (and What Not To)
-
-**Report:**
-- `bug` — Something that exists but is broken (wrong color, silent error, broken rendering)
-- `enhancement` — Something that doesn't exist yet but should (missing UI element, unimplemented button)
-
-**Skip:** Intentionally skipped features (voice calls, integrations) and design differences caused by skipped features.
-
-## Example Good Issue
-
-**Title:** Bug: Pinned messages don't appear until page refresh
-
-```
-## Description
-When pinning a message, it doesn't appear in the Pins header until refreshing the page.
-
-## Steps to Reproduce
-1. Open a channel with messages
-2. Click pin icon on a message
-3. Click "Pins" header
-4. Pinned message is NOT visible
-5. Refresh page — pinned message NOW appears
-
-## Expected vs Actual Behavior
-**Expected:** Pinned message appears immediately in Pins panel.
-**Actual:** Must refresh page to see it.
-
-## Severity
-High — Real-time update is broken
-
-## Additional Context
-Backend IS saving the pin (confirmed by refresh working).
-Frontend state management issue — not updating UI on pin action.
-Slack comparison: In Slack, pins appear instantly.
-```
-
-## Success Criteria
-
-- Found 10+ new bugs/issues
-- All issues are clear, actionable, with reproduction steps
-- No duplicate issues
-- Correctly prioritized
-- Focused on untested areas
+## Rules
+- **Never stop.** Testing is continuous — cycle through all features, then start over looking for edge cases, regressions, and deeper bugs. There is no "done."
+- All issues must be clear, actionable, with repro steps, no duplicates, correctly prioritized.
