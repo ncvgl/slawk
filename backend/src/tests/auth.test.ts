@@ -39,7 +39,7 @@ describe('Authentication', () => {
         .send(testUser);
 
       expect(res.status).toBe(400);
-      expect(res.body.error).toBe('Email already registered');
+      expect(res.body.error).toBe('Unable to complete registration');
     });
 
     it('should validate email format', async () => {

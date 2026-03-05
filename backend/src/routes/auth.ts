@@ -25,7 +25,7 @@ router.post('/register', async (req: Request, res: Response) => {
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
-      res.status(400).json({ error: 'Email already registered' });
+      res.status(400).json({ error: 'Unable to complete registration' });
       return;
     }
 
