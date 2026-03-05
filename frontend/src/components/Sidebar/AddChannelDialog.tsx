@@ -188,7 +188,7 @@ export function AddChannelDialog({
                       <div className="flex items-center gap-2">
                         {ch.isPrivate ? <Lock className="h-3.5 w-3.5 text-slack-disabled" /> : <Hash className="h-3.5 w-3.5 text-slack-disabled" />}
                         <span className="text-[15px] text-slack-primary">{ch.name}</span>
-                        <span className="text-[12px] text-slack-hint">{ch.memberCount} members</span>
+                        <span className="text-[12px] text-slack-hint">{ch.memberCount} {ch.memberCount === 1 ? 'member' : 'members'}</span>
                       </div>
                       {ch.isMember ? (
                         <span data-testid="joined-badge" className="text-[12px] text-slack-hint font-medium px-2 py-1">Joined</span>

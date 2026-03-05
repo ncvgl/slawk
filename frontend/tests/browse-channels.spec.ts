@@ -49,4 +49,20 @@ test.describe('Browse channels', () => {
     const generalRow = page.locator('[data-channel-name="general"]');
     await expect(generalRow).toBeVisible();
   });
+
+  test('member count uses correct singular/plural (#76)', async ({ page }) => {
+    await login(page, 'alice@slawk.dev', 'password123');
+    await clickChannel(page, 'general');
+    await waitForChannelReady(page);
+
+    await page.locator('button').filter({ hasText: 'Add channels' }).click();
+    await page.getByText('Browse channels').click();
+
+    const channelRows = page.locator('[data-channel-name]');
+    await expect(channelRows.first()).toBeVisible({ timeout: 5000 });
+
+    // Check that no channel shows "1 members" (should be "1 member")
+    const badPlural = page.locator('text="1 members"');
+    await expect(badPlural).toHaveCount(0);
+  });
 });
