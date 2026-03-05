@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Hash, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import type { Channel } from '@/lib/types';
@@ -6,7 +7,7 @@ import type { Channel } from '@/lib/types';
 interface AddChannelDialogProps {
   open: boolean;
   onClose: () => void;
-  onCreateChannel: (name: string) => Promise<void>;
+  onCreateChannel: (name: string, isPrivate?: boolean) => Promise<void>;
   browseChannels: Channel[];
   onJoinChannel: (channelId: number) => Promise<void>;
   onNavigateToChannel: (channelId: number) => void;
@@ -24,6 +25,7 @@ export function AddChannelDialog({
 }: AddChannelDialogProps) {
   const [addChannelMode, setAddChannelMode] = useState<'create' | 'browse'>('create');
   const [newChannelName, setNewChannelName] = useState('');
+  const [isPrivate, setIsPrivate] = useState(false);
   const [createChannelError, setCreateChannelError] = useState('');
 
   // Reset state when dialog opens
@@ -31,6 +33,7 @@ export function AddChannelDialog({
     if (open) {
       setAddChannelMode('create');
       setNewChannelName('');
+      setIsPrivate(false);
       setCreateChannelError('');
     }
   }, [open]);
@@ -85,7 +88,7 @@ export function AddChannelDialog({
                 const name = newChannelName.trim();
                 if (!name) return;
                 try {
-                  await onCreateChannel(name);
+                  await onCreateChannel(name, isPrivate);
                   setNewChannelName('');
                   setCreateChannelError('');
                 } catch {
@@ -112,6 +115,46 @@ export function AddChannelDialog({
                   {createChannelError}
                 </p>
               )}
+
+              <div className="mt-3">
+                <label className="block text-[14px] font-medium text-slack-primary mb-2">
+                  Visibility
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsPrivate(false)}
+                    className={cn(
+                      'flex items-center gap-1.5 rounded-md border px-3 py-2 text-[13px] transition-colors',
+                      !isPrivate
+                        ? 'border-slack-link bg-slack-highlight text-slack-link font-medium'
+                        : 'border-slack-border text-slack-secondary hover:border-slack-link'
+                    )}
+                  >
+                    <Hash className="h-3.5 w-3.5" />
+                    Public
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsPrivate(true)}
+                    className={cn(
+                      'flex items-center gap-1.5 rounded-md border px-3 py-2 text-[13px] transition-colors',
+                      isPrivate
+                        ? 'border-slack-link bg-slack-highlight text-slack-link font-medium'
+                        : 'border-slack-border text-slack-secondary hover:border-slack-link'
+                    )}
+                  >
+                    <Lock className="h-3.5 w-3.5" />
+                    Private
+                  </button>
+                </div>
+                <p className="mt-1 text-[12px] text-slack-hint">
+                  {isPrivate
+                    ? 'Only invited members can find and join this channel.'
+                    : 'Anyone in the workspace can find and join this channel.'}
+                </p>
+              </div>
+
               <div className="mt-4 flex justify-end gap-2">
                 <Button variant="ghost" type="button" onClick={handleClose}>
                   Cancel
@@ -143,7 +186,7 @@ export function AddChannelDialog({
                       }}
                     >
                       <div className="flex items-center gap-2">
-                        <span className="text-slack-disabled">#</span>
+                        {ch.isPrivate ? <Lock className="h-3.5 w-3.5 text-slack-disabled" /> : <Hash className="h-3.5 w-3.5 text-slack-disabled" />}
                         <span className="text-[15px] text-slack-primary">{ch.name}</span>
                         <span className="text-[12px] text-slack-hint">{ch.memberCount} members</span>
                       </div>

@@ -99,8 +99,8 @@ export function Sidebar() {
     }
   };
 
-  const handleCreateChannel = async (name: string) => {
-    await createChannel(name);
+  const handleCreateChannel = async (name: string, isPrivate?: boolean) => {
+    await createChannel(name, isPrivate);
     setShowAddChannelDialog(false);
   };
 
