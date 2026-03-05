@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import * as api from '@/lib/api';
+import { clearDownloadToken } from '@/lib/api';
 import type { User } from '@/lib/types';
 
 interface AuthState {
@@ -38,6 +39,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: () => {
     localStorage.removeItem('token');
+    clearDownloadToken();
     set({ user: null, isAuthenticated: false });
   },
 

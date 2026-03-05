@@ -3,11 +3,13 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 import { Storage } from '@google-cloud/storage';
 import prisma from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { requireFileAccess } from '../middleware/authorize.js';
 import { AuthRequest } from '../types.js';
+import { JWT_SECRET } from '../config.js';
 
 // GCS setup - only initialize if bucket name is configured
 const GCS_BUCKET_NAME = process.env.GCS_BUCKET_NAME;
@@ -233,11 +235,37 @@ router.get('/:id', authMiddleware, requireFileAccess, async (req: AuthRequest, r
   }
 });
 
-// GET /files/:id/download - Download file content (authenticated via header or query token)
+// POST /files/download-token - Issue a short-lived download token (not per-file)
+router.post('/download-token', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const downloadToken = jwt.sign(
+      { userId: req.user!.userId, email: req.user!.email, purpose: 'file-download' },
+      JWT_SECRET,
+      { expiresIn: '5m' },
+    );
+    res.json({ token: downloadToken });
+  } catch (error) {
+    console.error('Generate download token error:', error);
+    res.status(500).json({ error: 'Failed to generate download token' });
+  }
+});
+
+// GET /files/:id/download - Download file content (authenticated via header, or scoped download token)
 router.get('/:id/download', (req: AuthRequest, res: Response, next) => {
-  // Allow token via query parameter for <img> tags that can't send headers
+  // Accept scoped download token via query parameter for <img>/<a> tags
   if (!req.headers.authorization && req.query.token) {
-    req.headers.authorization = `Bearer ${req.query.token}`;
+    try {
+      const payload = jwt.verify(req.query.token as string, JWT_SECRET) as any;
+      if (payload.purpose !== 'file-download') {
+        res.status(403).json({ error: 'Invalid download token' });
+        return;
+      }
+      // Set auth header so authMiddleware succeeds
+      req.headers.authorization = `Bearer ${req.query.token}`;
+    } catch {
+      res.status(401).json({ error: 'Invalid or expired download token' });
+      return;
+    }
   }
   next();
 }, authMiddleware, requireFileAccess, async (req: AuthRequest, res: Response) => {

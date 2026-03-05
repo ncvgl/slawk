@@ -1,18 +1,61 @@
 /**
- * Appends auth token to a file URL for use in <img> and <a> tags
+ * Manages a short-lived download token for file URLs.
+ * Uses a scoped JWT (5min expiry) instead of the full auth token to limit exposure.
+ */
+let _downloadToken: string | null = null;
+let _downloadTokenExpires = 0;
+
+async function refreshDownloadToken(): Promise<string | null> {
+  const now = Date.now();
+  if (_downloadToken && now < _downloadTokenExpires) return _downloadToken;
+
+  const authToken = localStorage.getItem('token');
+  if (!authToken) return null;
+
+  try {
+    const res = await fetch('/files/download-token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    _downloadToken = data.token;
+    _downloadTokenExpires = now + 4 * 60 * 1000; // refresh 1 min before expiry
+    return _downloadToken;
+  } catch {
+    return null;
+  }
+}
+
+// Eagerly refresh on module load if authenticated
+if (localStorage.getItem('token')) refreshDownloadToken();
+
+/**
+ * Appends a scoped download token to a file URL for use in <img> and <a> tags
  * that can't send Authorization headers.
  */
 export function getAuthFileUrl(url: string): string {
   if (!url) return url;
   // Only append token to our own download endpoints, not external URLs (GCS signed URLs)
   if (url.startsWith('/files/') && url.includes('/download')) {
-    const token = localStorage.getItem('token');
+    const token = _downloadToken;
     if (token) {
       const separator = url.includes('?') ? '&' : '?';
       return `${url}${separator}token=${token}`;
     }
+    // Trigger async refresh for next render
+    refreshDownloadToken();
   }
   return url;
+}
+
+/** Clear cached download token (call on logout) */
+export function clearDownloadToken(): void {
+  _downloadToken = null;
+  _downloadTokenExpires = 0;
 }
 
 class ApiError extends Error {

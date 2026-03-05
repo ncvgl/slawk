@@ -22,43 +22,21 @@ interface AuthenticatedSocket extends Socket {
 // Track online users: Map<userId, Set<socketId>>
 const onlineUsers = new Map<number, Set<string>>();
 
-// Get users who share channels or DMs with the given user
+// Get users who share channels or DMs with the given user (single query)
 async function getSharedUsers(userId: number): Promise<number[]> {
-  // Get channel members from user's channels
-  const userChannels = await prisma.channelMember.findMany({
-    where: { userId },
-    select: { channelId: true },
-  });
-  const channelIds = userChannels.map((c) => c.channelId);
-
-  const channelMembers = await prisma.channelMember.findMany({
-    where: {
-      channelId: { in: channelIds },
-      userId: { not: userId },
-    },
-    select: { userId: true },
-  });
-
-  // Get DM participants
-  const dmUsers = await prisma.directMessage.findMany({
-    where: {
-      OR: [{ fromUserId: userId }, { toUserId: userId }],
-    },
-    select: { fromUserId: true, toUserId: true },
-    distinct: ['fromUserId', 'toUserId'],
-  });
-
-  const dmUserIds = dmUsers.flatMap((dm) =>
-    [dm.fromUserId, dm.toUserId].filter((id) => id !== userId)
-  );
-
-  // Combine and dedupe
-  const allUserIds = new Set([
-    ...channelMembers.map((m) => m.userId),
-    ...dmUserIds,
-  ]);
-
-  return Array.from(allUserIds);
+  const rows = await prisma.$queryRaw<Array<{ userId: number }>>`
+    SELECT DISTINCT "userId" FROM (
+      SELECT cm2."userId"
+      FROM "ChannelMember" cm1
+      JOIN "ChannelMember" cm2 ON cm2."channelId" = cm1."channelId" AND cm2."userId" != cm1."userId"
+      WHERE cm1."userId" = ${userId}
+      UNION
+      SELECT CASE WHEN "fromUserId" = ${userId} THEN "toUserId" ELSE "fromUserId" END AS "userId"
+      FROM "DirectMessage"
+      WHERE "fromUserId" = ${userId} OR "toUserId" = ${userId}
+    ) shared
+  `;
+  return rows.map((r) => r.userId);
 }
 
 export function initializeWebSocket(httpServer: HttpServer) {

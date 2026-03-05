@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import path from 'path';
 import dotenv from 'dotenv';
 
@@ -37,22 +38,45 @@ const corsOrigin = process.env.CORS_ORIGIN || (process.env.NODE_ENV === 'product
 app.use(cors({ origin: corsOrigin as string | boolean }));
 app.use(express.json({ limit: '100kb' }));
 
+// Rate limiting (skip in test environment)
+const isTest = process.env.NODE_ENV === 'test';
+
+const authLimiter = isTest
+  ? (_req: any, _res: any, next: any) => next()
+  : rateLimit({
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      max: 20,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { error: 'Too many attempts, please try again later' },
+    });
+
+const apiLimiter = isTest
+  ? (_req: any, _res: any, next: any) => next()
+  : rateLimit({
+      windowMs: 60 * 1000, // 1 minute
+      max: 120,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { error: 'Too many requests, please try again later' },
+    });
+
 // Note: /uploads is NOT served via express.static to prevent unauthenticated access.
 // Files are served through the authenticated GET /files/:id/download endpoint.
 
 // Routes
-app.use('/auth', authRoutes);
-app.use('/channels', channelRoutes);
-app.use('/channels', messageRoutes);
-app.use('/messages', threadRoutes);
-app.use('/messages', reactionRoutes);
-app.use('/search', searchRoutes);
-app.use('/files', fileRoutes);
-app.use('/users', userRoutes);
-app.use('/dms', dmRoutes);
-app.use('/messages', bookmarkRoutes);
-app.use('/bookmarks', bookmarkRoutes);
-app.use('/messages', scheduledMessageRoutes);
+app.use('/auth', authLimiter, authRoutes);
+app.use('/channels', apiLimiter, channelRoutes);
+app.use('/channels', apiLimiter, messageRoutes);
+app.use('/messages', apiLimiter, threadRoutes);
+app.use('/messages', apiLimiter, reactionRoutes);
+app.use('/search', apiLimiter, searchRoutes);
+app.use('/files', apiLimiter, fileRoutes);
+app.use('/users', apiLimiter, userRoutes);
+app.use('/dms', apiLimiter, dmRoutes);
+app.use('/messages', apiLimiter, bookmarkRoutes);
+app.use('/bookmarks', apiLimiter, bookmarkRoutes);
+app.use('/messages', apiLimiter, scheduledMessageRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
