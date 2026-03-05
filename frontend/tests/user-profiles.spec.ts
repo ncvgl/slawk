@@ -87,4 +87,28 @@ test.describe('User Profiles', () => {
 
     await context2.close();
   });
+
+  test('clicking member in Members panel opens their profile (#77)', async ({ page }) => {
+    await register(page, `MemberClick_${Date.now()}`, uniqueEmail(), 'password123');
+    await clickChannel(page, 'general');
+    await waitForChannelReady(page);
+
+    // Open members panel via header member count
+    await page.getByTestId('member-avatars-button').click();
+    const membersPanel = page.getByTestId('members-panel');
+    await expect(membersPanel).toBeVisible({ timeout: 5000 });
+
+    // Click the first member row
+    const firstMember = membersPanel.locator('button[data-testid^="member-row-"]').first();
+    await expect(firstMember).toBeVisible({ timeout: 5000 });
+    const memberName = await firstMember.locator('span.truncate').textContent();
+    await firstMember.click();
+
+    // Profile modal should open with that member's name
+    const profileModal = page.getByTestId('profile-modal');
+    await expect(profileModal).toBeVisible({ timeout: 5000 });
+    if (memberName) {
+      await expect(profileModal.getByText(memberName)).toBeVisible();
+    }
+  });
 });

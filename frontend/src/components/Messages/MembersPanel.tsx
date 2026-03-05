@@ -4,6 +4,7 @@ import { Avatar } from '@/components/ui/avatar';
 import { getChannelMembers, getUsers, addChannelMember, type ChannelMember, type AuthUser } from '@/lib/api';
 import { getSocket } from '@/lib/socket';
 import { Button } from '@/components/ui/button';
+import { ProfileModal } from '@/components/ProfileModal';
 
 interface MembersPanelProps {
   channelId: number;
@@ -15,6 +16,7 @@ export function MembersPanel({ channelId, onClose }: MembersPanelProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [profileUserId, setProfileUserId] = useState<number | null>(null);
 
   const fetchMembers = () => {
     setIsLoading(true);
@@ -109,7 +111,7 @@ export function MembersPanel({ channelId, onClose }: MembersPanelProps) {
                   Online — {onlineMembers.length}
                 </h4>
                 {onlineMembers.map((m) => (
-                  <MemberRow key={m.user.id} member={m} />
+                  <MemberRow key={m.user.id} member={m} onClick={() => setProfileUserId(m.user.id)} />
                 ))}
               </div>
             )}
@@ -120,13 +122,16 @@ export function MembersPanel({ channelId, onClose }: MembersPanelProps) {
                   Offline — {offlineMembers.length}
                 </h4>
                 {offlineMembers.map((m) => (
-                  <MemberRow key={m.user.id} member={m} />
+                  <MemberRow key={m.user.id} member={m} onClick={() => setProfileUserId(m.user.id)} />
                 ))}
               </div>
             )}
           </>
         )}
       </div>
+      {profileUserId !== null && (
+        <ProfileModal userId={profileUserId} onClose={() => setProfileUserId(null)} />
+      )}
     </div>
   );
 }
@@ -218,9 +223,12 @@ function AddPeopleForm({
   );
 }
 
-function MemberRow({ member }: { member: ChannelMember }) {
+function MemberRow({ member, onClick }: { member: ChannelMember; onClick?: () => void }) {
   return (
-    <div className="flex items-center gap-2 rounded px-2 py-1.5 hover:bg-slack-hover">
+    <button
+      data-testid={`member-row-${member.user.id}`}
+      onClick={onClick}
+      className="flex w-full items-center gap-2 rounded px-2 py-1.5 hover:bg-slack-hover cursor-pointer">
       <Avatar
         src={member.user.avatar}
         alt={member.user.name}
@@ -229,6 +237,6 @@ function MemberRow({ member }: { member: ChannelMember }) {
         status={member.user.isOnline ? 'online' : 'offline'}
       />
       <span className="text-[14px] text-slack-primary truncate">{member.user.name}</span>
-    </div>
+    </button>
   );
 }
