@@ -116,20 +116,20 @@
 
 ## Progress Tracker
 
-- [ ] Fix #1: Content-Disposition Header Injection
-- [ ] Fix #2: JWT Token in URL Query Params
-- [ ] Fix #3: WebSocket leave validation
-- [ ] Fix #4 + #9: Channel name unique constraint
-- [ ] Fix #5: Rate limiting
-- [ ] Fix #6: Presence broadcast optimization
-- [ ] Fix #7: Typing indicator caching
-- [ ] Fix #8: Search indexing
-- [ ] Fix #10: Cascading deletes
-- [ ] Fix #11: DM duplicate events
-- [ ] Fix #12: Real-time DM store update
-- [ ] Fix #13: Remove manual JWT parsing
-- [ ] Fix #14: AuthRequest types
-- [ ] Fix #15: Pagination logic
-- [ ] Fix #16: Audio MIME types
-- [ ] Fix #17: CORS production check
-- [ ] Fix #18: ChannelRead FK
+- [x] Fix #1: Content-Disposition Header Injection
+- [x] Fix #2: JWT Token in URL Query Params (scoped download tokens)
+- [x] Fix #3: WebSocket leave validation
+- [x] Fix #4 + #9: Channel name unique constraint
+- [x] Fix #5: Rate limiting (express-rate-limit)
+- [x] Fix #6: Presence broadcast optimization (single SQL query)
+- [x] Fix #7: Typing indicator caching
+- [x] Fix #8: Search indexing (GIN trigram indexes)
+- [x] Fix #10: Cascading deletes
+- [x] Fix #11: DM duplicate events
+- [x] Fix #12: Real-time DM store update
+- [x] Fix #13: Remove manual JWT parsing
+- [x] Fix #14: AuthRequest types (added comment, kept any due to Express collision)
+- [x] Fix #15: Pagination logic
+- [x] Fix #16: Audio MIME types
+- [x] Fix #17: CORS production check (already safe — falls back to false in production)
+- [x] Fix #18: ChannelRead FK (added relation with onDelete: SetNull)

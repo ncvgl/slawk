@@ -68,13 +68,14 @@ model Message {
   updatedAt DateTime  @default(now()) @updatedAt
   deletedAt DateTime?
 
-  user      User       @relation(fields: [userId], references: [id])
-  channel   Channel    @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  reactions Reaction[]
-  files     File[]
-  parent    Message?   @relation("MessageThread", fields: [threadId], references: [id])
-  replies   Message[]  @relation("MessageThread")
-  bookmarks Bookmark[]
+  user         User          @relation(fields: [userId], references: [id])
+  channel      Channel       @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  reactions    Reaction[]
+  files        File[]
+  parent       Message?      @relation("MessageThread", fields: [threadId], references: [id])
+  replies      Message[]     @relation("MessageThread")
+  bookmarks    Bookmark[]
+  channelReads ChannelRead[] @relation("ChannelReadMessage")
 
   @@index([channelId, createdAt])
   @@index([threadId])
@@ -151,8 +152,9 @@ model ChannelRead {
   lastReadMessageId Int?
   updatedAt         DateTime @updatedAt
 
-  user    User    @relation(fields: [userId], references: [id])
-  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user            User     @relation(fields: [userId], references: [id])
+  channel         Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  lastReadMessage Message? @relation("ChannelReadMessage", fields: [lastReadMessageId], references: [id], onDelete: SetNull)
 
   @@unique([userId, channelId])
 }
