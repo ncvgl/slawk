@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, SendHorizontal, Plus, Smile, AtSign } from 'lucide-react';
+import { X, SendHorizontal, Plus, Smile, AtSign, Mic } from 'lucide-react';
 import { format } from 'date-fns';
 import Quill from 'quill';
 import 'quill/dist/quill.snow.css';
@@ -526,6 +526,14 @@ export function ThreadPanel({ messageId, onClose, onReplyCountChange }: ThreadPa
                 title="Mention someone"
               >
                 <AtSign className="h-[18px] w-[18px]" />
+              </Button>
+              <Button
+                data-testid="thread-mic-button"
+                variant="toolbar"
+                size="icon-sm"
+                title="Record voice clip"
+              >
+                <Mic className="h-[18px] w-[18px]" />
               </Button>
             </div>
 

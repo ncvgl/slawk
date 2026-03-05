@@ -26,6 +26,11 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
   ({ className, src, alt, fallback, size = 'md', status, ...props }, ref) => {
     const [imageError, setImageError] = React.useState(false);
 
+    // Reset error state when src changes
+    React.useEffect(() => {
+      setImageError(false);
+    }, [src]);
+
     const initials = fallback
       ? fallback
           .split(' ')
@@ -39,7 +44,8 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
       <div className="relative inline-block" ref={ref} {...props}>
         <div
           className={cn(
-            'relative flex shrink-0 overflow-hidden rounded-lg bg-gray-200',
+            'relative flex shrink-0 overflow-hidden bg-gray-200',
+            size === 'sm' ? 'rounded-[4px]' : 'rounded-lg',
             sizeClasses[size],
             className
           )}

@@ -55,7 +55,7 @@ export function LaterPage() {
     <div data-testid="later-page" className="flex h-full flex-col">
       <div className="flex h-[49px] items-center border-b border-slack-border px-5">
         <Bookmark className="h-5 w-5 text-slack-secondary mr-2" />
-        <span className="text-[18px] font-bold text-slack-primary">Later</span>
+        <span className="text-[18px] font-bold text-slack-primary">Saved</span>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
@@ -65,7 +65,7 @@ export function LaterPage() {
           <div className="text-center text-sm text-slack-error">{loadError}</div>
         ) : bookmarks.length === 0 ? (
           <div className="text-center text-sm text-slack-hint py-8">
-            No saved messages yet. Click the bookmark icon on any message to save it for later.
+            No saved messages yet. Click the bookmark icon on any message to save it.
           </div>
         ) : (
           <div className="space-y-1">
@@ -104,8 +104,8 @@ export function LaterPage() {
                     e.stopPropagation();
                     handleRemove(bm.messageId);
                   }}
-                  className="flex-shrink-0 flex h-8 w-8 items-center justify-center rounded hover:bg-slack-border-light opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="Remove from Later"
+                  className="flex-shrink-0 flex h-8 w-8 items-center justify-center rounded hover:bg-slack-border-light transition-opacity"
+                  title="Remove from Saved"
                 >
                   <Bookmark className="h-4 w-4 text-slack-warning fill-slack-warning" />
                 </button>

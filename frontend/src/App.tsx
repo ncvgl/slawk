@@ -226,7 +226,9 @@ function App() {
           <Route path="d/:userId" element={<RouteSync />} />
           <Route path="files" element={<FileRouteSync />} />
           <Route path="later" element={<LaterRouteSync />} />
+          <Route path="*" element={<DefaultRedirect />} />
         </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

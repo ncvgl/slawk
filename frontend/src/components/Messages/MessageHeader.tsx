@@ -173,15 +173,13 @@ export function MessageHeader({ channel, showMembers, onToggleMembers, onToggleP
       <div className="flex h-[49px] items-center justify-between px-4">
         {/* Left Section */}
         <div className="flex items-center gap-1">
-          <button
+          <div
             data-testid="channel-name-button"
-            onClick={onToggleMembers}
-            className="flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-slack-hover"
+            className="flex items-center gap-1 px-1.5 py-0.5"
           >
             <Hash className="h-[16px] w-[16px] text-slack-secondary" />
             <span className="text-[18px] font-black text-slack-primary">{channel.name}</span>
-            <ChevronDown className="h-4 w-4 text-slack-secondary" />
-          </button>
+          </div>
           <Button
             variant="toolbar"
             size="icon-xs"

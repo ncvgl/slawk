@@ -74,6 +74,7 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
   const currentUser = useAuthStore((s) => s.user);
   const channels = useChannelStore((s) => s.channels);
   const setActiveChannel = useChannelStore((s) => s.setActiveChannel);
+  const dmEntry = useChannelStore((s) => s.directMessages.find((d) => d.userId === userId));
   const {
     editingId, editContent, setEditContent, editInputRef,
     startEdit, cancelEdit, saveEdit, handleEditKeyDown,
@@ -215,7 +216,7 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
               alt={userName}
               fallback={userName}
               size="md"
-              status="online"
+              status={dmEntry?.userStatus || 'offline'}
             />
             <span className="ml-2 text-[18px] font-bold text-slack-primary">{userName}</span>
             <Button

@@ -22,7 +22,16 @@ import { authMiddleware } from './middleware/auth.js';
 
 const app = express();
 
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+      'img-src': ["'self'", 'data:', 'blob:', 'https://randomuser.me', 'https://storage.googleapis.com'],
+      'connect-src': ["'self'", 'wss:', 'ws:'],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+}));
 const corsOrigin = process.env.CORS_ORIGIN || (process.env.NODE_ENV === 'production' ? false : '*');
 app.use(cors({ origin: corsOrigin as string | boolean }));
 app.use(express.json());

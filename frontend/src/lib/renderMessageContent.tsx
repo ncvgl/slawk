@@ -18,10 +18,10 @@ function renderInline(content: string, keyOffset: number = 0): React.ReactNode[]
       nodes.push(<strong key={key++} className="font-bold">{m[2]}</strong>);
     } else if (m[3]) {
       // *@mention* — emphasized mention, render as mention (not italic)
-      nodes.push(<span key={key++} className="mention-highlight rounded bg-slack-mention px-[2px] text-slack-link font-medium cursor-pointer hover:bg-slack-mention-hover">{m[4]}</span>);
+      nodes.push(<span key={key++} className="mention-highlight rounded bg-slack-mention px-[2px] text-slack-link font-medium cursor-pointer hover:bg-slack-mention-hover" data-mention-name={m[4]?.slice(1)}>{m[4]}</span>);
     } else if (m[5]) {
       // @mention
-      nodes.push(<span key={key++} className="mention-highlight rounded bg-slack-mention px-[2px] text-slack-link font-medium cursor-pointer hover:bg-slack-mention-hover">{m[5]}</span>);
+      nodes.push(<span key={key++} className="mention-highlight rounded bg-slack-mention px-[2px] text-slack-link font-medium cursor-pointer hover:bg-slack-mention-hover" data-mention-name={m[5].slice(1)}>{m[5]}</span>);
     } else if (m[6]) {
       // *italic*
       nodes.push(<em key={key++} className="leading-[22px]">{m[7]}</em>);
@@ -108,6 +108,36 @@ function renderLines(text: string, keyOffset: number): React.ReactNode[] {
           {renderInline(quoteContent, key * 100)}
         </blockquote>
       );
+    } else if (/^\d+\.\s/.test(line)) {
+      // Collect consecutive ordered list items
+      const items: string[] = [];
+      while (i < lines.length && /^\d+\.\s/.test(lines[i])) {
+        items.push(lines[i].replace(/^\d+\.\s/, ''));
+        i++;
+      }
+      nodes.push(
+        <ol key={key++} className="list-decimal pl-6 my-0.5">
+          {items.map((item, idx) => (
+            <li key={idx} className="text-[15px] leading-[22px]">{renderInline(item, (key + idx) * 100)}</li>
+          ))}
+        </ol>
+      );
+      key += items.length;
+    } else if (line.startsWith('- ')) {
+      // Collect consecutive bullet list items
+      const items: string[] = [];
+      while (i < lines.length && lines[i].startsWith('- ')) {
+        items.push(lines[i].slice(2));
+        i++;
+      }
+      nodes.push(
+        <ul key={key++} className="list-disc pl-6 my-0.5">
+          {items.map((item, idx) => (
+            <li key={idx} className="text-[15px] leading-[22px]">{renderInline(item, (key + idx) * 100)}</li>
+          ))}
+        </ul>
+      );
+      key += items.length;
     } else {
       // Normal line — render inline, add newline between lines (but not after the last)
       if (nodes.length > 0 && i > 0) {
