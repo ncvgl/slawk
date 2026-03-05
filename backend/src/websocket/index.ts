@@ -413,7 +413,7 @@ export function initializeWebSocket(httpServer: HttpServer) {
         });
 
         if (!recipient) {
-          socket.emit('error', { message: 'Recipient not found' });
+          socket.emit('error', { message: 'Unable to send message' });
           return;
         }
 

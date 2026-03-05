@@ -70,8 +70,8 @@ describe('Direct Messages', () => {
         .set('Authorization', `Bearer ${aliceToken}`)
         .send({ toUserId: 99999, content: 'Hello?' });
 
-      expect(res.status).toBe(404);
-      expect(res.body.error).toBe('Recipient not found');
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('Unable to send message');
     });
 
     it('should require authentication', async () => {

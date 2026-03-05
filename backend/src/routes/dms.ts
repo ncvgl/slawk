@@ -32,7 +32,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     });
 
     if (!recipient) {
-      res.status(404).json({ error: 'Recipient not found' });
+      res.status(400).json({ error: 'Unable to send message' });
       return;
     }
 
