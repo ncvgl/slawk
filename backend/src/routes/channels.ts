@@ -88,39 +88,37 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       orderBy: { createdAt: 'desc' },
     });
 
-    // Compute unread counts for channels the user is a member of
-    const memberChannelIds = channels
-      .filter(c => c.members !== undefined)
-      .map(c => c.id);
+    // Batch: get memberships and unread counts in parallel (2 queries instead of N+1)
+    const channelIds = channels.map(c => c.id);
 
-    const memberships = await prisma.channelMember.findMany({
-      where: { userId, channelId: { in: channels.map(c => c.id) } },
-      select: { channelId: true },
-    });
+    const [memberships, unreadRows] = await Promise.all([
+      prisma.channelMember.findMany({
+        where: { userId, channelId: { in: channelIds } },
+        select: { channelId: true },
+      }),
+      channelIds.length > 0
+        ? prisma.$queryRaw<Array<{ channelId: number; unreadCount: bigint }>>`
+            SELECT m."channelId", COUNT(*)::bigint AS "unreadCount"
+            FROM "Message" m
+            JOIN "ChannelMember" cm ON cm."channelId" = m."channelId" AND cm."userId" = ${userId}
+            LEFT JOIN "ChannelRead" cr ON cr."channelId" = m."channelId" AND cr."userId" = ${userId}
+            WHERE m."channelId" = ANY(${channelIds})
+              AND m."threadId" IS NULL
+              AND m."deletedAt" IS NULL
+              AND (cr."lastReadMessageId" IS NULL OR m.id > cr."lastReadMessageId")
+            GROUP BY m."channelId"
+          `
+        : Promise.resolve([]),
+    ]);
+
     const memberSet = new Set(memberships.map(m => m.channelId));
+    const unreadMap = new Map(unreadRows.map(r => [r.channelId, Number(r.unreadCount)]));
 
-    const reads = await prisma.channelRead.findMany({
-      where: { userId, channelId: { in: channels.map(c => c.id) } },
-    });
-    const readMap = new Map(reads.map(r => [r.channelId, r.lastReadMessageId]));
-
-    const channelsWithUnread = await Promise.all(
-      channels.map(async (channel) => {
-        let unreadCount = 0;
-        if (memberSet.has(channel.id)) {
-          const lastReadId = readMap.get(channel.id);
-          unreadCount = await prisma.message.count({
-            where: {
-              channelId: channel.id,
-              threadId: null,
-              deletedAt: null,
-              ...(lastReadId != null ? { id: { gt: lastReadId } } : {}),
-            },
-          });
-        }
-        return { ...channel, unreadCount, isMember: memberSet.has(channel.id) };
-      })
-    );
+    const channelsWithUnread = channels.map((channel) => ({
+      ...channel,
+      unreadCount: memberSet.has(channel.id) ? (unreadMap.get(channel.id) || 0) : 0,
+      isMember: memberSet.has(channel.id),
+    }));
 
     res.json(channelsWithUnread);
   } catch (error) {
