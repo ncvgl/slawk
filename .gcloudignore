@@ -1,0 +1,16 @@
+.git
+node_modules
+**/node_modules
+**/dist
+**/.env
+screenshots
+images
+my_prompts
+backend/uploads
+backend/test-results
+frontend/test-results
+**/*.test.*
+**/*.spec.*
+**/playwright.config.*
+**/.playwright
+*.md
