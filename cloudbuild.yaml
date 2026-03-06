@@ -40,6 +40,17 @@ steps:
       - '--cpu=1'
       - '--allow-unauthenticated'
 
+  # Ensure traffic routes to the new revision
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'services'
+      - 'update-traffic'
+      - '${_SERVICE}'
+      - '--to-latest'
+      - '--region=${_REGION}'
+
 substitutions:
   _SERVICE: slawk
   _REGION: us-central1
