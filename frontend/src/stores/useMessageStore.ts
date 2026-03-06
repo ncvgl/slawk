@@ -83,14 +83,17 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   sendError: null,
 
   fetchMessages: async (channelId: number) => {
-    set({ isLoading: true, loadError: null });
+    set({ isLoading: true, loadError: null, loadedChannelId: channelId });
     try {
       const data = await api.getMessages(channelId);
+      // Discard stale response if the user already switched to another channel
+      if (get().loadedChannelId !== channelId) return;
       const messages = data.messages.map(transformApiMessage);
       // API returns desc order, reverse to asc for display
       messages.reverse();
       set({ messages, isLoading: false, loadedChannelId: channelId });
     } catch {
+      if (get().loadedChannelId !== channelId) return;
       set({ isLoading: false, loadError: 'Failed to load messages.' });
     }
   },
