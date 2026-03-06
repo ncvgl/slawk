@@ -18,6 +18,7 @@ import { useChannelStore } from '@/stores/useChannelStore';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useMessageEdit } from '@/hooks/useMessageEdit';
+import { useProfileStore } from '@/stores/useProfileStore';
 import { MessageToolbar } from './MessageToolbar';
 import { MessageActionsMenu } from './MessageActionsMenu';
 import { MessageInput } from './MessageInput';
@@ -77,6 +78,7 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
   const channels = useChannelStore((s) => s.channels);
   const setActiveChannel = useChannelStore((s) => s.setActiveChannel);
   const dmEntry = useChannelStore((s) => s.directMessages.find((d) => d.userId === userId));
+  const openProfile = useProfileStore((s) => s.openProfile);
   const {
     editingId, editContent, setEditContent, editInputRef,
     startEdit, cancelEdit, saveEdit, handleEditKeyDown,
@@ -441,13 +443,17 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
                       >
                         <div className="mr-2 w-9 flex-shrink-0">
                           {showAvatar ? (
-                            <Avatar
-                              src={msg.fromUser.avatar || undefined}
-                              alt={msg.fromUser.name}
-                              fallback={msg.fromUser.name}
-                              size="md"
-                              className="mt-[5px]"
-                            />
+                            <button
+                              onClick={() => openProfile(msg.fromUserId)}
+                            >
+                              <Avatar
+                                src={msg.fromUser.avatar || undefined}
+                                alt={msg.fromUser.name}
+                                fallback={msg.fromUser.name}
+                                size="md"
+                                className="mt-[5px]"
+                              />
+                            </button>
                           ) : (
                             <span className="hidden text-[12px] leading-[22px] text-slack-secondary group-hover:inline">
                               {format(msg.createdAt, 'h:mm')}
@@ -457,9 +463,12 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
                         <div className="min-w-0 flex-1">
                           {showAvatar && (
                             <div className="flex items-baseline gap-2">
-                              <span className="text-[15px] font-black text-slack-primary">
+                              <button
+                                onClick={() => openProfile(msg.fromUserId)}
+                                className="text-[15px] font-bold text-slack-primary hover:underline"
+                              >
                                 {msg.fromUser.name}
-                              </span>
+                              </button>
                               <span className="text-[12px] text-slack-secondary">
                                 {format(msg.createdAt, 'h:mm a')}
                               </span>

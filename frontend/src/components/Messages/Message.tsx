@@ -82,13 +82,15 @@ export function Message({ message, showAvatar, isCompact, onOpenThread }: Messag
       {/* Fixed 36px left gutter column with 8px gap to content */}
       <div className="w-9 flex-shrink-0 mr-2">
         {showAvatar ? (
-          <Avatar
-            src={message.user.avatar}
-            alt={message.user.name}
-            fallback={message.user.name}
-            size="md"
-            className="mt-[5px]"
-          />
+          <button onClick={() => openProfile(message.userId)}>
+            <Avatar
+              src={message.user.avatar}
+              alt={message.user.name}
+              fallback={message.user.name}
+              size="md"
+              className="mt-[5px]"
+            />
+          </button>
         ) : (
           <span className="hidden text-[12px] text-slack-secondary group-hover:inline leading-[22px]" title={format(message.createdAt, 'EEEE, MMMM d, yyyy h:mm:ss a')}>
             {format(message.createdAt, 'h:mm')}
