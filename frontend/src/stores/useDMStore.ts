@@ -29,6 +29,7 @@ interface DMState {
   messages: Record<number, DMMessage[]>;
   isLoading: boolean;
   loadError: string | null;
+  loadingUserId: number | null;
   isSending: boolean;
   sendError: string | null;
 
@@ -46,13 +47,16 @@ export const useDMStore = create<DMState>((set, get) => ({
   messages: {},
   isLoading: false,
   loadError: null,
+  loadingUserId: null,
   isSending: false,
   sendError: null,
 
   fetchConversation: async (userId: number) => {
-    set({ isLoading: true, loadError: null });
+    set({ isLoading: true, loadError: null, loadingUserId: userId });
     try {
       const data = await getConversation(userId);
+      // Discard stale response if user already switched to another conversation
+      if (get().loadingUserId !== userId) return;
       const msgs = data.messages.map(transformDM);
       msgs.reverse(); // API returns DESC, we want ASC
       set((state) => ({
@@ -61,6 +65,7 @@ export const useDMStore = create<DMState>((set, get) => ({
         loadError: null,
       }));
     } catch {
+      if (get().loadingUserId !== userId) return;
       set({ isLoading: false, loadError: 'Failed to load messages.' });
     }
   },
