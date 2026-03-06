@@ -13,7 +13,10 @@ export function useChannelActions() {
       setIsSearching(true);
       try {
         const allUsers = await getUsers(search);
-        setTeammates(allUsers.filter((u) => u.id !== user?.id));
+        // Put current user first (self-DM), then others
+        const self = allUsers.filter((u) => u.id === user?.id);
+        const others = allUsers.filter((u) => u.id !== user?.id);
+        setTeammates([...self, ...others]);
       } catch {
         // ignore
       } finally {

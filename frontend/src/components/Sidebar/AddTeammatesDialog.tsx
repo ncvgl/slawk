@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useChannelActions } from '@/hooks/useChannelActions';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
 import type { AuthUser } from '@/lib/api';
@@ -17,6 +18,7 @@ export function AddTeammatesDialog({
 }: AddTeammatesDialogProps) {
   const [teammateSearch, setTeammateSearch] = useState('');
   const { teammates, searchTeammates } = useChannelActions();
+  const currentUser = useAuthStore((s) => s.user);
 
   // Load all teammates when dialog opens
   useEffect(() => {
@@ -46,7 +48,7 @@ export function AddTeammatesDialog({
           className="w-full rounded border border-slack-input-border px-3 py-2 text-[15px] text-slack-primary outline-none focus:border-slack-link focus:ring-1 focus:ring-slack-link mb-3"
         />
         {teammates.length === 0 ? (
-          <p className="text-center text-slack-hint py-4">No other users found</p>
+          <p className="text-center text-slack-hint py-4">No users found</p>
         ) : (
           <div className="max-h-[300px] overflow-y-auto space-y-1">
             {teammates.map((u) => (
@@ -62,7 +64,9 @@ export function AddTeammatesDialog({
                   size="md"
                 />
                 <div>
-                  <p className="text-[14px] font-medium text-slack-primary">{u.name}</p>
+                  <p className="text-[14px] font-medium text-slack-primary">
+                    {u.name}{u.id === currentUser?.id && <span className="text-slack-hint font-normal"> (you)</span>}
+                  </p>
                 </div>
               </button>
             ))}

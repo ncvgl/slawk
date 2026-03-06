@@ -21,19 +21,16 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     const fromUserId = req.user!.userId;
     const { toUserId, content } = sendDMSchema.parse(req.body);
 
-    if (fromUserId === toUserId) {
-      res.status(400).json({ error: 'Cannot send DM to yourself' });
-      return;
-    }
+    // Check if recipient exists (self-DM is allowed)
+    if (fromUserId !== toUserId) {
+      const recipient = await prisma.user.findUnique({
+        where: { id: toUserId },
+      });
 
-    // Check if recipient exists
-    const recipient = await prisma.user.findUnique({
-      where: { id: toUserId },
-    });
-
-    if (!recipient) {
-      res.status(400).json({ error: 'Unable to send message' });
-      return;
+      if (!recipient) {
+        res.status(400).json({ error: 'Unable to send message' });
+        return;
+      }
     }
 
     const dm = await prisma.directMessage.create({
@@ -41,6 +38,8 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
         content,
         fromUserId,
         toUserId,
+        // Self-DMs are auto-read (no notifications for yourself)
+        ...(fromUserId === toUserId && { readAt: new Date() }),
       },
       include: DM_INCLUDE_USERS,
     });

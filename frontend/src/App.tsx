@@ -135,8 +135,9 @@ function AppShell() {
     const handleNewDM = (dm: import('@/lib/api').ApiDirectMessage) => {
       const { addOrUpdateDM, activeDMId, incrementDMUnread } = useChannelStore.getState();
       const currentUser = useAuthStore.getState().user;
+      const isSelfDM = currentUser && dm.fromUserId === currentUser.id && dm.toUserId === currentUser.id;
       addOrUpdateDM(dm.fromUserId, dm.fromUser.name, dm.fromUser.avatar ?? undefined);
-      if (activeDMId !== dm.fromUserId) {
+      if (activeDMId !== dm.fromUserId && !isSelfDM) {
         incrementDMUnread(dm.fromUserId);
       }
       // Add message to DM store if conversation is loaded

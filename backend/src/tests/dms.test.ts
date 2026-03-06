@@ -54,14 +54,17 @@ describe('Direct Messages', () => {
       expect(res.body.toUser.name).toBe('Bob DM');
     });
 
-    it('should not allow sending DM to yourself', async () => {
+    it('should allow sending DM to yourself (self-DM)', async () => {
       const res = await request(app)
         .post('/dms')
         .set('Authorization', `Bearer ${aliceToken}`)
         .send({ toUserId: aliceId, content: 'Hello me!' });
 
-      expect(res.status).toBe(400);
-      expect(res.body.error).toBe('Cannot send DM to yourself');
+      expect(res.status).toBe(201);
+      expect(res.body.content).toBe('Hello me!');
+      expect(res.body.fromUserId).toBe(aliceId);
+      expect(res.body.toUserId).toBe(aliceId);
+      expect(res.body.readAt).not.toBeNull(); // Self-DMs are auto-read
     });
 
     it('should return 404 for non-existent recipient', async () => {

@@ -75,6 +75,7 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
   const notifRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const currentUser = useAuthStore((s) => s.user);
+  const isSelf = userId === currentUser?.id;
   const channels = useChannelStore((s) => s.channels);
   const setActiveChannel = useChannelStore((s) => s.setActiveChannel);
   const dmEntry = useChannelStore((s) => s.directMessages.find((d) => d.userId === userId));
@@ -224,7 +225,7 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
               size="md"
               status={dmEntry?.userStatus || 'offline'}
             />
-            <span className="ml-2 text-[18px] font-bold text-slack-primary">{userName}</span>
+            <span className="ml-2 text-[18px] font-bold text-slack-primary">{userName}{isSelf && <span className="font-normal text-slack-hint"> (you)</span>}</span>
             <Button
               variant="toolbar"
               size="icon-xs"
@@ -394,7 +395,7 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
             ) : messages.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center text-slack-hint">
                 <p className="text-lg font-medium">
-                  Start of your conversation with {userName}
+                  {isSelf ? 'This is your space. Draft messages, list your to-dos, or keep links and files handy.' : `Start of your conversation with ${userName}`}
                 </p>
                 <p className="text-sm">Send a message to begin.</p>
               </div>

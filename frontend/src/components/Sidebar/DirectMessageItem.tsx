@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/ui/avatar';
+import { useAuthStore } from '@/stores/useAuthStore';
 import type { DirectMessage } from '@/lib/types';
 
 interface DirectMessageItemProps {
@@ -14,6 +15,8 @@ export function DirectMessageItem({
   onClick,
 }: DirectMessageItemProps) {
   const hasUnread = dm.unreadCount > 0;
+  const currentUser = useAuthStore((s) => s.user);
+  const isSelf = dm.userId === currentUser?.id;
 
   return (
     <button
@@ -37,7 +40,7 @@ export function DirectMessageItem({
         size="sm"
         status={dm.userStatus}
       />
-      <span className="truncate">{dm.userName}</span>
+      <span className="truncate">{dm.userName}{isSelf && <span className="opacity-60"> (you)</span>}</span>
       {hasUnread && (
         <span className={cn(
           'text-[12px] ml-1 min-w-[20px] h-5 flex items-center justify-center rounded-full px-1.5',

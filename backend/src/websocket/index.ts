@@ -388,19 +388,18 @@ export function initializeWebSocket(httpServer: HttpServer) {
         }
         const data = parsed.data;
 
-        if (socket.user.userId === data.toUserId) {
-          socket.emit('error', { message: 'Cannot send DM to yourself' });
-          return;
-        }
+        const isSelfDM = socket.user.userId === data.toUserId;
 
-        // Check if recipient exists
-        const recipient = await prisma.user.findUnique({
-          where: { id: data.toUserId },
-        });
+        // Check if recipient exists (self-DM is allowed)
+        if (!isSelfDM) {
+          const recipient = await prisma.user.findUnique({
+            where: { id: data.toUserId },
+          });
 
-        if (!recipient) {
-          socket.emit('error', { message: 'Unable to send message' });
-          return;
+          if (!recipient) {
+            socket.emit('error', { message: 'Unable to send message' });
+            return;
+          }
         }
 
         const dm = await prisma.directMessage.create({
@@ -408,13 +407,17 @@ export function initializeWebSocket(httpServer: HttpServer) {
             content: data.content,
             fromUserId: socket.user.userId,
             toUserId: data.toUserId,
+            // Self-DMs are auto-read (no notifications)
+            ...(isSelfDM && { readAt: new Date() }),
           },
           include: DM_INCLUDE_USERS,
         });
 
-        // Emit to both users' personal rooms (every connected user is always in their user room)
+        // Emit to both users' personal rooms (avoid duplicate for self-DM)
         io.to(`user:${socket.user.userId}`).emit('dm:new', dm);
-        io.to(`user:${data.toUserId}`).emit('dm:new', dm);
+        if (!isSelfDM) {
+          io.to(`user:${data.toUserId}`).emit('dm:new', dm);
+        }
       } catch (error) {
         console.error('WebSocket DM error:', error);
         socket.emit('error', { message: 'Failed to send DM' });
