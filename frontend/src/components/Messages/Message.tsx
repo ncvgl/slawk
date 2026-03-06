@@ -319,7 +319,8 @@ export function Message({ message, showAvatar, isCompact, onOpenThread }: Messag
       {/* More actions dropdown */}
       {showMoreMenu && (
         <MessageActionsMenu
-          className="absolute -top-4 right-5 mt-9 z-50"
+          anchorClassName="absolute -top-4 right-5 mt-9"
+          onClose={() => setShowMoreMenu(false)}
           onMarkUnread={() => {
             setShowMoreMenu(false);
             // Count this message and all subsequent messages as unread

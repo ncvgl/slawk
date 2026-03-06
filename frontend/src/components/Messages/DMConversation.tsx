@@ -569,7 +569,8 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
                         {/* More actions dropdown */}
                         {showMoreMenuId === msg.id && (
                           <MessageActionsMenu
-                            className="absolute -top-4 right-2 z-50 mt-9"
+                            anchorClassName="absolute -top-4 right-2 mt-9"
+                            onClose={() => setShowMoreMenuId(null)}
                             testIdPrefix="dm"
                             showOwnerActions={isOwner}
                             onEdit={() => handleStartEdit(msg)}
