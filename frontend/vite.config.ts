@@ -17,7 +17,16 @@ export default defineConfig({
       '/channels': { target: 'http://localhost:3000', changeOrigin: true },
       '/messages': { target: 'http://localhost:3000', changeOrigin: true },
       '/search': { target: 'http://localhost:3000', changeOrigin: true },
-      '/files': { target: 'http://localhost:3000', changeOrigin: true },
+      '/files': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        // Skip proxy for HTML page navigations so the /files SPA route works on refresh
+        bypass(req) {
+          if (req.headers.accept?.includes('text/html')) {
+            return req.url;
+          }
+        },
+      },
       '/users': { target: 'http://localhost:3000', changeOrigin: true },
       '/dms': { target: 'http://localhost:3000', changeOrigin: true },
       '/uploads': { target: 'http://localhost:3000', changeOrigin: true },
