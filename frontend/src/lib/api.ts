@@ -421,11 +421,13 @@ export interface ApiDirectMessage {
   content: string;
   fromUserId: number;
   toUserId: number;
+  threadId?: number | null;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
   fromUser: { id: number; name: string; email: string; avatar?: string | null };
   toUser: { id: number; name: string; email: string; avatar?: string | null };
+  _count?: { replies: number };
 }
 
 export function getDirectMessages() {
@@ -455,6 +457,19 @@ export function editDM(dmId: number, content: string) {
 export function deleteDM(dmId: number) {
   return request<{ message: string }>(`/dms/messages/${dmId}`, {
     method: 'DELETE',
+  });
+}
+
+export function getDMThread(dmId: number) {
+  return request<{ parent: ApiDirectMessage; replies: ApiDirectMessage[] }>(
+    `/dms/messages/${dmId}/thread`,
+  );
+}
+
+export function replyToDM(dmId: number, content: string) {
+  return request<ApiDirectMessage>(`/dms/messages/${dmId}/reply`, {
+    method: 'POST',
+    body: JSON.stringify({ content }),
   });
 }
 

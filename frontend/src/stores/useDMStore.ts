@@ -8,6 +8,8 @@ export interface DMMessage {
   fromUser: { id: number; name: string; avatar?: string | null };
   createdAt: Date;
   editedAt?: Date | null;
+  threadId?: number | null;
+  replyCount: number;
 }
 
 function transformDM(dm: ApiDirectMessage): DMMessage {
@@ -17,7 +19,9 @@ function transformDM(dm: ApiDirectMessage): DMMessage {
     fromUserId: dm.fromUserId,
     fromUser: dm.fromUser,
     createdAt: new Date(dm.createdAt),
-    editedAt: (dm as any).editedAt ? new Date((dm as any).editedAt) : null,
+    editedAt: dm.editedAt ? new Date(dm.editedAt) : null,
+    threadId: dm.threadId ?? null,
+    replyCount: dm._count?.replies ?? 0,
   };
 }
 
@@ -33,6 +37,7 @@ interface DMState {
   editMessage: (messageId: number, content: string, userId: number) => Promise<void>;
   deleteMessage: (messageId: number, userId: number) => Promise<void>;
   addIncomingMessage: (dm: ApiDirectMessage, currentUserId: number) => void;
+  updateReplyCount: (messageId: number, userId: number, count: number) => void;
   clearConversation: (userId: number) => void;
   clearSendError: () => void;
 }
@@ -112,7 +117,20 @@ export const useDMStore = create<DMState>((set, get) => ({
 
   clearSendError: () => set({ sendError: null }),
 
+  updateReplyCount: (messageId: number, userId: number, count: number) => {
+    set((state) => ({
+      messages: {
+        ...state.messages,
+        [userId]: (state.messages[userId] ?? []).map((m) =>
+          m.id === messageId ? { ...m, replyCount: count } : m,
+        ),
+      },
+    }));
+  },
+
   addIncomingMessage: (dm: ApiDirectMessage, currentUserId: number) => {
+    // Thread replies don't appear in the main conversation
+    if (dm.threadId) return;
     const otherUserId = dm.fromUserId === currentUserId ? dm.toUserId : dm.fromUserId;
     const state = get();
     // Only add if we have this conversation loaded and the message isn't already there

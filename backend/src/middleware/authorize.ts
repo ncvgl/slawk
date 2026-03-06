@@ -138,6 +138,42 @@ export async function requireFileAccess(
 }
 
 /**
+ * Requires the authenticated user to be a participant in the DM
+ * specified by req.params.id (either sender or recipient).
+ * Use for read-only operations and thread replies.
+ * Attaches req.dm on success.
+ */
+export async function requireDmAccess(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const dmId = parseInt(req.params.id);
+  if (isNaN(dmId)) {
+    res.status(400).json({ error: 'Invalid message ID' });
+    return;
+  }
+
+  const dm = await prisma.directMessage.findUnique({
+    where: { id: dmId },
+  });
+
+  if (!dm || dm.deletedAt !== null) {
+    res.status(404).json({ error: 'Message not found' });
+    return;
+  }
+
+  const userId = req.user!.userId;
+  if (dm.fromUserId !== userId && dm.toUserId !== userId) {
+    res.status(403).json({ error: 'Access denied' });
+    return;
+  }
+
+  req.dm = dm;
+  next();
+}
+
+/**
  * Requires the authenticated user to own the direct message
  * specified by req.params.id. Checks existence, soft-delete,
  * and fromUserId ownership. Attaches req.dm on success.

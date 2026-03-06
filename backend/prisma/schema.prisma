@@ -119,17 +119,21 @@ model DirectMessage {
   content    String
   fromUserId Int
   toUserId   Int
+  threadId   Int?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @default(now()) @updatedAt
   editedAt   DateTime?
   deletedAt  DateTime?
   readAt     DateTime?
 
-  fromUser   User      @relation("SentMessages", fields: [fromUserId], references: [id])
-  toUser     User      @relation("ReceivedMessages", fields: [toUserId], references: [id])
+  fromUser   User             @relation("SentMessages", fields: [fromUserId], references: [id])
+  toUser     User             @relation("ReceivedMessages", fields: [toUserId], references: [id])
+  parent     DirectMessage?   @relation("DMThread", fields: [threadId], references: [id])
+  replies    DirectMessage[]  @relation("DMThread")
 
   @@index([fromUserId, toUserId])
   @@index([toUserId, fromUserId])
+  @@index([threadId])
 }
 
 model Bookmark {

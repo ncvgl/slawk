@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format, isToday, isYesterday } from 'date-fns';
 import {
@@ -9,6 +9,7 @@ import {
   Bell,
   Search,
   MoreVertical,
+  MessageSquare,
 } from 'lucide-react';
 import { Avatar } from '@/components/ui/avatar';
 import { EmojiPicker } from '@/components/ui/emoji-picker';
@@ -22,6 +23,7 @@ import { useProfileStore } from '@/stores/useProfileStore';
 import { MessageToolbar } from './MessageToolbar';
 import { MessageActionsMenu } from './MessageActionsMenu';
 import { MessageInput } from './MessageInput';
+import { DMThreadPanel } from './DMThreadPanel';
 import { renderMessageContent } from '@/lib/renderMessageContent';
 import { searchMessages, type SearchResult } from '@/lib/api';
 import type { DMMessage } from '@/stores/useDMStore';
@@ -56,7 +58,9 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
   const storeSendMessage = useDMStore((s) => s.sendMessage);
   const storeEditMessage = useDMStore((s) => s.editMessage);
   const storeDeleteMessage = useDMStore((s) => s.deleteMessage);
+  const updateReplyCount = useDMStore((s) => s.updateReplyCount);
 
+  const [activeThreadId, setActiveThreadId] = useState<number | null>(null);
   const [hoveredMessageId, setHoveredMessageId] = useState<number | null>(null);
   const [showMoreMenuId, setShowMoreMenuId] = useState<number | null>(null);
   const [showEmojiPickerId, setShowEmojiPickerId] = useState<number | null>(null);
@@ -209,6 +213,25 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
 
   const keepToolbarOpen = (msgId: number) =>
     showMoreMenuId === msgId || showEmojiPickerId === msgId || editingId === msgId;
+
+  const handleOpenThread = useCallback((messageId: number) => {
+    setActiveThreadId(messageId);
+    setShowPins(false);
+    setShowFiles(false);
+  }, []);
+
+  const handleCloseThread = useCallback(() => {
+    setActiveThreadId(null);
+  }, []);
+
+  const handleReplyCountChange = useCallback((messageId: number, count: number) => {
+    updateReplyCount(messageId, userId, count);
+  }, [updateReplyCount, userId]);
+
+  // Close thread panel when switching conversations
+  useEffect(() => {
+    setActiveThreadId(null);
+  }, [userId]);
 
   return (
     <div data-testid="dm-conversation" className="flex h-full flex-col">
@@ -513,6 +536,16 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
                               )}
                             </div>
                           )}
+                          {msg.replyCount > 0 && (
+                            <button
+                              data-testid={`dm-thread-count-${msg.id}`}
+                              onClick={() => handleOpenThread(msg.id)}
+                              className="mt-1 flex items-center gap-1 text-[12px] text-slack-link hover:underline"
+                            >
+                              <MessageSquare className="h-3.5 w-3.5" />
+                              <span>{msg.replyCount} {msg.replyCount === 1 ? 'reply' : 'replies'}</span>
+                            </button>
+                          )}
                         </div>
 
                         {/* Hover action toolbar */}
@@ -525,9 +558,7 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
                                 prev === msg.id ? null : msg.id,
                               )
                             }
-                            onThreadClick={() => {
-                              // Threads on DMs not supported yet
-                            }}
+                            onThreadClick={() => handleOpenThread(msg.id)}
                             onMoreClick={isOwner ? () =>
                               setShowMoreMenuId((prev) =>
                                 prev === msg.id ? null : msg.id,
@@ -625,6 +656,15 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
               No files shared yet
             </div>
           </div>
+        )}
+
+        {/* Thread Panel */}
+        {activeThreadId && (
+          <DMThreadPanel
+            dmId={activeThreadId}
+            onClose={handleCloseThread}
+            onReplyCountChange={handleReplyCountChange}
+          />
         )}
       </div>
     </div>

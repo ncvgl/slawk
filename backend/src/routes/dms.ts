@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import prisma from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
-import { requireDmOwnership } from '../middleware/authorize.js';
+import { requireDmOwnership, requireDmAccess } from '../middleware/authorize.js';
 import { AuthRequest } from '../types.js';
 import { isUserOnline } from '../websocket/index.js';
 import { USER_SELECT_BASIC, DM_INCLUDE_USERS } from '../db/selects.js';
@@ -161,8 +161,12 @@ router.get('/:userId', authMiddleware, async (req: AuthRequest, res: Response) =
           { fromUserId: otherUserId, toUserId: currentUserId },
         ],
         deletedAt: null,
+        threadId: null, // Exclude thread replies from main conversation
       },
-      include: DM_INCLUDE_USERS,
+      include: {
+        ...DM_INCLUDE_USERS,
+        _count: { select: { replies: true } },
+      },
       orderBy: { createdAt: 'desc' },
       take: limit + 1,
       ...(cursor && {
@@ -195,6 +199,76 @@ router.get('/:userId', authMiddleware, async (req: AuthRequest, res: Response) =
   } catch (error) {
     console.error('Get DM conversation error:', error);
     res.status(500).json({ error: 'Failed to get DM conversation' });
+  }
+});
+
+// POST /dms/messages/:id/reply - Reply to a DM (creates thread)
+router.post('/messages/:id/reply', authMiddleware, requireDmAccess, async (req: AuthRequest, res: Response) => {
+  try {
+    const parentId = req.dm.id;
+    const fromUserId = req.user!.userId;
+    const parentDm = req.dm;
+
+    // Prevent nested threads
+    if (parentDm.threadId !== null) {
+      res.status(400).json({ error: 'Cannot reply to a reply. Reply to the parent message instead.' });
+      return;
+    }
+
+    const contentSchema = z.object({ content: z.string().min(1).max(4000) });
+    const { content } = contentSchema.parse(req.body);
+
+    // Reply goes to the same conversation (same from/to pair)
+    const toUserId = parentDm.fromUserId === fromUserId ? parentDm.toUserId : parentDm.fromUserId;
+
+    const reply = await prisma.directMessage.create({
+      data: {
+        content,
+        fromUserId,
+        toUserId,
+        threadId: parentId,
+        // Self-DMs are auto-read
+        ...(fromUserId === toUserId && { readAt: new Date() }),
+      },
+      include: DM_INCLUDE_USERS,
+    });
+
+    res.status(201).json(reply);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: error.issues });
+      return;
+    }
+    console.error('DM reply error:', error);
+    res.status(500).json({ error: 'Failed to send reply' });
+  }
+});
+
+// GET /dms/messages/:id/thread - Get DM thread
+router.get('/messages/:id/thread', authMiddleware, requireDmAccess, async (req: AuthRequest, res: Response) => {
+  try {
+    const parentId = req.dm.id;
+
+    const parent = await prisma.directMessage.findUnique({
+      where: { id: parentId },
+      include: DM_INCLUDE_USERS,
+    });
+
+    if (!parent) {
+      res.status(404).json({ error: 'Message not found' });
+      return;
+    }
+
+    const replies = await prisma.directMessage.findMany({
+      where: { threadId: parentId, deletedAt: null },
+      include: DM_INCLUDE_USERS,
+      orderBy: { createdAt: 'asc' },
+    });
+
+    res.json({ parent, replies });
+  } catch (error) {
+    console.error('Get DM thread error:', error);
+    res.status(500).json({ error: 'Failed to get thread' });
   }
 });
 
