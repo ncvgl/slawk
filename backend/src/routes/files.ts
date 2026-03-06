@@ -283,10 +283,15 @@ router.get('/:id/download', (req: AuthRequest, res: Response, next) => {
 
     // GCS files: redirect to signed URL
     if (file.gcsPath && bucket) {
-      const [signedUrl] = await bucket.file(file.gcsPath).getSignedUrl({
+      const safeName = file.originalName.replace(/["\\\r\n]/g, '_');
+      const signedUrlOpts: any = {
         action: 'read',
         expires: Date.now() + 15 * 60 * 1000, // 15 min
-      });
+      };
+      if (req.query.dl === '1') {
+        signedUrlOpts.responseDisposition = `attachment; filename="${safeName}"`;
+      }
+      const [signedUrl] = await bucket.file(file.gcsPath).getSignedUrl(signedUrlOpts);
       res.redirect(signedUrl);
       return;
     }

@@ -34,7 +34,7 @@ steps:
       - '--set-env-vars=RUN_SEED=${_RUN_SEED}'
       - '--timeout=3600'
       - '--session-affinity'
-      - '--min-instances=0'
+      - '--min-instances=1'
       - '--max-instances=3'
       - '--memory=512Mi'
       - '--cpu=1'
