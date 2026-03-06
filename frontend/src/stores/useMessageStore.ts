@@ -68,6 +68,7 @@ interface MessageState {
   addReaction: (messageId: number, emoji: string) => void;
   removeReaction: (messageId: number, emoji: string) => void;
   clearSendError: () => void;
+  updateUserInMessages: (userId: number, updates: { name?: string; avatar?: string }) => void;
   // Socket event handlers
   onMessageNew: (msg: api.ApiMessage) => void;
   onMessageUpdated: (msg: api.ApiMessage) => void;
@@ -146,6 +147,25 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   },
 
   clearSendError: () => set({ sendError: null }),
+
+  updateUserInMessages: (userId, updates) => {
+    set({
+      messages: get().messages.map((msg) => {
+        const isAuthor = msg.userId === userId;
+        const hasParticipant = msg.threadParticipants?.some((p) => p.id === userId);
+        if (!isAuthor && !hasParticipant) return msg;
+        return {
+          ...msg,
+          user: isAuthor ? { ...msg.user, ...updates } : msg.user,
+          threadParticipants: hasParticipant
+            ? msg.threadParticipants.map((p) =>
+                p.id === userId ? { ...p, ...updates } : p
+              )
+            : msg.threadParticipants,
+        };
+      }),
+    });
+  },
 
   // Socket event handlers — called when we receive a broadcast from the server
   onMessageNew: (msg: api.ApiMessage) => {

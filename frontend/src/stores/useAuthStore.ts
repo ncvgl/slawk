@@ -11,10 +11,11 @@ interface AuthState {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   register: (name: string, email: string, password: string) => Promise<void>;
+  updateUser: (updates: Partial<User>) => void;
   hydrate: () => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isAuthenticated: !!localStorage.getItem('token'),
   isLoading: false,
@@ -58,6 +59,11 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ isLoading: false, error: message });
       throw err;
     }
+  },
+
+  updateUser: (updates) => {
+    const current = get().user;
+    if (current) set({ user: { ...current, ...updates } });
   },
 
   hydrate: () => {

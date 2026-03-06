@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { getMyProfile, getUserProfile, updateMyProfile, type UserProfile } from '@/lib/api';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useChannelStore } from '@/stores/useChannelStore';
+import { useMessageStore } from '@/stores/useMessageStore';
 import { format } from 'date-fns';
 
 interface ProfileModalProps {
@@ -49,6 +50,9 @@ export function ProfileModal({ userId, onClose }: ProfileModalProps) {
       });
       setProfile(updated);
       setIsEditing(false);
+      // Propagate name change to auth store and cached messages
+      useAuthStore.getState().updateUser({ name: updated.name });
+      useMessageStore.getState().updateUserInMessages(updated.id, { name: updated.name });
     } catch {
       setSaveError('Failed to save profile. Please try again.');
     } finally {
