@@ -308,13 +308,26 @@ router.get('/:id/download', (req: AuthRequest, res: Response, next) => {
       return;
     }
 
-    res.setHeader('Content-Type', file.mimetype);
-    res.setHeader('Content-Length', file.size);
-    // Sanitize filename to prevent header injection
     const safeName = file.originalName.replace(/["\\\r\n]/g, '_');
     const disposition = req.query.dl === '1' ? 'attachment' : 'inline';
+    res.setHeader('Content-Type', file.mimetype);
     res.setHeader('Content-Disposition', `${disposition}; filename="${safeName}"`);
-    fs.createReadStream(filePath).pipe(res);
+    res.setHeader('Accept-Ranges', 'bytes');
+
+    const total = file.size;
+    const range = req.headers.range;
+    if (range) {
+      const parts = range.replace(/bytes=/, '').split('-');
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : total - 1;
+      res.status(206);
+      res.setHeader('Content-Range', `bytes ${start}-${end}/${total}`);
+      res.setHeader('Content-Length', end - start + 1);
+      fs.createReadStream(filePath, { start, end }).pipe(res);
+    } else {
+      res.setHeader('Content-Length', total);
+      fs.createReadStream(filePath).pipe(res);
+    }
   } catch (error) {
     console.error('Download file error:', error);
     res.status(500).json({ error: 'Failed to download file' });

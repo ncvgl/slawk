@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import fixWebmDuration from 'fix-webm-duration';
 import { uploadFile, type ApiFile } from '@/lib/api';
 
 interface UseVoiceRecorderOptions {
@@ -13,6 +14,7 @@ export function useVoiceRecorder({ onRecorded, onError }: UseVoiceRecorderOption
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const startTimeRef = useRef<number>(0);
 
   const startRecording = useCallback(async () => {
     try {
@@ -45,7 +47,16 @@ export function useVoiceRecorder({ onRecorded, onError }: UseVoiceRecorderOption
         const actualMime = recorder.mimeType || mimeType || 'audio/webm';
         const baseMime = actualMime.split(';')[0];
         const ext = baseMime === 'audio/mp4' ? 'mp4' : baseMime === 'audio/ogg' ? 'ogg' : 'webm';
-        const blob = new Blob(chunksRef.current, { type: baseMime });
+        let blob = new Blob(chunksRef.current, { type: baseMime });
+        // Fix WebM duration metadata so audio players show the correct length
+        const recordingDurationMs = Date.now() - startTimeRef.current;
+        if (baseMime.includes('webm')) {
+          try {
+            blob = await new Promise<Blob>((resolve) => {
+              fixWebmDuration(blob, recordingDurationMs, (fixed: Blob) => resolve(fixed));
+            });
+          } catch { /* use original blob if fix fails */ }
+        }
         const filename = `voice-message-${Date.now()}.${ext}`;
         const file = new File([blob], filename, { type: baseMime });
 
@@ -59,6 +70,7 @@ export function useVoiceRecorder({ onRecorded, onError }: UseVoiceRecorderOption
       };
 
       recorder.start(100); // Collect data every 100ms
+      startTimeRef.current = Date.now();
       setIsRecording(true);
       setDuration(0);
 
