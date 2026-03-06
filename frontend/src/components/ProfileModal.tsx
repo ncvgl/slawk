@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { X, MessageSquare, Camera } from 'lucide-react';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -15,6 +16,7 @@ interface ProfileModalProps {
 }
 
 export function ProfileModal({ userId, onClose }: ProfileModalProps) {
+  const navigate = useNavigate();
   const currentUser = useAuthStore((s) => s.user);
   const isOwnProfile = !userId || userId === currentUser?.id;
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -236,6 +238,7 @@ export function ProfileModal({ userId, onClose }: ProfileModalProps) {
                     className="w-full mb-2"
                     onClick={() => {
                       useChannelStore.getState().startDM(profile.id, profile.name, profile.avatar ?? undefined);
+                      navigate(`/d/${profile.id}`);
                       onClose();
                     }}
                   >
