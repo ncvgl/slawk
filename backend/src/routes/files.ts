@@ -52,9 +52,12 @@ const upload = multer({
       'application/zip',
       'application/x-zip-compressed',
       'audio/webm',
+      'audio/webm;codecs=opus',
       'audio/ogg',
       'audio/mp4',
       'audio/mpeg',
+      'audio/mp4;codecs=opus',
+      'audio/aac',
     ];
     if (allowedMimes.includes(file.mimetype)) {
       cb(null, true);

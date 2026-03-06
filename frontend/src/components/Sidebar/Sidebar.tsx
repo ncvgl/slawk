@@ -135,8 +135,8 @@ export function Sidebar() {
       {/* Nav Rail - 70px wide, darker purple */}
       <div className="flex w-[70px] flex-col items-center bg-slack-sidebar-dark pt-2 gap-0">
         {/* Workspace Icon - 36x36px */}
-        <button className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-white text-slack-aubergine font-bold text-lg hover:rounded-xl transition-all">
-          S
+        <button className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg overflow-hidden hover:rounded-xl transition-all">
+          <img src="/favicon-192.png" alt="Slawk" className="h-full w-full object-cover" />
         </button>
 
         {/* Nav Items - 52x68px each with icon + label */}

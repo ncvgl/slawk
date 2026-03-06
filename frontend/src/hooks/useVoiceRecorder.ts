@@ -19,11 +19,16 @@ export function useVoiceRecorder({ onRecorded, onError }: UseVoiceRecorderOption
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-        ? 'audio/webm;codecs=opus'
-        : 'audio/webm';
+      const candidates = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/mp4;codecs=opus',
+        'audio/mp4',
+        'audio/ogg;codecs=opus',
+      ];
+      const mimeType = candidates.find((t) => MediaRecorder.isTypeSupported(t)) || '';
 
-      const recorder = new MediaRecorder(stream, { mimeType });
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       mediaRecorderRef.current = recorder;
       chunksRef.current = [];
 
@@ -37,15 +42,19 @@ export function useVoiceRecorder({ onRecorded, onError }: UseVoiceRecorderOption
         streamRef.current = null;
 
         if (chunksRef.current.length === 0) return;
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-        const filename = `voice-message-${Date.now()}.webm`;
-        const file = new File([blob], filename, { type: 'audio/webm' });
+        const actualMime = recorder.mimeType || mimeType || 'audio/webm';
+        const baseMime = actualMime.split(';')[0];
+        const ext = baseMime === 'audio/mp4' ? 'mp4' : baseMime === 'audio/ogg' ? 'ogg' : 'webm';
+        const blob = new Blob(chunksRef.current, { type: baseMime });
+        const filename = `voice-message-${Date.now()}.${ext}`;
+        const file = new File([blob], filename, { type: baseMime });
 
         try {
           const uploaded = await uploadFile(file);
           onRecorded(uploaded);
-        } catch {
-          onError?.('Failed to upload voice message.');
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : 'Failed to upload voice message.';
+          onError?.(msg);
         }
       };
 
