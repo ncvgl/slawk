@@ -5,3 +5,5 @@ dist/
 .DS_Store
 frontend/playwright-report/
 frontend/test-results/
+screenshots/
+my_prompts/deprecated/
