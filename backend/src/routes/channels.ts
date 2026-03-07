@@ -30,6 +30,10 @@ const createChannelSchema = z.object({
 // POST /channels - Create channel
 router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
+    if (req.user!.role === 'GUEST') {
+      res.status(403).json({ error: 'Guests cannot create channels' });
+      return;
+    }
     const { name, isPrivate } = createChannelSchema.parse(req.body);
     const userId = req.user!.userId;
 
@@ -74,14 +78,17 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
 router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.userId;
+    const isGuest = req.user!.role === 'GUEST';
 
     const channels = await prisma.channel.findMany({
-      where: {
-        OR: [
-          { isPrivate: false },
-          { members: { some: { userId } } },
-        ],
-      },
+      where: isGuest
+        ? { members: { some: { userId } } }
+        : {
+            OR: [
+              { isPrivate: false },
+              { members: { some: { userId } } },
+            ],
+          },
       include: {
         _count: {
           select: { members: true, messages: true },
@@ -191,6 +198,10 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
 // POST /channels/:id/join - Join a channel
 router.post('/:id/join', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
+    if (req.user!.role === 'GUEST') {
+      res.status(403).json({ error: 'Guests cannot join channels' });
+      return;
+    }
     const channelId = parseIntParam(req.params.id);
     if (!channelId) {
       res.status(400).json({ error: 'Invalid channel ID' });

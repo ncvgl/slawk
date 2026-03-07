@@ -12,7 +12,7 @@ interface AuthState {
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
-  register: (name: string, email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string, inviteCode?: string) => Promise<void>;
   updateUser: (updates: Partial<User>) => void;
   hydrate: () => void;
 }
@@ -30,7 +30,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const { user, token } = await api.login(email, password);
       localStorage.setItem('token', token);
       set({
-        user: { ...user, status: 'online' },
+        user: { ...user, status: 'online', role: user.role },
         isAuthenticated: true,
         isLoading: false,
       });
@@ -49,13 +49,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     window.location.href = '/login';
   },
 
-  register: async (name: string, email: string, password: string) => {
+  register: async (name: string, email: string, password: string, inviteCode?: string) => {
     set({ isLoading: true, error: null });
     try {
-      const { user, token } = await api.register(name, email, password);
+      const { user, token } = await api.register(name, email, password, inviteCode);
       localStorage.setItem('token', token);
       set({
-        user: { ...user, status: 'online' },
+        user: { ...user, status: 'online', role: user.role },
         isAuthenticated: true,
         isLoading: false,
       });
@@ -93,6 +93,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               email: profile.email,
               name: profile.name,
               avatar: profile.avatar,
+              role: profile.role,
               status: profile.status as any,
             },
             isHydrating: false,

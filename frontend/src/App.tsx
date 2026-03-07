@@ -63,6 +63,9 @@ function RouteSync() {
       }
       const scrollRaw = (location.state as any)?.scrollToMessageId;
       const scrollToMessageId = typeof scrollRaw === 'number' && scrollRaw > 0 ? scrollRaw : undefined;
+      // Guard: skip if already active to prevent infinite loop
+      // (setActiveChannel → markChannelAsRead creates new channels array → re-triggers this effect)
+      if (useChannelStore.getState().activeChannelId === id && !scrollToMessageId) return;
       setActiveChannel(id, scrollToMessageId);
     } else if (userId) {
       const id = parseInt(userId, 10);
@@ -91,6 +94,28 @@ function LaterRouteSync() {
     useChannelStore.setState({ activeChannelId: null, activeDMId: null });
   }, []);
   return null;
+}
+
+function AdminRouteSync() {
+  useEffect(() => {
+    useChannelStore.setState({ activeChannelId: null, activeDMId: null });
+  }, []);
+  return null;
+}
+
+function AdminGuard({ children }: { children: React.ReactNode }) {
+  const user = useAuthStore((s) => s.user);
+  const isHydrating = useAuthStore((s) => s.isHydrating);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isHydrating && user && user.role !== 'ADMIN') {
+      navigate('/', { replace: true });
+    }
+  }, [user, isHydrating, navigate]);
+
+  if (isHydrating || !user || user.role !== 'ADMIN') return null;
+  return <>{children}</>;
 }
 
 /**
@@ -205,6 +230,15 @@ function AppShell() {
       useChannelStore.getState().fetchChannels();
     };
 
+    const handleChannelDeleted = (data: { channelId: number }) => {
+      // Re-fetch channels to remove the deleted channel from sidebar
+      useChannelStore.getState().fetchChannels();
+      const { activeChannelId } = useChannelStore.getState();
+      if (activeChannelId === data.channelId) {
+        useChannelStore.setState({ activeChannelId: null });
+      }
+    };
+
     const handleReactionAdded = (data: { messageId: number; reaction: { emoji: string; userId: number; user: { name: string } } }) => {
       useMessageStore.getState().onReactionAdded(data);
     };
@@ -223,6 +257,7 @@ function AppShell() {
     socket.on('channel:member-added', handleMemberAdded);
     socket.on('channel:member-left', handleMemberLeft);
     socket.on('channel:joined', handleChannelJoined);
+    socket.on('channel:deleted', handleChannelDeleted);
     socket.on('reaction:added', handleReactionAdded);
     socket.on('reaction:removed', handleReactionRemoved);
 
@@ -242,6 +277,7 @@ function AppShell() {
       socket.off('channel:member-added', handleMemberAdded);
       socket.off('channel:member-left', handleMemberLeft);
       socket.off('channel:joined', handleChannelJoined);
+      socket.off('channel:deleted', handleChannelDeleted);
       socket.off('reaction:added', handleReactionAdded);
       socket.off('reaction:removed', handleReactionRemoved);
       socket.off('disconnect', handleDisconnect);
@@ -320,6 +356,7 @@ function App() {
           <Route path="d/:userId" element={<RouteSync />} />
           <Route path="files" element={<FileRouteSync />} />
           <Route path="later" element={<LaterRouteSync />} />
+          <Route path="admin" element={<AdminGuard><AdminRouteSync /></AdminGuard>} />
           <Route path="*" element={<DefaultRedirect />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

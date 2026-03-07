@@ -127,6 +127,7 @@ export interface AuthUser {
   email: string;
   name: string;
   avatar?: string | null;
+  role?: 'ADMIN' | 'MEMBER' | 'GUEST';
   createdAt: string;
 }
 
@@ -142,11 +143,15 @@ export function login(email: string, password: string) {
   });
 }
 
-export function register(name: string, email: string, password: string) {
+export function register(name: string, email: string, password: string, inviteCode?: string) {
   return request<AuthResponse>('/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ email, password, name }),
+    body: JSON.stringify({ email, password, name, ...(inviteCode ? { inviteCode } : {}) }),
   });
+}
+
+export function validateInvite(code: string) {
+  return request<{ valid: boolean; role: string }>(`/auth/invite/${encodeURIComponent(code)}`);
 }
 
 // ---- Channels ----
@@ -392,6 +397,7 @@ export interface UserProfile {
   email: string;
   name: string;
   avatar?: string | null;
+  role?: 'ADMIN' | 'MEMBER' | 'GUEST';
   status?: string;
   bio?: string | null;
   createdAt: string;
@@ -573,4 +579,80 @@ export function getScheduledMessages() {
 
 export function cancelScheduledMessage(id: number) {
   return request<{ success: boolean }>(`/messages/scheduled/${id}`, { method: 'DELETE' });
+}
+
+// ---- Admin ----
+
+export interface AdminUser {
+  id: number;
+  email: string;
+  name: string;
+  avatar?: string | null;
+  role: 'ADMIN' | 'MEMBER' | 'GUEST';
+  status?: string;
+  deactivatedAt?: string | null;
+  createdAt: string;
+}
+
+export interface AdminChannel {
+  id: number;
+  name: string;
+  isPrivate: boolean;
+  createdBy?: number | null;
+  createdAt: string;
+  _count: { members: number; messages: number };
+}
+
+export interface AdminInvite {
+  id: number;
+  code: string;
+  createdBy: number;
+  role: 'ADMIN' | 'MEMBER' | 'GUEST';
+  maxUses: number | null;
+  useCount: number;
+  expiresAt: string | null;
+  createdAt: string;
+  creator: { id: number; name: string };
+}
+
+export function adminGetUsers() {
+  return request<AdminUser[]>('/admin/users');
+}
+
+export function adminUpdateUserRole(userId: number, role: 'ADMIN' | 'MEMBER' | 'GUEST') {
+  return request<AdminUser>(`/admin/users/${userId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ role }),
+  });
+}
+
+export function adminDeactivateUser(userId: number) {
+  return request<AdminUser>(`/admin/users/${userId}/deactivate`, { method: 'POST' });
+}
+
+export function adminReactivateUser(userId: number) {
+  return request<AdminUser>(`/admin/users/${userId}/reactivate`, { method: 'POST' });
+}
+
+export function adminGetChannels() {
+  return request<AdminChannel[]>('/admin/channels');
+}
+
+export function adminDeleteChannel(channelId: number) {
+  return request<{ message: string }>(`/admin/channels/${channelId}`, { method: 'DELETE' });
+}
+
+export function adminGetInvites() {
+  return request<AdminInvite[]>('/admin/invites');
+}
+
+export function adminCreateInvite(data: { role?: string; maxUses?: number | null; expiresAt?: string | null }) {
+  return request<AdminInvite>('/admin/invites', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export function adminDeleteInvite(inviteId: number) {
+  return request<{ message: string }>(`/admin/invites/${inviteId}`, { method: 'DELETE' });
 }

@@ -18,6 +18,7 @@ import userRoutes from './routes/users.js';
 import dmRoutes from './routes/dms.js';
 import bookmarkRoutes from './routes/bookmarks.js';
 import scheduledMessageRoutes from './routes/scheduled-messages.js';
+import adminRoutes from './routes/admin.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { authMiddleware } from './middleware/auth.js';
 
@@ -69,7 +70,7 @@ const apiLimiter = isTest
 app.use((req, res, next) => {
   if (req.path.startsWith('/auth') || req.path.startsWith('/channels') || req.path.startsWith('/messages') ||
       req.path.startsWith('/files') || req.path.startsWith('/users') || req.path.startsWith('/dms') ||
-      req.path.startsWith('/search') || req.path.startsWith('/bookmarks')) {
+      req.path.startsWith('/search') || req.path.startsWith('/bookmarks') || req.path.startsWith('/admin')) {
     res.setHeader('Cache-Control', 'no-store');
   }
   next();
@@ -91,6 +92,7 @@ app.use('/dms', apiLimiter, dmRoutes);
 app.use('/messages', apiLimiter, bookmarkRoutes);
 app.use('/bookmarks', apiLimiter, bookmarkRoutes);
 app.use('/messages', apiLimiter, scheduledMessageRoutes);
+app.use('/admin', apiLimiter, adminRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

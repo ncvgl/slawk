@@ -279,6 +279,8 @@ export const useChannelStore = create<ChannelState>((set, get) => ({
   },
 
   markChannelAsRead: (channelId: number) => {
+    const existing = get().channels.find((ch) => ch.id === channelId);
+    if (!existing || existing.unreadCount === 0) return;
     set((state) => ({
       channels: state.channels.map((ch) =>
         ch.id === channelId ? { ...ch, unreadCount: 0 } : ch,

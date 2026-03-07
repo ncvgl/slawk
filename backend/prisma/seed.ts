@@ -423,6 +423,7 @@ async function main() {
   console.log('🌱 Seeding Slawk database...\n');
 
   // Wipe existing data (FK order)
+  await prisma.inviteLink.deleteMany();
   await prisma.reaction.deleteMany();
   await prisma.file.deleteMany();
   await prisma.directMessage.deleteMany();
@@ -435,7 +436,7 @@ async function main() {
 
   // Users
   const users = await Promise.all(
-    USERS.map(u =>
+    USERS.map((u, i) =>
       prisma.user.create({
         data: {
           name: u.name,
@@ -445,6 +446,7 @@ async function main() {
           status: u.status,
           avatar: u.avatar,
           lastSeen: u.status === 'offline' ? minsAgo(300) : minsAgo(5),
+          ...(i === 0 ? { role: 'ADMIN' } : {}),
         },
       })
     )

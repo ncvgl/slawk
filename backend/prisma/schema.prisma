@@ -8,18 +8,26 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  ADMIN
+  MEMBER
+  GUEST
+}
+
 model User {
-  id           Int      @id @default(autoincrement())
-  email        String   @unique @db.VarChar(255)
-  password     String   @db.VarChar(255)
-  name         String   @db.VarChar(100)
-  avatar       String?  @db.VarChar(500)
-  status       String?  @default("online") @db.VarChar(20)
-  bio          String?  @db.VarChar(500)
-  tokenVersion Int      @default(0)
-  lastSeen     DateTime @default(now())
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @default(now()) @updatedAt
+  id            Int       @id @default(autoincrement())
+  email         String    @unique @db.VarChar(255)
+  password      String    @db.VarChar(255)
+  name          String    @db.VarChar(100)
+  avatar        String?   @db.VarChar(500)
+  status        String?   @default("online") @db.VarChar(20)
+  bio           String?   @db.VarChar(500)
+  role          Role      @default(MEMBER)
+  deactivatedAt DateTime?
+  tokenVersion  Int       @default(0)
+  lastSeen      DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now()) @updatedAt
 
   messages           Message[]
   channels           ChannelMember[]
@@ -30,6 +38,19 @@ model User {
   channelReads       ChannelRead[]
   bookmarks          Bookmark[]
   scheduledMessages  ScheduledMessage[]
+  inviteLinks        InviteLink[]
+}
+
+model InviteLink {
+  id        Int       @id @default(autoincrement())
+  code      String    @unique @db.VarChar(64)
+  createdBy Int
+  role      Role      @default(MEMBER)
+  maxUses   Int?
+  useCount  Int       @default(0)
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+  creator   User      @relation(fields: [createdBy], references: [id])
 }
 
 model Channel {

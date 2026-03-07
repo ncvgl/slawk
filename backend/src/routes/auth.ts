@@ -15,6 +15,7 @@ const registerSchema = z.object({
   password: z.string().min(6).max(72),
   name: z.string().min(1).max(100)
     .refine(val => !val.includes('\u0000'), { message: 'Name cannot contain null bytes' }),
+  inviteCode: z.string().max(64).optional(),
 });
 
 const loginSchema = z.object({
@@ -41,7 +42,7 @@ setInterval(() => {
 // POST /auth/register
 router.post('/register', async (req: Request, res: Response) => {
   try {
-    const { email, password, name } = registerSchema.parse(req.body);
+    const { email, password, name, inviteCode } = registerSchema.parse(req.body);
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
@@ -51,24 +52,63 @@ router.post('/register', async (req: Request, res: Response) => {
       return;
     }
 
+    // Pre-validate invite code format (early rejection before hashing)
+    if (inviteCode) {
+      const invite = await prisma.inviteLink.findUnique({ where: { code: inviteCode } });
+      if (!invite) {
+        res.status(400).json({ error: 'Invalid invite code' });
+        return;
+      }
+      if (invite.expiresAt && invite.expiresAt < new Date()) {
+        res.status(400).json({ error: 'Invite code has expired' });
+        return;
+      }
+      if (invite.maxUses !== null && invite.useCount >= invite.maxUses) {
+        res.status(400).json({ error: 'Invite code has reached its usage limit' });
+        return;
+      }
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = await prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        name,
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        createdAt: true,
-      },
+    // Use transaction to atomically validate invite + create user + increment useCount
+    const user = await prisma.$transaction(async (tx) => {
+      let assignedRole: 'ADMIN' | 'MEMBER' | 'GUEST' = 'MEMBER';
+
+      if (inviteCode) {
+        // Re-validate inside transaction to prevent TOCTOU race
+        const invite = await tx.inviteLink.findUnique({ where: { code: inviteCode } });
+        if (!invite || (invite.expiresAt && invite.expiresAt < new Date()) ||
+            (invite.maxUses !== null && invite.useCount >= invite.maxUses)) {
+          throw new Error('INVITE_INVALID');
+        }
+        assignedRole = invite.role;
+        await tx.inviteLink.update({
+          where: { id: invite.id },
+          data: { useCount: { increment: 1 } },
+        });
+      }
+
+      return tx.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          name,
+          role: assignedRole,
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          createdAt: true,
+        },
+      });
     });
 
-    // Auto-join default channels (general, random) - create if they don't exist
-    for (const channelName of ['general', 'random']) {
+    // Auto-join default channels — guests only join 'general'
+    const channelsToJoin = user.role === 'GUEST' ? ['general'] : ['general', 'random'];
+    for (const channelName of channelsToJoin) {
       try {
         let channel = await prisma.channel.findFirst({
           where: { name: channelName, isPrivate: false },
@@ -108,6 +148,10 @@ router.post('/register', async (req: Request, res: Response) => {
       res.status(400).json({ error: error.issues });
       return;
     }
+    if (error instanceof Error && error.message === 'INVITE_INVALID') {
+      res.status(400).json({ error: 'Invite code is no longer valid' });
+      return;
+    }
     logError('Register error', error);
     res.status(500).json({ error: 'Failed to register user' });
   }
@@ -141,6 +185,12 @@ router.post('/login', async (req: Request, res: Response) => {
       return;
     }
 
+    // Block deactivated accounts (generic message to prevent enumeration)
+    if (user.deactivatedAt) {
+      res.status(401).json({ error: 'Invalid credentials' });
+      return;
+    }
+
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
       if (loginAttempts.size < MAX_LOCKOUT_ENTRIES) {
@@ -170,6 +220,7 @@ router.post('/login', async (req: Request, res: Response) => {
         email: user.email,
         name: user.name,
         avatar: user.avatar,
+        role: user.role,
         createdAt: user.createdAt,
       },
       token,
@@ -233,6 +284,42 @@ router.post('/change-password', authMiddleware, async (req: AuthRequest, res: Re
     }
     logError('Change password error', error);
     res.status(500).json({ error: 'Failed to change password' });
+  }
+});
+
+// GET /auth/invite/:code - Validate invite code (public, no auth required)
+router.get('/invite/:code', async (req: Request, res: Response) => {
+  try {
+    const code = req.params.code as string;
+    if (!code || code.length > 64) {
+      res.status(400).json({ error: 'Invalid invite code' });
+      return;
+    }
+
+    const invite = await prisma.inviteLink.findUnique({
+      where: { code },
+      select: { role: true, expiresAt: true, maxUses: true, useCount: true },
+    });
+
+    if (!invite) {
+      res.status(404).json({ error: 'Invite not found' });
+      return;
+    }
+
+    if (invite.expiresAt && invite.expiresAt < new Date()) {
+      res.status(410).json({ error: 'Invite expired' });
+      return;
+    }
+
+    if (invite.maxUses !== null && invite.useCount >= invite.maxUses) {
+      res.status(410).json({ error: 'Invite exhausted' });
+      return;
+    }
+
+    res.json({ valid: true, role: invite.role });
+  } catch (error) {
+    logError('Validate invite error', error);
+    res.status(500).json({ error: 'Failed to validate invite' });
   }
 });
 

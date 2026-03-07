@@ -11,6 +11,7 @@ import {
   LogOut,
   Star,
   User,
+  Shield,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useChannelStore } from '@/stores/useChannelStore';
@@ -41,7 +42,7 @@ export function Sidebar() {
   const { openProfile } = useProfileStore();
   const [channelsExpanded, setChannelsExpanded] = useState(true);
   const [dmsExpanded, setDmsExpanded] = useState(true);
-  const activeNav = location.pathname === '/files' ? 'files' : location.pathname === '/later' ? 'later' : 'dms';
+  const activeNav = location.pathname === '/files' ? 'files' : location.pathname === '/later' ? 'later' : location.pathname === '/admin' ? 'admin' : 'dms';
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
   const [showAddChannelDialog, setShowAddChannelDialog] = useState(false);
   const [browseChannels, setBrowseChannels] = useState<Channel[]>([]);
@@ -178,6 +179,30 @@ export function Sidebar() {
           </button>
         ))}
 
+        {/* Admin Nav Item - only visible to admins */}
+        {user?.role === 'ADMIN' && (
+          <button
+            data-testid="nav-item-admin"
+            onClick={() => {
+              if (activeNav === 'admin') {
+                const firstChannel = channels.find((ch) => ch.isMember);
+                if (firstChannel) navigate(`/c/${firstChannel.id}`);
+              } else {
+                navigate('/admin');
+              }
+            }}
+            className={cn(
+              'relative flex flex-col h-[68px] w-[52px] items-center justify-center gap-1 rounded-lg transition-colors',
+              activeNav === 'admin'
+                ? 'bg-slack-sidebar-hover/50 text-white'
+                : 'text-white/70 hover:bg-white/10 hover:text-white'
+            )}
+          >
+            <Shield className="h-5 w-5" />
+            <span className="text-[11px] font-medium">Admin</span>
+          </button>
+        )}
+
         {/* Spacer */}
         <div className="flex-1" />
 
@@ -283,13 +308,15 @@ export function Sidebar() {
                     isPrivate
                   />
                 ))}
-                <button
-                  onClick={handleOpenAddChannel}
-                  className="flex items-center gap-2 mx-2 w-[calc(100%-16px)] px-4 h-[28px] text-[15px] rounded-[6px] text-left text-white/70 hover:bg-slack-sidebar-hover hover:text-white"
-                >
-                  <Plus className="w-4 h-4 flex-shrink-0" />
-                  <span>Add channels</span>
-                </button>
+                {user?.role !== 'GUEST' && (
+                  <button
+                    onClick={handleOpenAddChannel}
+                    className="flex items-center gap-2 mx-2 w-[calc(100%-16px)] px-4 h-[28px] text-[15px] rounded-[6px] text-left text-white/70 hover:bg-slack-sidebar-hover hover:text-white"
+                  >
+                    <Plus className="w-4 h-4 flex-shrink-0" />
+                    <span>Add channels</span>
+                  </button>
+                )}
               </div>
             )}
           </div>

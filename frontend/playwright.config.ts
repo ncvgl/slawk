@@ -25,7 +25,7 @@ export default defineConfig({
 
   webServer: [
     {
-      command: 'npm run dev',
+      command: 'NODE_ENV=test npm run dev',
       cwd: '../backend',
       port: 3000,
       reuseExistingServer: !process.env.CI,

@@ -665,3 +665,18 @@ export function isUserOnline(userId: number): boolean {
   return onlineUsers.has(userId) && onlineUsers.get(userId)!.size > 0;
 }
 
+// Forcibly disconnect all sockets for a user (used by admin deactivation)
+export function kickUser(userId: number): void {
+  const io = getIO();
+  if (!io) return;
+  const userSockets = onlineUsers.get(userId);
+  if (!userSockets) return;
+  for (const socketId of userSockets) {
+    const socket = io.sockets.sockets.get(socketId);
+    if (socket) {
+      socket.emit('error', { message: 'Account deactivated' });
+      socket.disconnect(true);
+    }
+  }
+}
+
