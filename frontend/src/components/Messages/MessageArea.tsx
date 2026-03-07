@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import { Hash } from 'lucide-react';
 import { useChannelStore } from '@/stores/useChannelStore';
 import { useMessageStore } from '@/stores/useMessageStore';
 import { MessageHeader } from './MessageHeader';
@@ -73,6 +74,10 @@ export function MessageArea() {
     );
   }
 
+  const readOnly = !activeChannel.isMember;
+  const joinChannel = useChannelStore((s) => s.joinChannel);
+  const fetchChannels = useChannelStore((s) => s.fetchChannels);
+
   return (
     <div className="flex h-full">
       <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
@@ -81,6 +86,7 @@ export function MessageArea() {
           showMembers={showMembers}
           showPins={showPins}
           showFiles={showFiles}
+          readOnly={readOnly}
           onToggleMembers={() => {
             setShowMembers(!showMembers);
             if (!showMembers) {
@@ -106,14 +112,29 @@ export function MessageArea() {
             }
           }}
         />
-        <MessageList channelId={activeChannelId!} onOpenThread={handleOpenThread} />
-        <MessageInput
-          placeholder={`Message #${activeChannel.name}`}
-          onSend={(content, fileIds) => sendMessage(activeChannelId!, content, fileIds)}
-          sendError={sendError}
-          clearSendError={clearSendError}
-          channelId={activeChannelId!}
-        />
+        <MessageList channelId={activeChannelId!} onOpenThread={handleOpenThread} readOnly={readOnly} />
+        {readOnly ? (
+          <div className="px-5 pb-4 pt-3 bg-white border-t border-slack-border">
+            <div className="flex items-center justify-center gap-3 rounded-lg border border-slack-border p-4">
+              <Hash className="h-4 w-4 text-slack-secondary" />
+              <span className="text-[15px] text-slack-secondary">You're viewing <b>#{activeChannel.name}</b></span>
+              <button
+                onClick={async () => { await joinChannel(activeChannelId!); await fetchChannels(); }}
+                className="rounded bg-slack-btn px-4 py-1.5 text-sm font-medium text-white hover:bg-slack-btn-hover"
+              >
+                Join Channel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <MessageInput
+            placeholder={`Message #${activeChannel.name}`}
+            onSend={(content, fileIds) => sendMessage(activeChannelId!, content, fileIds)}
+            sendError={sendError}
+            clearSendError={clearSendError}
+            channelId={activeChannelId!}
+          />
+        )}
       </div>
       {showMembers && (
         <MembersPanel
@@ -138,6 +159,7 @@ export function MessageArea() {
           messageId={activeThreadId}
           onClose={handleCloseThread}
           onReplyCountChange={handleReplyCountChange}
+          readOnly={readOnly}
         />
       )}
     </div>

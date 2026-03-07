@@ -174,15 +174,10 @@ export function AddChannelDialog({
                     <div
                       key={ch.id}
                       data-channel-name={ch.name}
-                      className={cn(
-                        "flex items-center justify-between rounded px-3 py-2 hover:bg-slack-hover",
-                        ch.isMember && "cursor-pointer"
-                      )}
+                      className="flex items-center justify-between rounded px-3 py-2 hover:bg-slack-hover cursor-pointer"
                       onClick={() => {
-                        if (ch.isMember) {
-                          onNavigateToChannel(ch.id);
-                          handleClose();
-                        }
+                        onNavigateToChannel(ch.id);
+                        handleClose();
                       }}
                     >
                       <div className="flex items-center gap-2">

@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import prisma from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
-import { requireMessageAccess } from '../middleware/authorize.js';
+import { requireMessageAccess, requirePublicMessageReadAccess } from '../middleware/authorize.js';
 import { AuthRequest } from '../types.js';
 import { getIO } from '../websocket/index.js';
 import { USER_SELECT_BASIC, MESSAGE_INCLUDE_FULL, MESSAGE_INCLUDE_WITH_FILES } from '../db/selects.js';
@@ -74,7 +74,7 @@ router.post('/:id/reply', authMiddleware, requireMessageAccess, async (req: Auth
 });
 
 // GET /messages/:id/thread - Get thread messages
-router.get('/:id/thread', authMiddleware, requireMessageAccess, async (req: AuthRequest, res: Response) => {
+router.get('/:id/thread', authMiddleware, requirePublicMessageReadAccess, async (req: AuthRequest, res: Response) => {
   try {
     const parentId = parseIntParam(req.params.id)!;
 

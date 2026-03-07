@@ -12,6 +12,7 @@ export interface AuthRequest extends Request {
   channelId?: number;
   // These use `any` because `file` conflicts with Express/multer's Request.file type.
   // The middleware (authorize.ts) attaches Prisma model instances at runtime.
+  isChannelMember?: boolean;
   message?: any;
   file?: any;
   dm?: any;

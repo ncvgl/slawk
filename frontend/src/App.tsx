@@ -55,9 +55,9 @@ function RouteSync() {
     if (channelId) {
       const id = parseInt(channelId, 10);
       if (isNaN(id) || id <= 0) return;
-      // Verify user has access to this channel
+      // Verify channel exists (non-member public channels are allowed in read-only mode)
       const channel = channels.find((ch) => ch.id === id);
-      if (channels.length > 0 && (!channel || !channel.isMember)) {
+      if (channels.length > 0 && !channel) {
         navigate('/', { replace: true });
         return;
       }

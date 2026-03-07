@@ -209,6 +209,99 @@ export async function requireDmOwnership(
   next();
 }
 
+/**
+ * Allows non-members to read public channels.
+ * Members always pass; non-members pass only if the channel is public.
+ * Attaches req.channelId and req.isChannelMember.
+ */
+export async function requirePublicChannelReadAccess(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const channelId = parseIntParam(req.params.id);
+  if (!channelId) {
+    res.status(400).json({ error: 'Invalid channel ID' });
+    return;
+  }
+
+  const userId = req.user!.userId;
+  const [membership, channel] = await Promise.all([
+    prisma.channelMember.findUnique({
+      where: { userId_channelId: { userId, channelId } },
+    }),
+    prisma.channel.findUnique({
+      where: { id: channelId },
+      select: { id: true, isPrivate: true },
+    }),
+  ]);
+
+  if (!channel) {
+    res.status(404).json({ error: 'Channel not found' });
+    return;
+  }
+
+  if (!membership && channel.isPrivate) {
+    res.status(403).json({ error: 'You must be a member of this channel' });
+    return;
+  }
+
+  req.channelId = channelId;
+  req.isChannelMember = !!membership;
+  next();
+}
+
+/**
+ * Allows non-members to read messages in public channels.
+ * Attaches req.message and req.channelId.
+ */
+export async function requirePublicMessageReadAccess(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const messageId = parseIntParam(req.params.id);
+  if (!messageId) {
+    res.status(400).json({ error: 'Invalid message ID' });
+    return;
+  }
+
+  const message = await prisma.message.findUnique({
+    where: { id: messageId },
+  });
+
+  if (!message || message.deletedAt) {
+    res.status(404).json({ error: 'Message not found' });
+    return;
+  }
+
+  const userId = req.user!.userId;
+  const [membership, channel] = await Promise.all([
+    prisma.channelMember.findUnique({
+      where: { userId_channelId: { userId, channelId: message.channelId } },
+    }),
+    prisma.channel.findUnique({
+      where: { id: message.channelId },
+      select: { id: true, isPrivate: true },
+    }),
+  ]);
+
+  if (!channel) {
+    res.status(404).json({ error: 'Channel not found' });
+    return;
+  }
+
+  if (!membership && channel.isPrivate) {
+    res.status(403).json({ error: 'You must be a member of this channel' });
+    return;
+  }
+
+  req.message = message;
+  req.channelId = message.channelId;
+  req.isChannelMember = !!membership;
+  next();
+}
+
 // ── WebSocket Helper ────────────────────────────────────────────────
 
 export async function checkChannelMembership(

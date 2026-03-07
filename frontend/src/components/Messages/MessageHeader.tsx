@@ -19,9 +19,10 @@ interface MessageHeaderProps {
   showPins?: boolean;
   onToggleFiles?: () => void;
   showFiles?: boolean;
+  readOnly?: boolean;
 }
 
-export function MessageHeader({ channel, showMembers, onToggleMembers, onTogglePins, showPins, onToggleFiles, showFiles }: MessageHeaderProps) {
+export function MessageHeader({ channel, showMembers, onToggleMembers, onTogglePins, showPins, onToggleFiles, showFiles, readOnly }: MessageHeaderProps) {
   const navigate = useNavigate();
   const toggleStar = useChannelStore((s) => s.toggleStar);
   const leaveChannel = useChannelStore((s) => s.leaveChannel);
@@ -85,15 +86,17 @@ export function MessageHeader({ channel, showMembers, onToggleMembers, onToggleP
             {channel.isPrivate ? <Lock className="h-[16px] w-[16px] text-slack-secondary" /> : <Hash className="h-[16px] w-[16px] text-slack-secondary" />}
             <span className="text-[18px] font-black text-slack-primary">{channel.name}</span>
           </div>
-          <Button
-            variant="toolbar"
-            size="icon-xs"
-            data-testid="star-channel-button"
-            onClick={() => toggleStar(channel.id)}
-            title={channel.isStarred ? 'Remove from Starred' : 'Add to Starred'}
-          >
-            <Star className={cn('h-4 w-4', channel.isStarred ? 'fill-yellow-400 text-yellow-400' : 'text-slack-secondary')} />
-          </Button>
+          {!readOnly && (
+            <Button
+              variant="toolbar"
+              size="icon-xs"
+              data-testid="star-channel-button"
+              onClick={() => toggleStar(channel.id)}
+              title={channel.isStarred ? 'Remove from Starred' : 'Add to Starred'}
+            >
+              <Star className={cn('h-4 w-4', channel.isStarred ? 'fill-yellow-400 text-yellow-400' : 'text-slack-secondary')} />
+            </Button>
+          )}
         </div>
 
         {/* Right Section */}
@@ -131,27 +134,29 @@ export function MessageHeader({ channel, showMembers, onToggleMembers, onToggleP
           <HeaderNotifications excludeChannelId={channel.id} />
           <div className="h-4 w-px bg-slack-border" />
           <HeaderSearch />
-          <div className="relative" ref={menuRef}>
-            <Button
-              variant="toolbar"
-              size="icon-xs"
-              data-testid="channel-header-menu"
-              onClick={() => setShowMenu((v) => !v)}
-            >
-              <MoreVertical className="h-4 w-4 text-slack-secondary" />
-            </Button>
-            {showMenu && (
-              <div className="absolute right-0 top-7 z-50 min-w-[160px] rounded-lg border border-slack-border bg-white shadow-lg py-1">
-                <Button
-                  variant="menu-item-danger"
-                  onClick={handleLeaveChannel}
-                >
-                  <LogOut className="h-4 w-4" />
-                  Leave channel
-                </Button>
-              </div>
-            )}
-          </div>
+          {!readOnly && (
+            <div className="relative" ref={menuRef}>
+              <Button
+                variant="toolbar"
+                size="icon-xs"
+                data-testid="channel-header-menu"
+                onClick={() => setShowMenu((v) => !v)}
+              >
+                <MoreVertical className="h-4 w-4 text-slack-secondary" />
+              </Button>
+              {showMenu && (
+                <div className="absolute right-0 top-7 z-50 min-w-[160px] rounded-lg border border-slack-border bg-white shadow-lg py-1">
+                  <Button
+                    variant="menu-item-danger"
+                    onClick={handleLeaveChannel}
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Leave channel
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

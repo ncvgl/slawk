@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import prisma from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
-import { requireChannelMembership } from '../middleware/authorize.js';
+import { requireChannelMembership, requirePublicChannelReadAccess } from '../middleware/authorize.js';
 import { AuthRequest } from '../types.js';
 import { USER_SELECT_BASIC, FILE_SELECT, MESSAGE_INCLUDE_FULL, MESSAGE_INCLUDE_WITH_FILES } from '../db/selects.js';
 import { parsePagination, paginateResults } from '../utils/pagination.js';
@@ -85,7 +85,7 @@ router.post('/:id/messages', authMiddleware, requireChannelMembership, async (re
 });
 
 // GET /channels/:id/messages - Get messages (paginated)
-router.get('/:id/messages', authMiddleware, requireChannelMembership, async (req: AuthRequest, res: Response) => {
+router.get('/:id/messages', authMiddleware, requirePublicChannelReadAccess, async (req: AuthRequest, res: Response) => {
   try {
     const channelId = req.channelId!;
     const { limit, cursor } = parsePagination(req);

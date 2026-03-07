@@ -26,9 +26,10 @@ interface MessageProps {
   showAvatar: boolean;
   isCompact: boolean;
   onOpenThread?: (messageId: number) => void;
+  readOnly?: boolean;
 }
 
-export function Message({ message, showAvatar, isCompact, onOpenThread }: MessageProps) {
+export function Message({ message, showAvatar, isCompact, onOpenThread, readOnly }: MessageProps) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -300,7 +301,7 @@ export function Message({ message, showAvatar, isCompact, onOpenThread }: Messag
       </div>
 
       {/* Hover Actions */}
-      {(isHovered || keepOpen) && (
+      {!readOnly && (isHovered || keepOpen) && (
         <MessageToolbar
           className="absolute -top-4 right-5"
           onEmojiClick={() => setShowEmojiPicker(!showEmojiPicker)}

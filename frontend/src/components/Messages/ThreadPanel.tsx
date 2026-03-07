@@ -20,6 +20,7 @@ interface ThreadPanelProps {
   onClose: () => void;
   onReplyCountChange?: (messageId: number, count: number) => void;
   variant?: 'channel' | 'dm';
+  readOnly?: boolean;
 }
 
 interface ThreadMessage {
@@ -30,7 +31,7 @@ interface ThreadMessage {
   files?: { id: number; filename: string; originalName: string; mimetype: string; size: number; url: string }[];
 }
 
-export function ThreadPanel({ messageId, onClose, onReplyCountChange, variant = 'channel' }: ThreadPanelProps) {
+export function ThreadPanel({ messageId, onClose, onReplyCountChange, variant = 'channel', readOnly }: ThreadPanelProps) {
   const isDM = variant === 'dm';
   const testPrefix = isDM ? 'dm-thread' : 'thread';
 
@@ -236,6 +237,11 @@ export function ThreadPanel({ messageId, onClose, onReplyCountChange, variant = 
 
       {/* Reply input */}
       <div className="relative border-t border-slack-border px-4 py-3">
+        {readOnly ? (
+          <div className="flex items-center justify-center py-3 text-[13px] text-slack-secondary">
+            Join the channel to reply in threads
+          </div>
+        ) : (<>
         {replyError && (
           <p data-testid={`${testPrefix}-reply-error`} className="mb-2 text-xs text-slack-error">{replyError}</p>
         )}
@@ -315,6 +321,7 @@ export function ThreadPanel({ messageId, onClose, onReplyCountChange, variant = 
             onClose={() => editor.setShowLinkModal(false)}
           />
         )}
+        </>)}
       </div>
     </div>
   );

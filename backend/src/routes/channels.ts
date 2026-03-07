@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import prisma from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
-import { requireChannelMembership } from '../middleware/authorize.js';
+import { requireChannelMembership, requirePublicChannelReadAccess } from '../middleware/authorize.js';
 import { AuthRequest } from '../types.js';
 import { isUserOnline, getIO } from '../websocket/index.js';
 import { USER_SELECT_BASIC, USER_SELECT_FULL, MESSAGE_INCLUDE_FULL } from '../db/selects.js';
@@ -286,7 +286,7 @@ router.post('/:id/leave', authMiddleware, requireChannelMembership, async (req: 
 });
 
 // GET /channels/:id/members - List channel members
-router.get('/:id/members', authMiddleware, requireChannelMembership, async (req: AuthRequest, res: Response) => {
+router.get('/:id/members', authMiddleware, requirePublicChannelReadAccess, async (req: AuthRequest, res: Response) => {
   try {
     const channelId = req.channelId!;
 
@@ -486,7 +486,7 @@ router.post('/:id/unread', authMiddleware, requireChannelMembership, async (req:
 });
 
 // GET /channels/:id/files - Get files uploaded in channel
-router.get('/:id/files', authMiddleware, requireChannelMembership, async (req: AuthRequest, res: Response) => {
+router.get('/:id/files', authMiddleware, requirePublicChannelReadAccess, async (req: AuthRequest, res: Response) => {
   try {
     const channelId = req.channelId!;
 
@@ -508,7 +508,7 @@ router.get('/:id/files', authMiddleware, requireChannelMembership, async (req: A
 });
 
 // GET /channels/:id/pins - Get pinned messages
-router.get('/:id/pins', authMiddleware, requireChannelMembership, async (req: AuthRequest, res: Response) => {
+router.get('/:id/pins', authMiddleware, requirePublicChannelReadAccess, async (req: AuthRequest, res: Response) => {
   try {
     const channelId = req.channelId!;
 

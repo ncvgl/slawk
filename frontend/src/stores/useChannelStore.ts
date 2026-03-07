@@ -235,7 +235,10 @@ export const useChannelStore = create<ChannelState>((set, get) => ({
 
   setActiveChannel: (channelId: number, scrollToMessageId?: number) => {
     set({ activeChannelId: channelId, activeDMId: null, scrollToMessageId: scrollToMessageId ?? null });
-    get().markChannelAsRead(channelId);
+    const channel = get().channels.find((ch) => ch.id === channelId);
+    if (channel?.isMember) {
+      get().markChannelAsRead(channelId);
+    }
   },
 
   setActiveDM: (dmId: number) => {

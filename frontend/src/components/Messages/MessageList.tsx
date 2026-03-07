@@ -9,6 +9,7 @@ import type { Message as MessageType } from '@/lib/types';
 interface MessageListProps {
   channelId: number;
   onOpenThread?: (messageId: number) => void;
+  readOnly?: boolean;
 }
 
 function formatDateSeparator(date: Date): string {
@@ -42,7 +43,7 @@ function shouldShowAvatar(
   return timeDiff > 5 * 60 * 1000;
 }
 
-export function MessageList({ channelId, onOpenThread }: MessageListProps) {
+export function MessageList({ channelId, onOpenThread, readOnly }: MessageListProps) {
   const { getMessagesForChannel, fetchMessages, isLoading, loadError } = useMessageStore();
   const { markChannelAsRead } = useChannelStore();
   const scrollToMessageId = useChannelStore((s) => s.scrollToMessageId);
@@ -61,7 +62,7 @@ export function MessageList({ channelId, onOpenThread }: MessageListProps) {
   // After messages load, persist the read state to the backend so the
   // unread badge does not reappear on page reload.
   useEffect(() => {
-    if (messages.length === 0) return;
+    if (readOnly || messages.length === 0) return;
     const lastMessage = messages[messages.length - 1];
     // Update in-memory unread count immediately
     markChannelAsRead(channelId);
@@ -69,7 +70,7 @@ export function MessageList({ channelId, onOpenThread }: MessageListProps) {
     markChannelRead(channelId, lastMessage.id).catch(() => {
       // Silently ignore errors (e.g. if the user isn't a member)
     });
-  }, [channelId, messages.length, markChannelAsRead]);
+  }, [channelId, messages.length, markChannelAsRead, readOnly]);
 
   // Scroll to target message from search result
   useEffect(() => {
@@ -120,7 +121,7 @@ export function MessageList({ channelId, onOpenThread }: MessageListProps) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center text-slack-hint">
         <p className="text-lg font-medium">No messages yet</p>
-        <p className="text-sm">Be the first to send a message!</p>
+        <p className="text-sm">{readOnly ? 'This channel has no messages.' : 'Be the first to send a message!'}</p>
       </div>
     );
   }
@@ -155,6 +156,7 @@ export function MessageList({ channelId, onOpenThread }: MessageListProps) {
               showAvatar={showAvatar}
               isCompact={!showAvatar}
               onOpenThread={onOpenThread}
+              readOnly={readOnly}
             />
           </div>
         );
