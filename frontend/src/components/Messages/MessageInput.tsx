@@ -400,7 +400,20 @@ export function MessageInput({ placeholder, onSend, sendError, clearSendError, c
       setShowLinkModal(false);
       return;
     }
-    const url = linkUrl.trim().startsWith('http') ? linkUrl.trim() : `https://${linkUrl.trim()}`;
+    let url = linkUrl.trim();
+    if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('mailto:')) {
+      url = `https://${url}`;
+    }
+    try {
+      const parsed = new URL(url);
+      if (!['http:', 'https:', 'mailto:'].includes(parsed.protocol)) {
+        setShowLinkModal(false);
+        return;
+      }
+    } catch {
+      setShowLinkModal(false);
+      return;
+    }
     if (range && range.length > 0) {
       // Apply link to existing selection
       quill.formatText(range.index, range.length, 'link', url);

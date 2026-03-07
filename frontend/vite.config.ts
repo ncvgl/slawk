@@ -5,12 +5,19 @@ import path from 'path'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  build: {
+    sourcemap: false,
+  },
+  esbuild: {
+    drop: ['console', 'debugger'],
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
   },
   server: {
+    host: 'localhost',
     port: 5173,
     proxy: {
       '/auth': { target: 'http://localhost:3000', changeOrigin: true },

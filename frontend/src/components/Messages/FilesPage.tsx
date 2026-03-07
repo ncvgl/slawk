@@ -85,7 +85,7 @@ export function FilesPage() {
                 </div>
                 <a
                   href={getAuthFileUrl(file.url, { download: true })}
-                  download={file.originalName}
+                  download={file.originalName.replace(/[/\\:\0]/g, '_')} rel="noopener"
                   className="flex-shrink-0 flex h-8 w-8 items-center justify-center rounded hover:bg-slack-border-light"
                   title="Download"
                 >

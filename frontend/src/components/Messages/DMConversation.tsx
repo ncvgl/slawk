@@ -222,7 +222,6 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
                       )}
                       <div
                         data-testid={`dm-message-${msg.id}`}
-                        data-from={msg.fromUserId}
                         className={cn(
                           'group relative flex px-0 hover:bg-slack-hover',
                           showAvatar ? 'pb-2 pt-4' : 'py-0.5',

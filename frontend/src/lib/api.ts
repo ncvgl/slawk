@@ -30,10 +30,24 @@ export async function refreshDownloadToken(): Promise<string | null> {
   }
 }
 
-// Eagerly refresh on module load if authenticated, and keep refreshing periodically
-if (localStorage.getItem('token')) {
+let _refreshInterval: ReturnType<typeof setInterval> | null = null;
+
+export function startDownloadTokenRefresh() {
+  stopDownloadTokenRefresh();
   refreshDownloadToken();
-  setInterval(() => refreshDownloadToken(), 3 * 60 * 1000); // refresh every 3 min
+  _refreshInterval = setInterval(() => refreshDownloadToken(), 3 * 60 * 1000);
+}
+
+export function stopDownloadTokenRefresh() {
+  if (_refreshInterval) {
+    clearInterval(_refreshInterval);
+    _refreshInterval = null;
+  }
+}
+
+// Eagerly refresh on module load if authenticated
+if (localStorage.getItem('token')) {
+  startDownloadTokenRefresh();
 }
 
 /**
@@ -62,10 +76,11 @@ export function getAuthFileUrl(url: string, { download = false }: { download?: b
   return url;
 }
 
-/** Clear cached download token (call on logout) */
+/** Clear cached download token and stop refresh interval (call on logout) */
 export function clearDownloadToken(): void {
   _downloadToken = null;
   _downloadTokenExpires = 0;
+  stopDownloadTokenRefresh();
 }
 
 class ApiError extends Error {

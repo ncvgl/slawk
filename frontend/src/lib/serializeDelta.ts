@@ -1,5 +1,14 @@
 import type Quill from 'quill';
 
+function isSafeUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url, 'https://placeholder.invalid');
+    return ['http:', 'https:', 'mailto:'].includes(parsed.protocol);
+  } catch {
+    return false;
+  }
+}
+
 export function serializeDelta(quill: Quill): string {
   const delta = quill.getContents();
   let result = '';
@@ -20,7 +29,10 @@ export function serializeDelta(quill: Quill): string {
       if (attrs['bold']) formatted = '**' + formatted + '**';
       if (attrs['italic']) formatted = '*' + formatted + '*';
       if (attrs['strike']) formatted = '~~' + formatted + '~~';
-      if (attrs['link']) formatted = '[' + formatted + '](' + attrs['link'] + ')';
+      if (attrs['link'] && isSafeUrl(String(attrs['link']))) {
+        const safeLink = String(attrs['link']).replace(/\)/g, '%29');
+        formatted = '[' + formatted + '](' + safeLink + ')';
+      }
     }
     return formatted;
   }

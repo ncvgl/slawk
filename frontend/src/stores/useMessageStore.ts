@@ -270,17 +270,21 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     const state = get();
     const userId = getUserId();
     if (!userId) return;
+    // Check if reaction already exists to prevent double-click race
+    const msg = state.messages.find((m) => m.id === messageId);
+    if (msg?.reactions.some((r) => r.emoji === emoji && r.userIds.includes(userId))) return;
+    // Capture channel ID at time of optimistic update for correct revert
+    const channelAtUpdate = state.loadedChannelId;
 
     // Optimistic update
     set({
-      messages: state.messages.map((msg) => {
-        if (msg.id !== messageId) return msg;
-        const existing = msg.reactions.find((r) => r.emoji === emoji);
+      messages: state.messages.map((m) => {
+        if (m.id !== messageId) return m;
+        const existing = m.reactions.find((r) => r.emoji === emoji);
         if (existing) {
-          if (existing.userIds.includes(userId)) return msg;
           return {
-            ...msg,
-            reactions: msg.reactions.map((r) =>
+            ...m,
+            reactions: m.reactions.map((r) =>
               r.emoji === emoji
                 ? { ...r, count: r.count + 1, userIds: [...r.userIds, userId], userNames: [...r.userNames, 'You'] }
                 : r,
@@ -288,8 +292,8 @@ export const useMessageStore = create<MessageState>((set, get) => ({
           };
         }
         return {
-          ...msg,
-          reactions: [...msg.reactions, { emoji, count: 1, userIds: [userId], userNames: ['You'] }],
+          ...m,
+          reactions: [...m.reactions, { emoji, count: 1, userIds: [userId], userNames: ['You'] }],
         };
       }),
     });
@@ -297,9 +301,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     try {
       await api.addReaction(messageId, emoji);
     } catch {
-      // Revert on failure - refetch
-      const currentChannel = get().loadedChannelId;
-      if (currentChannel) get().fetchMessages(currentChannel);
+      if (channelAtUpdate) get().fetchMessages(channelAtUpdate);
     }
   },
 
@@ -307,14 +309,15 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     const state = get();
     const userId = getUserId();
     if (!userId) return;
+    const channelAtUpdate = state.loadedChannelId;
 
     // Optimistic update
     set({
-      messages: state.messages.map((msg) => {
-        if (msg.id !== messageId) return msg;
+      messages: state.messages.map((m) => {
+        if (m.id !== messageId) return m;
         return {
-          ...msg,
-          reactions: msg.reactions
+          ...m,
+          reactions: m.reactions
             .map((r) => {
               if (r.emoji !== emoji) return r;
               const idx = r.userIds.indexOf(userId);
@@ -330,8 +333,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     try {
       await api.removeReaction(messageId, emoji);
     } catch {
-      const currentChannel = get().loadedChannelId;
-      if (currentChannel) get().fetchMessages(currentChannel);
+      if (channelAtUpdate) get().fetchMessages(channelAtUpdate);
     }
   },
 }));

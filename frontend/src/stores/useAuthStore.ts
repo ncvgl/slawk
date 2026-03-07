@@ -1,11 +1,13 @@
 import { create } from 'zustand';
 import * as api from '@/lib/api';
 import { clearDownloadToken } from '@/lib/api';
+import { disconnectSocket } from '@/lib/socket';
 import type { User } from '@/lib/types';
 
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
+  isHydrating: boolean;
   isLoading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
@@ -18,6 +20,7 @@ interface AuthState {
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isAuthenticated: !!localStorage.getItem('token'),
+  isHydrating: !!localStorage.getItem('token'),
   isLoading: false,
   error: null,
 
@@ -41,7 +44,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout: () => {
     localStorage.removeItem('token');
     clearDownloadToken();
-    set({ user: null, isAuthenticated: false });
+    disconnectSocket();
+    // Hard reload to wipe all in-memory Zustand state (messages, DMs, channels, bookmarks)
+    window.location.href = '/login';
   },
 
   register: async (name: string, email: string, password: string) => {
@@ -70,8 +75,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const token = localStorage.getItem('token');
     if (token) {
       try {
+        // Untrusted hint from JWT payload -- used only until server confirms
         const payload = JSON.parse(atob(token.split('.')[1]));
-        // Set initial state from token
         set({
           user: {
             id: payload.userId,
@@ -79,8 +84,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             name: payload.email.split('@')[0],
           },
           isAuthenticated: true,
+          isHydrating: true,
         });
-        // Fetch full profile to get actual name
         api.getMyProfile().then((profile) => {
           set({
             user: {
@@ -90,15 +95,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               avatar: profile.avatar,
               status: profile.status as any,
             },
+            isHydrating: false,
           });
         }).catch(() => {
           localStorage.removeItem('token');
-          set({ user: null, isAuthenticated: false });
+          set({ user: null, isAuthenticated: false, isHydrating: false });
         });
       } catch {
         localStorage.removeItem('token');
-        set({ user: null, isAuthenticated: false });
+        set({ user: null, isAuthenticated: false, isHydrating: false });
       }
+    } else {
+      set({ isHydrating: false });
     }
+
+    // Cross-tab session sync: detect logout from another tab
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'token' && e.newValue === null) {
+        disconnectSocket();
+        window.location.href = '/login';
+      }
+    });
   },
 }));

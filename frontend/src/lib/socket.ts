@@ -13,22 +13,14 @@ export function connectSocket(): Socket | null {
   if (!token) return null;
 
   socket = io({
-    auth: { token },
+    auth: (cb) => { cb({ token: localStorage.getItem('token') }); },
     transports: ['websocket', 'polling'],
   });
 
   socket.on('connect', () => {
-    console.log('[socket] connected, id:', socket?.id);
-    // Expose for E2E test introspection
-    (window as any).__socket = socket;
-  });
-
-  socket.on('connect_error', (err) => {
-    console.error('[socket] connect_error:', err.message);
-  });
-
-  socket.on('disconnect', (reason) => {
-    console.log('[socket] disconnected:', reason);
+    if (import.meta.env.DEV || import.meta.env.VITE_E2E) {
+      (window as any).__socket = socket;
+    }
   });
 
   return socket;

@@ -52,8 +52,9 @@ export function MessageList({ channelId, onOpenThread }: MessageListProps) {
   const [highlightedId, setHighlightedId] = useState<number | null>(null);
   const didScrollToTarget = useRef(false);
 
-  // Fetch messages when channel changes
+  // Clear stale refs and fetch messages when channel changes
   useEffect(() => {
+    messageRefs.current = new Map();
     fetchMessages(channelId);
   }, [channelId, fetchMessages]);
 

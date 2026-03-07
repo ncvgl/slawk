@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import fixWebmDuration from 'fix-webm-duration';
 import { uploadFile, type ApiFile } from '@/lib/api';
 
@@ -111,6 +111,17 @@ export function useVoiceRecorder({ onRecorded, onError }: UseVoiceRecorderOption
     chunksRef.current = [];
     setIsRecording(false);
     setDuration(0);
+  }, []);
+
+  // Cleanup on unmount: stop mic stream and timer to prevent resource leaks
+  useEffect(() => {
+    return () => {
+      if (mediaRecorderRef.current?.state !== 'inactive') {
+        mediaRecorderRef.current?.stop();
+      }
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
   }, []);
 
   return { isRecording, duration, startRecording, stopRecording, cancelRecording };

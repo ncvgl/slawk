@@ -41,10 +41,16 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
       } else {
         await addBookmark(messageId);
       }
-    } catch (err) {
-      // Revert on failure
-      console.error('Failed to toggle bookmark:', err);
-      set({ bookmarkedIds });
+    } catch {
+      // Granular revert: only undo this specific toggle, not the entire set
+      const current = get().bookmarkedIds;
+      const reverted = new Set(current);
+      if (isCurrentlyBookmarked) {
+        reverted.add(messageId);
+      } else {
+        reverted.delete(messageId);
+      }
+      set({ bookmarkedIds: reverted });
     }
   },
 

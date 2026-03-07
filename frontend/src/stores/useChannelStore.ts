@@ -2,11 +2,20 @@ import { create } from 'zustand';
 import * as api from '@/lib/api';
 import type { Channel, DirectMessage } from '@/lib/types';
 
-const STARRED_KEY = 'slawk:starred_channels';
+function getStarredKey(): string {
+  try {
+    const token = localStorage.getItem('token');
+    if (token) {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      if (payload.userId) return `slawk:starred_channels:${payload.userId}`;
+    }
+  } catch { /* ignore */ }
+  return 'slawk:starred_channels';
+}
 
 function loadStarred(): Set<number> {
   try {
-    const raw = localStorage.getItem(STARRED_KEY);
+    const raw = localStorage.getItem(getStarredKey());
     if (!raw) return new Set();
     return new Set(JSON.parse(raw) as number[]);
   } catch {
@@ -15,7 +24,7 @@ function loadStarred(): Set<number> {
 }
 
 function saveStarred(ids: Set<number>): void {
-  localStorage.setItem(STARRED_KEY, JSON.stringify(Array.from(ids)));
+  localStorage.setItem(getStarredKey(), JSON.stringify(Array.from(ids)));
 }
 
 interface ChannelState {

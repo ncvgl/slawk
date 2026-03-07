@@ -184,7 +184,7 @@ export function Message({ message, showAvatar, isCompact, onOpenThread }: Messag
                     <audio
                       controls
                       controlsList="nodownload noplaybackrate"
-                      preload="auto"
+                      preload="metadata"
                       className="h-8"
                       src={getAuthFileUrl(file.url)}
                     />
@@ -212,7 +212,7 @@ export function Message({ message, showAvatar, isCompact, onOpenThread }: Messag
                       <a
                         data-testid="image-download"
                         href={getAuthFileUrl(file.url, { download: true })}
-                        download={file.originalName}
+                        download={file.originalName.replace(/[/\\:\0]/g, '_')} rel="noopener"
                         className="ml-auto flex-shrink-0 text-slack-disabled hover:text-slack-primary"
                         onClick={(e) => e.stopPropagation()}
                       >
@@ -226,7 +226,7 @@ export function Message({ message, showAvatar, isCompact, onOpenThread }: Messag
                     <div className="flex-1 min-w-0">
                       <a
                         href={getAuthFileUrl(file.url, { download: true })}
-                        download={file.originalName}
+                        download={file.originalName.replace(/[/\\:\0]/g, '_')} rel="noopener"
                         className="block text-[13px] font-medium text-slack-link hover:underline truncate"
                       >
                         {file.originalName}
@@ -237,7 +237,7 @@ export function Message({ message, showAvatar, isCompact, onOpenThread }: Messag
                     </div>
                     <a
                       href={getAuthFileUrl(file.url, { download: true })}
-                      download={file.originalName}
+                      download={file.originalName.replace(/[/\\:\0]/g, '_')} rel="noopener"
                       className="flex-shrink-0 text-slack-disabled hover:text-slack-primary"
                       onClick={(e) => e.stopPropagation()}
                     >

@@ -45,11 +45,20 @@ function renderInline(content: string, keyOffset: number = 0): React.ReactNode[]
   return nodes;
 }
 
+const BIDI_CHARS = /[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g;
+const MAX_RENDER_LENGTH = 10000;
+
 /**
  * Parses message content and returns React nodes.
  * Block-level parsing (blockquotes, code blocks) runs first, then inline markdown.
  */
 export function renderMessageContent(content: string): React.ReactNode {
+  // Strip bidi override characters to prevent visual spoofing
+  content = content.replace(BIDI_CHARS, '');
+  // Cap length to prevent ReDoS on crafted messages
+  if (content.length > MAX_RENDER_LENGTH) {
+    content = content.slice(0, MAX_RENDER_LENGTH) + '... (message truncated)';
+  }
   const nodes: React.ReactNode[] = [];
   let key = 0;
 

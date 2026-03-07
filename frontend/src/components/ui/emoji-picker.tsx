@@ -42,7 +42,7 @@ export function EmojiPicker({ onEmojiSelect, onClickOutside }: EmojiPickerProps)
 
     return () => {
       clearTimeout(timer);
-      container.innerHTML = '';
+      container.replaceChildren();
     };
   }, []);
 

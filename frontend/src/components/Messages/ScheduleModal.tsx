@@ -62,7 +62,9 @@ export function ScheduleModal({ onSchedule, onClose, isScheduling }: ScheduleMod
               const [datePart, timePart] = customScheduleAt.split('T');
               const [year, month, day] = datePart.split('-').map(Number);
               const [hour, minute] = timePart.split(':').map(Number);
-              onSchedule(new Date(year, month - 1, day, hour, minute));
+              const scheduled = new Date(year, month - 1, day, hour, minute);
+              if (scheduled <= new Date()) return;
+              onSchedule(scheduled);
             }}
             className={cn(
               'px-4 py-1.5 text-[14px] font-medium',

@@ -79,16 +79,13 @@ export function ProfileModal({ userId, onClose }: ProfileModalProps) {
       setSaveError('Image must be under 5MB.');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      setCropImageSrc(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    setCropImageSrc(URL.createObjectURL(file));
     // Reset the input so the same file can be re-selected
     e.target.value = '';
   };
 
   const handleCropDone = async (croppedBlob: Blob) => {
+    if (cropImageSrc) URL.revokeObjectURL(cropImageSrc);
     setCropImageSrc(null);
     setIsUploadingAvatar(true);
     setSaveError(null);
@@ -268,7 +265,7 @@ export function ProfileModal({ userId, onClose }: ProfileModalProps) {
         <AvatarCropModal
           imageSrc={cropImageSrc}
           onCrop={handleCropDone}
-          onClose={() => setCropImageSrc(null)}
+          onClose={() => { if (cropImageSrc) URL.revokeObjectURL(cropImageSrc); setCropImageSrc(null); }}
         />
       )}
     </div>

@@ -43,12 +43,11 @@ export function MessageArea() {
   }, []);
 
   const handleReplyCountChange = useCallback((messageId: number, count: number) => {
-    // Update thread count in the message store
-    const { messages } = useMessageStore.getState();
-    const updated = messages.map((m) =>
-      m.id === messageId ? { ...m, threadCount: count } : m
-    );
-    useMessageStore.setState({ messages: updated });
+    useMessageStore.setState((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId ? { ...m, threadCount: count } : m
+      ),
+    }));
   }, []);
 
   // Show full-page Files view when navigated to /files

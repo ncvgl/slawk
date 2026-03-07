@@ -11,7 +11,15 @@ import { LoginPage } from '@/components/Auth/LoginPage';
 import { RegisterPage } from '@/components/Auth/RegisterPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, isHydrating } = useAuthStore();
+
+  if (isHydrating) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-sm text-gray-500">Loading...</p>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
@@ -38,23 +46,31 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 function RouteSync() {
   const { channelId, userId } = useParams<{ channelId?: string; userId?: string }>();
   const location = useLocation();
+  const navigate = useNavigate();
   const setActiveChannel = useChannelStore((s) => s.setActiveChannel);
   const setActiveDM = useChannelStore((s) => s.setActiveDM);
+  const channels = useChannelStore((s) => s.channels);
 
   useEffect(() => {
     if (channelId) {
       const id = parseInt(channelId, 10);
-      if (!isNaN(id)) {
-        const scrollToMessageId = (location.state as any)?.scrollToMessageId;
-        setActiveChannel(id, scrollToMessageId);
+      if (isNaN(id) || id <= 0) return;
+      // Verify user has access to this channel
+      const channel = channels.find((ch) => ch.id === id);
+      if (channels.length > 0 && (!channel || !channel.isMember)) {
+        navigate('/', { replace: true });
+        return;
       }
+      const scrollRaw = (location.state as any)?.scrollToMessageId;
+      const scrollToMessageId = typeof scrollRaw === 'number' && scrollRaw > 0 ? scrollRaw : undefined;
+      setActiveChannel(id, scrollToMessageId);
     } else if (userId) {
       const id = parseInt(userId, 10);
-      if (!isNaN(id)) {
+      if (!isNaN(id) && id > 0) {
         setActiveDM(id);
       }
     }
-  }, [channelId, userId, setActiveChannel, setActiveDM, location.state]);
+  }, [channelId, userId, setActiveChannel, setActiveDM, location.state, channels, navigate]);
 
   return null;
 }
@@ -140,8 +156,12 @@ function AppShell() {
       const { addOrUpdateDM, activeDMId, incrementDMUnread } = useChannelStore.getState();
       const currentUser = useAuthStore.getState().user;
       if (!currentUser) return;
+      // Validate DM involves the current user
+      if (dm.fromUserId !== currentUser.id && dm.toUserId !== currentUser.id) return;
+      // Validate required fields
+      if (typeof dm.fromUser?.id !== 'number' || typeof dm.toUser?.id !== 'number') return;
+      if (typeof dm.fromUser?.name !== 'string' || typeof dm.toUser?.name !== 'string') return;
       const isSelfDM = dm.fromUserId === currentUser.id && dm.toUserId === currentUser.id;
-      // Determine the other user in the conversation
       const isFromMe = dm.fromUserId === currentUser.id;
       const otherUser = isFromMe ? dm.toUser : dm.fromUser;
       const otherUserId = otherUser.id;
@@ -206,6 +226,11 @@ function AppShell() {
     socket.on('reaction:added', handleReactionAdded);
     socket.on('reaction:removed', handleReactionRemoved);
 
+    const handleDisconnect = () => {
+      joinedChannelsRef.current.clear();
+    };
+    socket.on('disconnect', handleDisconnect);
+
     return () => {
       socket.off('message:new', handleNewMessage);
       socket.off('message:updated', handleUpdatedMessage);
@@ -219,6 +244,7 @@ function AppShell() {
       socket.off('channel:joined', handleChannelJoined);
       socket.off('reaction:added', handleReactionAdded);
       socket.off('reaction:removed', handleReactionRemoved);
+      socket.off('disconnect', handleDisconnect);
       disconnectSocket();
     };
   }, []);
