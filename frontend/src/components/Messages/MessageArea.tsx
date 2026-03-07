@@ -21,6 +21,8 @@ export function MessageArea() {
   const activeChannel = getActiveChannel();
   const activeDM = getActiveDM();
   const { sendMessage, sendError, clearSendError } = useMessageStore();
+  const joinChannel = useChannelStore((s) => s.joinChannel);
+  const fetchChannels = useChannelStore((s) => s.fetchChannels);
   const [showMembers, setShowMembers] = useState(false);
   const [showPins, setShowPins] = useState(false);
   const [showFiles, setShowFiles] = useState(false);
@@ -75,8 +77,6 @@ export function MessageArea() {
   }
 
   const readOnly = !activeChannel.isMember;
-  const joinChannel = useChannelStore((s) => s.joinChannel);
-  const fetchChannels = useChannelStore((s) => s.fetchChannels);
 
   return (
     <div className="flex h-full">
