@@ -1,20 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { FileText, FileImage, FileArchive, Download } from 'lucide-react';
+import { FileText, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { getUserFiles, getAuthFileUrl, refreshDownloadToken, type ApiFileWithUser } from '@/lib/api';
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function FileIcon({ mimetype }: { mimetype: string }) {
-  if (mimetype.startsWith('image/')) return <FileImage className="h-5 w-5 text-slack-file-image" />;
-  if (mimetype === 'application/pdf') return <FileText className="h-5 w-5 text-slack-file-pdf" />;
-  if (mimetype.includes('zip')) return <FileArchive className="h-5 w-5 text-slack-file-archive" />;
-  return <FileText className="h-5 w-5 text-slack-hint" />;
-}
+import { formatBytes, FileIcon } from '@/lib/fileUtils';
 
 export function FilesPage() {
   const [files, setFiles] = useState<ApiFileWithUser[]>([]);

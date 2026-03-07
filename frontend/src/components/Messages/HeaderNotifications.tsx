@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useChannelStore } from '@/stores/useChannelStore';
 import { Button } from '@/components/ui/button';
+import { useClickOutside } from '@/hooks/useClickOutside';
 
 interface HeaderNotificationsProps {
   excludeChannelId?: number;
@@ -16,17 +17,8 @@ export function HeaderNotifications({ excludeChannelId, testIdPrefix = '' }: Hea
   const [showNotifications, setShowNotifications] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
-        setShowNotifications(false);
-      }
-    }
-    if (showNotifications) {
-      document.addEventListener('mousedown', handleClick);
-      return () => document.removeEventListener('mousedown', handleClick);
-    }
-  }, [showNotifications]);
+  const closeNotifications = useCallback(() => setShowNotifications(false), []);
+  useClickOutside(notifRef, closeNotifications, showNotifications);
 
   const prefix = testIdPrefix ? `${testIdPrefix}-` : '';
   const unread = channels.filter((ch) => ch.unreadCount > 0 && (excludeChannelId === undefined || ch.id !== excludeChannelId));

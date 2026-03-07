@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { X, FileText, FileImage, FileArchive, Download } from 'lucide-react';
+import { FileText, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { getChannelFiles, getUserFiles, getAuthFileUrl, refreshDownloadToken, type ApiFileWithUser } from '@/lib/api';
-import { Button } from '@/components/ui/button';
 import { ImageLightbox } from './ImageLightbox';
+import { PanelHeader } from './PanelHeader';
+import { formatBytes, FileIcon } from '@/lib/fileUtils';
 
 interface FilesPanelProps {
   channelId?: number;
@@ -11,18 +12,6 @@ interface FilesPanelProps {
   title?: string;
 }
 
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function FileIcon({ mimetype }: { mimetype: string }) {
-  if (mimetype.startsWith('image/')) return <FileImage className="h-5 w-5 text-slack-file-image" />;
-  if (mimetype === 'application/pdf') return <FileText className="h-5 w-5 text-slack-file-pdf" />;
-  if (mimetype.includes('zip')) return <FileArchive className="h-5 w-5 text-slack-file-archive" />;
-  return <FileText className="h-5 w-5 text-slack-hint" />;
-}
 
 export function FilesPanel({ channelId, onClose, title }: FilesPanelProps) {
   const [files, setFiles] = useState<ApiFileWithUser[]>([]);
@@ -51,15 +40,7 @@ export function FilesPanel({ channelId, onClose, title }: FilesPanelProps) {
 
   return (
     <div data-testid="files-panel" className="flex w-[300px] flex-col border-l border-slack-border bg-white">
-      <div className="flex h-[49px] items-center justify-between border-b border-slack-border px-4">
-        <div className="flex items-center gap-1.5">
-          <FileText className="h-4 w-4 text-slack-secondary" />
-          <span className="text-[15px] font-bold text-slack-primary">{panelTitle}</span>
-        </div>
-        <Button variant="toolbar" size="icon-sm" onClick={onClose}>
-          <X className="h-4 w-4 text-slack-secondary" />
-        </Button>
-      </div>
+      <PanelHeader icon={FileText} title={panelTitle} onClose={onClose} />
       <div className="flex-1 overflow-y-auto">
         {isLoading ? (
           <div className="p-4 text-center text-sm text-slack-hint">Loading...</div>

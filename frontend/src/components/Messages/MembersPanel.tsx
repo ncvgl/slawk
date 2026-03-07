@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, UserPlus } from 'lucide-react';
+import { UserPlus } from 'lucide-react';
 import { Avatar } from '@/components/ui/avatar';
 import { getChannelMembers, getUsers, addChannelMember, type ChannelMember, type AuthUser } from '@/lib/api';
 import { getSocket } from '@/lib/socket';
 import { Button } from '@/components/ui/button';
 import { ProfileModal } from '@/components/ProfileModal';
+import { PanelHeader } from './PanelHeader';
 
 interface MembersPanelProps {
   channelId: number;
@@ -70,12 +71,7 @@ export function MembersPanel({ channelId, onClose }: MembersPanelProps) {
       data-testid="members-panel"
       className="flex w-[260px] flex-col border-l border-slack-border bg-white"
     >
-      <div className="flex h-[49px] items-center justify-between border-b border-slack-border px-4">
-        <h3 className="text-[15px] font-bold text-slack-primary">Members</h3>
-        <Button variant="toolbar" size="icon-sm" onClick={onClose}>
-          <X className="h-4 w-4 text-slack-secondary" />
-        </Button>
-      </div>
+      <PanelHeader title="Members" onClose={onClose} />
 
       <div className="flex-1 overflow-y-auto p-3">
         {/* Add People button */}

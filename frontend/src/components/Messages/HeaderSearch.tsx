@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { searchMessages, type SearchResult } from '@/lib/api';
 import { Avatar } from '@/components/ui/avatar';
 import { renderMessageContent } from '@/lib/renderMessageContent';
+import { useClickOutside } from '@/hooks/useClickOutside';
 
 interface HeaderSearchProps {
   testIdPrefix?: string;
@@ -19,17 +20,8 @@ export function HeaderSearch({ testIdPrefix = '' }: HeaderSearchProps) {
   const searchRef = useRef<HTMLDivElement>(null);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
-        setShowResults(false);
-      }
-    }
-    if (showResults) {
-      document.addEventListener('mousedown', handleClick);
-      return () => document.removeEventListener('mousedown', handleClick);
-    }
-  }, [showResults]);
+  const closeResults = useCallback(() => setShowResults(false), []);
+  useClickOutside(searchRef, closeResults, showResults);
 
   useEffect(() => {
     return () => {

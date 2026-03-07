@@ -1,21 +1,11 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
-import Quill from 'quill';
-import 'quill/dist/quill.snow.css';
 import {
-  Plus,
-  AtSign,
-  Smile,
-  Mic,
-  Square,
   SendHorizontal,
-  X,
   ChevronDown,
-  CheckCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
 import { PortalEmojiPicker } from '@/components/ui/emoji-picker';
-import { uploadFile, getUsers, scheduleMessage, type ApiFile, type AuthUser } from '@/lib/api';
+import { scheduleMessage } from '@/lib/api';
 import { serializeDelta } from '@/lib/serializeDelta';
 import { LinkModal } from './LinkModal';
 import { ScheduleModal } from './ScheduleModal';
@@ -23,7 +13,10 @@ import { ScheduleMenu } from './ScheduleMenu';
 import { FormatToolbar } from './FormatToolbar';
 import { FilePreview } from './FilePreview';
 import { MentionDropdown } from './MentionDropdown';
-import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
+import { EditorToolbar } from './EditorToolbar';
+import { useQuillEditor } from '@/hooks/useQuillEditor';
+import { useClickOutside } from '@/hooks/useClickOutside';
+import { ErrorBanner, SuccessBanner } from '@/components/ui/ErrorBanner';
 
 interface MessageInputProps {
   placeholder: string;
@@ -37,23 +30,6 @@ interface MessageInputProps {
 
 export function MessageInput({ placeholder, onSend, sendError, clearSendError, channelId, dmParticipantIds, testIdPrefix }: MessageInputProps) {
   const prefix = testIdPrefix ? `${testIdPrefix}-` : '';
-  const editorRef = useRef<HTMLDivElement>(null);
-  const quillRef = useRef<Quill | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [canSend, setCanSend] = useState(false);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [pendingFiles, setPendingFiles] = useState<ApiFile[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
-  const [showMentionDropdown, setShowMentionDropdown] = useState(false);
-  const [mentionUsers, setMentionUsers] = useState<AuthUser[]>([]);
-  const [mentionQuery, setMentionQuery] = useState('');
-  const [mentionStartIndex, setMentionStartIndex] = useState<number | null>(null);
-  const [mentionSelectedIndex, setMentionSelectedIndex] = useState(0);
-  const [showLinkModal, setShowLinkModal] = useState(false);
-  const [linkUrl, setLinkUrl] = useState('');
-  const [linkText, setLinkText] = useState('');
-  const linkSavedRangeRef = useRef<{ index: number; length: number } | null>(null);
-  const mentionDropdownRef = useRef<HTMLDivElement>(null);
 
   // Schedule message state
   const [showScheduleMenu, setShowScheduleMenu] = useState(false);
@@ -61,33 +37,34 @@ export function MessageInput({ placeholder, onSend, sendError, clearSendError, c
   const [scheduleConfirm, setScheduleConfirm] = useState<string | null>(null);
   const [scheduleError, setScheduleError] = useState<string | null>(null);
   const [isScheduling, setIsScheduling] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
   const scheduleMenuRef = useRef<HTMLDivElement>(null);
 
-  const { isRecording, duration: recordingDuration, startRecording, stopRecording, cancelRecording } = useVoiceRecorder({
-    onRecorded: (file) => setPendingFiles((prev) => [...prev, file]),
-    onError: (msg) => {
-      setUploadError(msg);
-      setTimeout(() => setUploadError(null), 4000);
-    },
+  const handleSendRef = useRef<() => void>(() => {});
+
+  const editor = useQuillEditor({
+    placeholder,
+    onSendRef: handleSendRef,
+    dmParticipantIds,
+    testId: testIdPrefix ? `${testIdPrefix}-message-input` : undefined,
+    enableInlineCode: true,
   });
 
   const handleSend = useCallback(async () => {
-    const quill = quillRef.current;
+    const quill = editor.quillRef.current;
     if (!quill) return;
     const text = serializeDelta(quill);
-    if (!text && pendingFiles.length === 0) return;
+    if (!text && editor.pendingFiles.length === 0) return;
     const content = text || '';
-    const fileIds = pendingFiles.map((f) => f.id);
-    quill.setText('');
-    setPendingFiles([]);
-    setCanSend(false);
+    const fileIds = editor.pendingFiles.map((f) => f.id);
+    editor.clearEditor();
     await onSend(content, fileIds.length > 0 ? fileIds : undefined);
-  }, [onSend, pendingFiles]);
+  }, [onSend, editor]);
+
+  handleSendRef.current = handleSend;
 
   const handleSchedule = useCallback(
     async (scheduledAt: Date) => {
-      const quill = quillRef.current;
+      const quill = editor.quillRef.current;
       if (!quill || !channelId) return;
       const text = serializeDelta(quill);
       if (!text) return;
@@ -96,13 +73,10 @@ export function MessageInput({ placeholder, onSend, sendError, clearSendError, c
       setScheduleError(null);
       try {
         await scheduleMessage(channelId, text, scheduledAt);
-        quill.setText('');
-        setPendingFiles([]);
-        setCanSend(false);
+        editor.clearEditor();
         setShowScheduleMenu(false);
         setShowScheduleModal(false);
 
-        // Show confirmation briefly
         const formatted = scheduledAt.toLocaleString(undefined, {
           month: 'short',
           day: 'numeric',
@@ -118,499 +92,75 @@ export function MessageInput({ placeholder, onSend, sendError, clearSendError, c
         setIsScheduling(false);
       }
     },
-    [channelId],
+    [channelId, editor],
   );
 
   // Close schedule menu on outside click
-  useEffect(() => {
-    if (!showScheduleMenu) return;
-    const handleClick = (e: MouseEvent) => {
-      if (scheduleMenuRef.current && !scheduleMenuRef.current.contains(e.target as Node)) {
-        setShowScheduleMenu(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [showScheduleMenu]);
-
-  const handleSendRef = useRef(handleSend);
-  handleSendRef.current = handleSend;
-  const mentionActiveRef = useRef(false);
-  mentionActiveRef.current = showMentionDropdown;
-  const mentionUsersRef = useRef(mentionUsers);
-  mentionUsersRef.current = mentionUsers;
-  const mentionSelectedIndexRef = useRef(mentionSelectedIndex);
-  mentionSelectedIndexRef.current = mentionSelectedIndex;
-  const insertMentionRef = useRef<(user: AuthUser) => void>(() => {});
-
-  useEffect(() => {
-    if (!editorRef.current || quillRef.current) return;
-
-    const quill = new Quill(editorRef.current, {
-      theme: 'snow',
-      modules: {
-        toolbar: false,
-        clipboard: {
-          matchers: [
-            // Strip pasted images — we handle them as file uploads instead
-            ['img', (_node: HTMLElement, delta: any) => { delta.ops = []; return delta; }],
-          ],
-        },
-        keyboard: {
-          bindings: {
-            enter: {
-              key: 'Enter',
-              handler: () => {
-                if (mentionActiveRef.current) {
-                  const users = mentionUsersRef.current;
-                  const idx = mentionSelectedIndexRef.current;
-                  if (users.length > 0 && idx < users.length) {
-                    insertMentionRef.current(users[idx]);
-                  }
-                  return false;
-                }
-                handleSendRef.current();
-                return false;
-              },
-            },
-            escape: {
-              key: 'Escape',
-              handler: () => {
-                if (mentionActiveRef.current) {
-                  setShowMentionDropdown(false);
-                  return false;
-                }
-                return true;
-              },
-            },
-            arrowUp: {
-              key: 'ArrowUp',
-              handler: () => {
-                if (mentionActiveRef.current) {
-                  setMentionSelectedIndex((prev) =>
-                    prev > 0 ? prev - 1 : mentionUsersRef.current.length - 1
-                  );
-                  return false;
-                }
-                return true;
-              },
-            },
-            arrowDown: {
-              key: 'ArrowDown',
-              handler: () => {
-                if (mentionActiveRef.current) {
-                  setMentionSelectedIndex((prev) =>
-                    prev < mentionUsersRef.current.length - 1 ? prev + 1 : 0
-                  );
-                  return false;
-                }
-                return true;
-              },
-            },
-          },
-        },
-      },
-      placeholder,
-    });
-
-    quill.on('text-change', (_delta, _oldDelta, source) => {
-      setCanSend(quill.getText().trim().length > 0);
-
-      // Markdown inline code shortcut: detect `code` pattern typed by user
-      if (source === 'user') {
-        const sel = quill.getSelection();
-        if (sel) {
-          const cursorPos = sel.index;
-          const fullText = quill.getText(0, cursorPos);
-          // Check if user just typed a closing backtick
-          if (fullText.endsWith('`') && fullText.length >= 3) {
-            // Find the matching opening backtick (skip the closing one)
-            const beforeClose = fullText.slice(0, -1);
-            const openIdx = beforeClose.lastIndexOf('`');
-            if (openIdx >= 0) {
-              const codeContent = beforeClose.slice(openIdx + 1);
-              // Only convert if content is non-empty, not too long, and doesn't contain newlines
-              if (codeContent.length > 0 && codeContent.length <= 100 && !codeContent.includes('\n')) {
-                // Delete the raw backtick-delimited text, insert formatted code
-                quill.deleteText(openIdx, codeContent.length + 2); // +2 for both backticks
-                quill.insertText(openIdx, codeContent, { code: true });
-                quill.insertText(openIdx + codeContent.length, ' ', { code: false });
-                quill.setSelection(openIdx + codeContent.length + 1);
-                return;
-              }
-            }
-          }
-        }
-      }
-
-      // Detect @mention trigger
-      const selection = quill.getSelection();
-      if (!selection) return;
-      const cursorPos = selection.index;
-      const text = quill.getText(0, cursorPos);
-      const atIndex = text.lastIndexOf('@');
-      if (atIndex >= 0) {
-        const beforeAt = atIndex > 0 ? text[atIndex - 1] : ' ';
-        const query = text.slice(atIndex + 1);
-        // Only trigger if @ is at start or preceded by whitespace, and query has no spaces
-        if ((atIndex === 0 || /\s/.test(beforeAt)) && !/\s/.test(query)) {
-          setMentionStartIndex(atIndex);
-          setMentionQuery(query);
-          setShowMentionDropdown(true);
-          setMentionSelectedIndex(0);
-          return;
-        }
-      }
-      setShowMentionDropdown(false);
-    });
-
-    // Set test ID on the editable element for Playwright compatibility
-    if (testIdPrefix) {
-      quill.root.setAttribute('data-testid', `${testIdPrefix}-message-input`);
-    }
-
-    // Handle image paste from clipboard — upload as file instead of inline base64
-    quill.root.addEventListener('paste', (e: ClipboardEvent) => {
-      const clipboardData = e.clipboardData;
-      if (!clipboardData) return;
-
-      const imageFiles: File[] = [];
-      for (const item of Array.from(clipboardData.items)) {
-        if (item.type.startsWith('image/')) {
-          const file = item.getAsFile();
-          if (file) imageFiles.push(file);
-        }
-      }
-
-      if (imageFiles.length > 0) {
-        e.preventDefault();
-        e.stopPropagation();
-
-        // Remove any base64 images Quill may have inserted despite preventDefault
-        requestAnimationFrame(() => {
-          const imgs = quill.root.querySelectorAll('img[src^="data:"]');
-          imgs.forEach((img) => img.remove());
-        });
-
-        (async () => {
-          setIsUploading(true);
-          setUploadError(null);
-          try {
-            for (const file of imageFiles) {
-              const uploaded = await uploadFile(file);
-              setPendingFiles((prev) => [...prev, uploaded]);
-            }
-          } catch {
-            setUploadError('Failed to upload pasted image. Please try again.');
-            setTimeout(() => setUploadError(null), 4000);
-          } finally {
-            setIsUploading(false);
-          }
-        })();
-      }
-    });
-
-    quillRef.current = quill;
-  }, [placeholder, testIdPrefix]);
-
-  useEffect(() => {
-    if (quillRef.current) {
-      quillRef.current.root.dataset.placeholder = placeholder;
-    }
-  }, [placeholder]);
+  const closeScheduleMenu = useCallback(() => setShowScheduleMenu(false), []);
+  useClickOutside(scheduleMenuRef, closeScheduleMenu, showScheduleMenu);
 
   // Clear editor content when switching channels
   useEffect(() => {
-    if (quillRef.current && channelId !== undefined) {
-      quillRef.current.setText('');
-      setPendingFiles([]);
-      setCanSend(false);
+    if (channelId !== undefined) {
+      editor.clearEditor();
     }
-  }, [channelId]);
-
-  const handleEmojiSelect = useCallback((emoji: { native: string }) => {
-    const quill = quillRef.current;
-    if (!quill) return;
-    const range = quill.getSelection(true);
-    quill.insertText(range.index, emoji.native);
-    quill.setSelection(range.index + emoji.native.length);
-    setShowEmojiPicker(false);
-    quill.focus();
-  }, []);
-
-  // Fetch users for mention autocomplete
-  useEffect(() => {
-    if (!showMentionDropdown) {
-      setMentionUsers([]);
-      return;
-    }
-    let cancelled = false;
-    const timer = setTimeout(async () => {
-      try {
-        const users = await getUsers(mentionQuery || undefined);
-        if (!cancelled) {
-          // In DMs, only allow mentioning the participants
-          const filtered = dmParticipantIds
-            ? users.filter((u) => dmParticipantIds.includes(u.id))
-            : users;
-          setMentionUsers(filtered);
-        }
-      } catch {
-        // ignore
-      }
-    }, 150);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [showMentionDropdown, mentionQuery, dmParticipantIds]);
-
-  const insertMention = useCallback(
-    (user: AuthUser) => {
-      const quill = quillRef.current;
-      if (!quill || mentionStartIndex === null) return;
-      const mentionText = `@${user.name}`;
-      // Delete the @query text and insert mention
-      const deleteLength = mentionQuery.length + 1; // +1 for @
-      quill.deleteText(mentionStartIndex, deleteLength);
-      quill.insertText(mentionStartIndex, mentionText + ' ');
-      quill.setSelection(mentionStartIndex + mentionText.length + 1);
-      setShowMentionDropdown(false);
-      setMentionQuery('');
-      setMentionStartIndex(null);
-      quill.focus();
-    },
-    [mentionStartIndex, mentionQuery],
-  );
-  insertMentionRef.current = insertMention;
-
-  const handleMentionButtonClick = () => {
-    const quill = quillRef.current;
-    if (!quill) return;
-    const range = quill.getSelection(true);
-    quill.insertText(range.index, '@');
-    quill.setSelection(range.index + 1);
-    quill.focus();
-  };
-
-  const handleLinkSave = useCallback(() => {
-    const quill = quillRef.current;
-    const range = linkSavedRangeRef.current;
-    if (!quill || !linkUrl.trim()) {
-      setShowLinkModal(false);
-      return;
-    }
-    let url = linkUrl.trim();
-    if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('mailto:')) {
-      url = `https://${url}`;
-    }
-    try {
-      const parsed = new URL(url);
-      if (!['http:', 'https:', 'mailto:'].includes(parsed.protocol)) {
-        setShowLinkModal(false);
-        return;
-      }
-    } catch {
-      setShowLinkModal(false);
-      return;
-    }
-    if (range && range.length > 0) {
-      // Apply link to existing selection
-      quill.formatText(range.index, range.length, 'link', url);
-    } else {
-      // Insert new linked text at cursor
-      const insertText = linkText.trim() || url;
-      const insertAt = range ? range.index : quill.getLength() - 1;
-      quill.insertText(insertAt, insertText, 'link', url);
-      quill.setSelection(insertAt + insertText.length);
-    }
-    setShowLinkModal(false);
-    setLinkUrl('');
-    setLinkText('');
-    linkSavedRangeRef.current = null;
-    quill.focus();
-  }, [linkUrl, linkText]);
-
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    setIsUploading(true);
-    setUploadError(null);
-    try {
-      for (const file of Array.from(files)) {
-        const uploaded = await uploadFile(file);
-        setPendingFiles((prev) => [...prev, uploaded]);
-      }
-    } catch {
-      setUploadError('Failed to upload file. Please try again.');
-      setTimeout(() => setUploadError(null), 4000);
-    } finally {
-      setIsUploading(false);
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
-  };
-
-  const removePendingFile = (fileId: number) => {
-    setPendingFiles((prev) => prev.filter((f) => f.id !== fileId));
-  };
-
-  const applyFormat = (format: string, value?: string) => {
-    const quill = quillRef.current;
-    if (!quill) return;
-
-    if (format === 'link') {
-      const range = quill.getSelection();
-      if (range) {
-        const currentFormat = quill.getFormat(range);
-        if (currentFormat.link) {
-          quill.format('link', false);
-        } else {
-          // Save the selection range so we can apply the link after modal closes
-          linkSavedRangeRef.current = { index: range.index, length: range.length };
-          // Pre-fill display text from selected text
-          const selectedText = range.length > 0 ? quill.getText(range.index, range.length) : '';
-          setLinkText(selectedText);
-          setLinkUrl('');
-          setShowLinkModal(true);
-        }
-      }
-      return;
-    }
-
-    if (value) {
-      const range = quill.getSelection();
-      if (range) {
-        const currentFormat = quill.getFormat(range);
-        quill.format(format, currentFormat[format] === value ? false : value);
-      }
-    } else {
-      const range = quill.getSelection();
-      if (range) {
-        const currentFormat = quill.getFormat(range);
-        quill.format(format, !currentFormat[format]);
-      }
-    }
-    quill.focus();
-  };
+  }, [channelId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCustomSchedule = () => {
     setShowScheduleMenu(false);
     setShowScheduleModal(true);
   };
 
-  const hasContent = canSend || pendingFiles.length > 0;
+  const hasContent = editor.canSend || editor.pendingFiles.length > 0;
 
   return (
     <div className="relative px-5 pb-6 pt-4 bg-white">
       <div className="slawk-editor rounded-[8px] border border-slack-border-light">
-        {/* Formatting Toolbar */}
-        <FormatToolbar onApplyFormat={applyFormat} />
+        <FormatToolbar onApplyFormat={editor.applyFormat} />
+        <FilePreview files={editor.pendingFiles} onRemove={editor.removePendingFile} />
 
-        {/* File preview area */}
-        <FilePreview files={pendingFiles} onRemove={removePendingFile} />
-
-        {/* Upload progress indicator */}
-        {isUploading && (
+        {editor.isUploading && (
           <div className="px-3 py-1 text-xs text-slack-hint">Uploading...</div>
         )}
 
-        {/* Quill Editor */}
-        <div ref={editorRef} />
+        <div ref={editor.editorRef} />
 
-        {/* Mention Dropdown */}
-        {showMentionDropdown && (
+        {editor.showMentionDropdown && (
           <MentionDropdown
-            ref={mentionDropdownRef}
-            users={mentionUsers}
-            selectedIndex={mentionSelectedIndex}
-            onSelect={insertMention}
+            ref={editor.mentionDropdownRef}
+            users={editor.mentionUsers}
+            selectedIndex={editor.mentionSelectedIndex}
+            onSelect={editor.insertMention}
           />
         )}
 
-        {/* Emoji Picker */}
-        {showEmojiPicker && (
+        {editor.showEmojiPicker && (
           <PortalEmojiPicker
             anchorClassName="absolute bottom-full left-0 mb-2"
-            onEmojiSelect={handleEmojiSelect}
-            onClickOutside={() => setShowEmojiPicker(false)}
+            onEmojiSelect={editor.handleEmojiSelect}
+            onClickOutside={() => editor.setShowEmojiPicker(false)}
           />
         )}
 
-        {/* Hidden file input */}
         <input
-          ref={fileInputRef}
+          ref={editor.fileInputRef}
           type="file"
           className="hidden"
           accept="image/*,audio/*,.pdf,.txt,.json,.zip"
-          onChange={handleFileSelect}
+          onChange={editor.handleFileSelect}
         />
 
-        {/* Bottom Toolbar */}
-        <div className="flex items-center justify-between px-[6px] py-1">
-          <div className="flex items-center">
-            <Button
-              data-testid={`${prefix}attach-file-button`}
-              variant="toolbar"
-              size="icon-sm"
-              onClick={() => fileInputRef.current?.click()}
-              title="Attach file"
-            >
-              <Plus className="h-[18px] w-[18px]" />
-            </Button>
-            <Button
-              variant="toolbar"
-              size="icon-sm"
-              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            >
-              <Smile className="h-[18px] w-[18px]" />
-            </Button>
-            <Button
-              data-testid={`${prefix}mention-button`}
-              variant="toolbar"
-              size="icon-sm"
-              onClick={handleMentionButtonClick}
-            >
-              <AtSign className="h-[18px] w-[18px]" />
-            </Button>
-            {isRecording ? (
-              <div className="flex items-center gap-1.5 ml-1">
-                <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-                <span className="text-[12px] text-red-600 font-medium tabular-nums">
-                  {Math.floor(recordingDuration / 60)}:{String(recordingDuration % 60).padStart(2, '0')}
-                </span>
-                <Button
-                  data-testid={`${prefix}mic-stop-button`}
-                  variant="toolbar"
-                  size="icon-sm"
-                  onClick={stopRecording}
-                  title="Stop recording"
-                >
-                  <Square className="h-3.5 w-3.5 fill-red-500 text-red-500" />
-                </Button>
-                <button
-                  onClick={cancelRecording}
-                  className="text-[11px] text-slack-secondary hover:text-slack-primary"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <Button
-                data-testid={`${prefix}mic-button`}
-                variant="toolbar"
-                size="icon-sm"
-                onClick={startRecording}
-                title="Record voice clip"
-              >
-                <Mic className="h-[18px] w-[18px]" />
-              </Button>
-            )}
-          </div>
-
+        <EditorToolbar
+          testIdPrefix={prefix}
+          onAttach={() => editor.fileInputRef.current?.click()}
+          onEmojiToggle={() => editor.setShowEmojiPicker(!editor.showEmojiPicker)}
+          onMention={editor.handleMentionButtonClick}
+          isRecording={editor.isRecording}
+          recordingDuration={editor.recordingDuration}
+          onStartRecording={editor.startRecording}
+          onStopRecording={editor.stopRecording}
+          onCancelRecording={editor.cancelRecording}
+        >
           {/* Send button group with schedule dropdown */}
           <div className="flex items-center relative" ref={scheduleMenuRef}>
             <button
@@ -626,7 +176,6 @@ export function MessageInput({ placeholder, onSend, sendError, clearSendError, c
             >
               <SendHorizontal className="h-4 w-4" />
             </button>
-            {/* Schedule dropdown arrow */}
             <button
               data-testid={`${prefix}schedule-button`}
               onClick={() => hasContent && setShowScheduleMenu((v) => !v)}
@@ -642,7 +191,6 @@ export function MessageInput({ placeholder, onSend, sendError, clearSendError, c
               <ChevronDown className="h-3 w-3" />
             </button>
 
-            {/* Schedule dropdown menu */}
             {showScheduleMenu && (
               <ScheduleMenu
                 onSchedule={handleSchedule}
@@ -651,7 +199,7 @@ export function MessageInput({ placeholder, onSend, sendError, clearSendError, c
               />
             )}
           </div>
-        </div>
+        </EditorToolbar>
       </div>
 
       <p className="mt-1 text-xs text-slack-hint">
@@ -663,48 +211,11 @@ export function MessageInput({ placeholder, onSend, sendError, clearSendError, c
         for new line
       </p>
 
-      {/* Send error banner */}
-      {sendError && (
-        <div className="mt-2 flex items-center justify-between rounded-md bg-slack-error-bg border border-slack-error-border px-3 py-2 text-[13px] text-slack-error">
-          <span>{sendError}</span>
-          <button onClick={clearSendError} className="ml-2 text-slack-error hover:text-slack-error">
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      )}
+      {sendError && <ErrorBanner message={sendError} onDismiss={clearSendError} />}
+      {editor.uploadError && <ErrorBanner message={editor.uploadError} onDismiss={() => editor.setUploadError(null)} />}
+      {scheduleError && <ErrorBanner message={scheduleError} onDismiss={() => setScheduleError(null)} />}
+      {scheduleConfirm && <SuccessBanner message={scheduleConfirm} data-testid="schedule-confirm" />}
 
-      {/* Upload error banner */}
-      {uploadError && (
-        <div className="mt-2 flex items-center justify-between rounded-md bg-slack-error-bg border border-slack-error-border px-3 py-2 text-[13px] text-slack-error">
-          <span>{uploadError}</span>
-          <button onClick={() => setUploadError(null)} className="ml-2 text-slack-error hover:text-slack-error">
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      )}
-
-      {/* Schedule error banner */}
-      {scheduleError && (
-        <div className="mt-2 flex items-center justify-between rounded-md bg-slack-error-bg border border-slack-error-border px-3 py-2 text-[13px] text-slack-error">
-          <span>{scheduleError}</span>
-          <button onClick={() => setScheduleError(null)} className="ml-2 text-slack-error hover:text-slack-error">
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      )}
-
-      {/* Schedule confirmation banner */}
-      {scheduleConfirm && (
-        <div
-          data-testid="schedule-confirm"
-          className="mt-2 flex items-center gap-2 rounded-md bg-slack-success px-3 py-2 text-[13px] text-slack-btn font-medium"
-        >
-          <CheckCircle className="h-4 w-4 flex-shrink-0" />
-          {scheduleConfirm}
-        </div>
-      )}
-
-      {/* Custom schedule modal */}
       {showScheduleModal && (
         <ScheduleModal
           onSchedule={handleSchedule}
@@ -713,15 +224,14 @@ export function MessageInput({ placeholder, onSend, sendError, clearSendError, c
         />
       )}
 
-      {/* Link Modal */}
-      {showLinkModal && (
+      {editor.showLinkModal && (
         <LinkModal
-          linkUrl={linkUrl}
-          linkText={linkText}
-          onLinkUrlChange={setLinkUrl}
-          onLinkTextChange={setLinkText}
-          onSave={handleLinkSave}
-          onClose={() => setShowLinkModal(false)}
+          linkUrl={editor.linkUrl}
+          linkText={editor.linkText}
+          onLinkUrlChange={editor.setLinkUrl}
+          onLinkTextChange={editor.setLinkText}
+          onSave={editor.handleLinkSave}
+          onClose={() => editor.setShowLinkModal(false)}
         />
       )}
     </div>

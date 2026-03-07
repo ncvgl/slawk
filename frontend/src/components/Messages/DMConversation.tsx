@@ -3,7 +3,6 @@ import { format, isToday, isYesterday } from 'date-fns';
 import {
   Pin,
   FileText,
-  X,
   Star,
   MessageSquare,
 } from 'lucide-react';
@@ -24,6 +23,7 @@ import { DeleteConfirmDialog } from './DeleteConfirmDialog';
 import { HeaderSearch } from './HeaderSearch';
 import { HeaderNotifications } from './HeaderNotifications';
 import { HeaderTabs } from './HeaderTabs';
+import { PanelHeader } from './PanelHeader';
 import { renderMessageContent } from '@/lib/renderMessageContent';
 import type { DMMessage } from '@/stores/useDMStore';
 
@@ -373,19 +373,7 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
             data-testid="dm-pins-panel"
             className="flex w-[300px] flex-col border-l border-slack-border bg-white"
           >
-            <div className="flex h-[49px] items-center justify-between border-b border-slack-border px-4">
-              <div className="flex items-center gap-1.5">
-                <Pin className="h-4 w-4 text-slack-secondary" />
-                <span className="text-[15px] font-bold text-slack-primary">Pinned messages</span>
-              </div>
-              <Button
-                variant="toolbar"
-                size="icon-sm"
-                onClick={() => setShowPins(false)}
-              >
-                <X className="h-4 w-4 text-slack-secondary" />
-              </Button>
-            </div>
+            <PanelHeader icon={Pin} title="Pinned messages" onClose={() => setShowPins(false)} />
             <div className="flex-1 overflow-y-auto p-4 text-center text-sm text-slack-hint">
               No pinned messages yet
             </div>
@@ -398,19 +386,7 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
             data-testid="dm-files-panel"
             className="flex w-[300px] flex-col border-l border-slack-border bg-white"
           >
-            <div className="flex h-[49px] items-center justify-between border-b border-slack-border px-4">
-              <div className="flex items-center gap-1.5">
-                <FileText className="h-4 w-4 text-slack-secondary" />
-                <span className="text-[15px] font-bold text-slack-primary">Files</span>
-              </div>
-              <Button
-                variant="toolbar"
-                size="icon-sm"
-                onClick={() => setShowFiles(false)}
-              >
-                <X className="h-4 w-4 text-slack-secondary" />
-              </Button>
-            </div>
+            <PanelHeader icon={FileText} title="Files" onClose={() => setShowFiles(false)} />
             <div className="flex-1 overflow-y-auto p-4 text-center text-sm text-slack-hint">
               No files shared yet
             </div>
