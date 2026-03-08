@@ -6,12 +6,14 @@ export interface HuddleParticipant {
   name: string;
   avatar: string | null;
   isMuted: boolean;
+  isVideoOn?: boolean;
   joinedAt: string;
 }
 
 interface PeerState {
   pc: RTCPeerConnection;
   audioElement: HTMLAudioElement | null;
+  videoStream: MediaStream | null;
 }
 
 const ICE_SERVERS: RTCIceServer[] = [
@@ -20,15 +22,13 @@ const ICE_SERVERS: RTCIceServer[] = [
 ];
 
 interface HuddleState {
-  // Current user ID (set once on init)
   userId: number | null;
-
-  // Huddle indicators for all channels (from server broadcasts)
   activeHuddles: Record<number, HuddleParticipant[]>;
 
   // Current user's active huddle
   currentChannelId: number | null;
   isMuted: boolean;
+  isVideoOn: boolean;
   isJoining: boolean;
   localStream: MediaStream | null;
   peers: Map<number, PeerState>;
@@ -38,6 +38,7 @@ interface HuddleState {
   joinHuddle: (channelId: number) => Promise<void>;
   leaveHuddle: () => void;
   toggleMute: () => void;
+  toggleVideo: () => void;
 
   // Socket event handlers
   onHuddleState: (data: { channelId: number; participants: HuddleParticipant[] }) => void;
@@ -45,6 +46,7 @@ interface HuddleState {
   onParticipantJoined: (data: { channelId: number; participant: HuddleParticipant }) => void;
   onParticipantLeft: (data: { channelId: number; userId: number }) => void;
   onMuteChanged: (data: { channelId: number; userId: number; isMuted: boolean }) => void;
+  onVideoChanged: (data: { channelId: number; userId: number; isVideoOn: boolean }) => void;
   onSignal: (data: { channelId: number; fromUserId: number; signal: { type: string; sdp?: string; candidate?: unknown } }) => void;
   onHuddleEnded: (data: { channelId: number }) => void;
   cleanup: () => void;
@@ -55,6 +57,7 @@ export const useHuddleStore = create<HuddleState>((set, get) => ({
   activeHuddles: {},
   currentChannelId: null,
   isMuted: false,
+  isVideoOn: false,
   isJoining: false,
   localStream: null,
   peers: new Map(),
@@ -64,19 +67,22 @@ export const useHuddleStore = create<HuddleState>((set, get) => ({
     const state = get();
     if (state.isJoining) return;
 
-    // If already in a different huddle, leave first
+    // Must leave current huddle first — don't silently switch
     if (state.currentChannelId && state.currentChannelId !== channelId) {
-      get().leaveHuddle();
+      set({ error: 'Leave your current huddle first' });
+      return;
     }
 
-    // If already in this huddle, ignore
+    // Already in this huddle
     if (state.currentChannelId === channelId) return;
 
     set({ isJoining: true, error: null });
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-      set({ localStream: stream, currentChannelId: channelId, isJoining: false, isMuted: false });
+      // Start with audio only — camera is requested on-demand when user clicks video button
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      set({ localStream: stream, currentChannelId: channelId, isJoining: false, isMuted: false, isVideoOn: false });
 
       const socket = getSocket();
       if (socket) {
@@ -116,12 +122,53 @@ export const useHuddleStore = create<HuddleState>((set, get) => ({
     }
   },
 
+  toggleVideo: async () => {
+    const { isVideoOn, localStream, currentChannelId } = get();
+    if (!localStream || !currentChannelId) return;
+
+    if (!isVideoOn) {
+      // Turning video ON — check if we already have a video track
+      const existingVideoTracks = localStream.getVideoTracks();
+      if (existingVideoTracks.length > 0) {
+        existingVideoTracks.forEach((t) => { t.enabled = true; });
+      } else {
+        // Request camera on-demand
+        try {
+          const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+          const videoTrack = videoStream.getVideoTracks()[0];
+          localStream.addTrack(videoTrack);
+
+          // Add video track to existing peer connections
+          const { peers } = get();
+          for (const [, peer] of peers) {
+            peer.pc.addTrack(videoTrack, localStream);
+          }
+        } catch {
+          set({ error: 'Camera access denied' });
+          return;
+        }
+      }
+
+      set({ isVideoOn: true });
+      const socket = getSocket();
+      if (socket) {
+        socket.emit('huddle:video', { channelId: currentChannelId, isVideoOn: true });
+      }
+    } else {
+      // Turning video OFF
+      localStream.getVideoTracks().forEach((t) => { t.enabled = false; });
+      set({ isVideoOn: false });
+      const socket = getSocket();
+      if (socket) {
+        socket.emit('huddle:video', { channelId: currentChannelId, isVideoOn: false });
+      }
+    }
+  },
+
   onHuddleState: (data) => {
-    // Full state received after joining — create peer connections to all existing participants
     const { currentChannelId, localStream } = get();
     if (data.channelId !== currentChannelId || !localStream) return;
 
-    // Update participant list
     set((s) => ({
       activeHuddles: { ...s.activeHuddles, [data.channelId]: data.participants },
     }));
@@ -129,7 +176,6 @@ export const useHuddleStore = create<HuddleState>((set, get) => ({
     const myUserId = get().userId;
     if (!myUserId) return;
 
-    // Create peer connections to all other participants (we are the initiator)
     for (const participant of data.participants) {
       if (participant.userId !== myUserId) {
         createPeerConnection(participant.userId, true);
@@ -138,16 +184,12 @@ export const useHuddleStore = create<HuddleState>((set, get) => ({
   },
 
   onHuddleActive: (data) => {
-    // Channel indicator update (for all channel members, not just huddle participants)
     set((s) => ({
       activeHuddles: { ...s.activeHuddles, [data.channelId]: data.participants },
     }));
   },
 
   onParticipantJoined: (data) => {
-    const { currentChannelId } = get();
-
-    // Update participant list
     set((s) => {
       const existing = s.activeHuddles[data.channelId] || [];
       return {
@@ -157,16 +199,9 @@ export const useHuddleStore = create<HuddleState>((set, get) => ({
         },
       };
     });
-
-    // If we're in this huddle, wait for the new participant to send us an offer (they are the initiator)
-    if (data.channelId === currentChannelId) {
-      // The new joiner will create connections to us as initiator
-      // We don't need to do anything — their offer will arrive via onSignal
-    }
   },
 
   onParticipantLeft: (data) => {
-    // Update participant list
     set((s) => {
       const existing = s.activeHuddles[data.channelId] || [];
       return {
@@ -177,7 +212,6 @@ export const useHuddleStore = create<HuddleState>((set, get) => ({
       };
     });
 
-    // Close peer connection if we were connected
     const { peers } = get();
     const peer = peers.get(data.userId);
     if (peer) {
@@ -206,6 +240,20 @@ export const useHuddleStore = create<HuddleState>((set, get) => ({
     });
   },
 
+  onVideoChanged: (data) => {
+    set((s) => {
+      const existing = s.activeHuddles[data.channelId] || [];
+      return {
+        activeHuddles: {
+          ...s.activeHuddles,
+          [data.channelId]: existing.map((p) =>
+            p.userId === data.userId ? { ...p, isVideoOn: data.isVideoOn } : p
+          ),
+        },
+      };
+    });
+  },
+
   onSignal: (data) => {
     const { currentChannelId, peers } = get();
     if (data.channelId !== currentChannelId) return;
@@ -213,7 +261,6 @@ export const useHuddleStore = create<HuddleState>((set, get) => ({
     const { fromUserId, signal } = data;
 
     if (signal.type === 'offer') {
-      // Received offer — create peer connection as answerer, then respond
       const existingPeer = peers.get(fromUserId);
       if (existingPeer) {
         existingPeer.pc.close();
@@ -258,14 +305,12 @@ export const useHuddleStore = create<HuddleState>((set, get) => ({
   onHuddleEnded: (data) => {
     const { currentChannelId } = get();
 
-    // Remove from active huddles
     set((s) => {
       const updated = { ...s.activeHuddles };
       delete updated[data.channelId];
       return { activeHuddles: updated };
     });
 
-    // If we were in this huddle, clean up
     if (data.channelId === currentChannelId) {
       get().cleanup();
     }
@@ -274,7 +319,6 @@ export const useHuddleStore = create<HuddleState>((set, get) => ({
   cleanup: () => {
     const { peers, localStream } = get();
 
-    // Close all peer connections
     for (const [, peer] of peers) {
       peer.pc.close();
       if (peer.audioElement) {
@@ -283,7 +327,6 @@ export const useHuddleStore = create<HuddleState>((set, get) => ({
       }
     }
 
-    // Stop local stream
     if (localStream) {
       localStream.getTracks().forEach((t) => t.stop());
     }
@@ -291,6 +334,7 @@ export const useHuddleStore = create<HuddleState>((set, get) => ({
     set({
       currentChannelId: null,
       isMuted: false,
+      isVideoOn: false,
       localStream: null,
       peers: new Map(),
       error: null,
@@ -298,7 +342,6 @@ export const useHuddleStore = create<HuddleState>((set, get) => ({
   },
 }));
 
-// Helper function to create a peer connection (extracted for reuse in onSignal)
 function createPeerConnection(remoteUserId: number, isInitiator: boolean): RTCPeerConnection | null {
   const state = useHuddleStore.getState();
   const { localStream, currentChannelId, peers } = state;
@@ -306,12 +349,11 @@ function createPeerConnection(remoteUserId: number, isInitiator: boolean): RTCPe
 
   const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 
-  // Add local audio tracks
-  localStream.getAudioTracks().forEach((track) => {
+  // Add all local tracks (audio + video)
+  localStream.getTracks().forEach((track) => {
     pc.addTrack(track, localStream);
   });
 
-  // Handle ICE candidates
   pc.onicecandidate = (event) => {
     if (event.candidate) {
       const socket = getSocket();
@@ -325,27 +367,36 @@ function createPeerConnection(remoteUserId: number, isInitiator: boolean): RTCPe
     }
   };
 
-  // Handle incoming audio stream
   pc.ontrack = (event) => {
-    const audio = document.createElement('audio');
-    audio.srcObject = event.streams[0];
-    audio.autoplay = true;
-    audio.play().catch(() => {/* autoplay may be blocked */});
+    const stream = event.streams[0];
+    const track = event.track;
 
-    const currentPeers = new Map(useHuddleStore.getState().peers);
-    const existing = currentPeers.get(remoteUserId);
-    if (existing) {
-      existing.audioElement = audio;
+    if (track.kind === 'audio') {
+      const audio = document.createElement('audio');
+      audio.srcObject = stream;
+      audio.autoplay = true;
+      audio.play().catch(() => {});
+
+      const currentPeers = new Map(useHuddleStore.getState().peers);
+      const existing = currentPeers.get(remoteUserId);
+      if (existing) {
+        existing.audioElement = audio;
+      }
+      useHuddleStore.setState({ peers: currentPeers });
+    } else if (track.kind === 'video') {
+      const currentPeers = new Map(useHuddleStore.getState().peers);
+      const existing = currentPeers.get(remoteUserId);
+      if (existing) {
+        existing.videoStream = stream;
+      }
+      useHuddleStore.setState({ peers: currentPeers });
     }
-    useHuddleStore.setState({ peers: currentPeers });
   };
 
-  // Store peer
   const newPeers = new Map(peers);
-  newPeers.set(remoteUserId, { pc, audioElement: null });
+  newPeers.set(remoteUserId, { pc, audioElement: null, videoStream: null });
   useHuddleStore.setState({ peers: newPeers });
 
-  // If initiator, create and send offer
   if (isInitiator) {
     pc.createOffer()
       .then((offer) => pc.setLocalDescription(offer))
@@ -365,7 +416,6 @@ function createPeerConnection(remoteUserId: number, isInitiator: boolean): RTCPe
   return pc;
 }
 
-// Helper to set the current user ID (called from App.tsx)
 export function setHuddleUserId(userId: number): void {
   useHuddleStore.setState({ userId });
 }

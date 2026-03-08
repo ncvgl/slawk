@@ -77,7 +77,7 @@ export function Message({ message, showAvatar, isCompact, onOpenThread, readOnly
       className={cn(
         'group relative flex px-5',
         message.isPinned ? 'bg-slack-pinned hover:bg-slack-pinned' : 'hover:bg-slack-hover',
-        showAvatar ? 'pt-2 pb-0.5' : 'py-px'
+        showAvatar ? 'pt-2 pb-px' : 'py-px'
       )}
       onMouseEnter={onMouseEnter}
       onMouseLeave={() => onMouseLeave(() => setShowMoreMenu(false))}
@@ -95,7 +95,7 @@ export function Message({ message, showAvatar, isCompact, onOpenThread, readOnly
             />
           </button>
         ) : (
-          <span className="hidden text-[12px] text-slack-secondary group-hover:inline leading-[22px]" title={format(message.createdAt, 'EEEE, MMMM d, yyyy h:mm:ss a')}>
+          <span className="text-[12px] text-slack-secondary opacity-0 group-hover:opacity-100 leading-[22px] select-none" title={format(message.createdAt, 'EEEE, MMMM d, yyyy h:mm:ss a')}>
             {format(message.createdAt, 'h:mm')}
           </span>
         )}

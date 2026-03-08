@@ -18,7 +18,7 @@ const USERS = [
     password: 'password123',
     bio: 'Backend engineer • Rust & Go enthusiast • building the future one API at a time',
     status: 'offline',
-    avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
+    avatar: '/avatars/bob.jpg',
   },
   {
     name: 'Carol Smith',
@@ -26,7 +26,7 @@ const USERS = [
     password: 'password123',
     bio: 'Product designer • she/her • obsessed with design systems and user delight',
     status: 'offline',
-    avatar: 'https://randomuser.me/api/portraits/women/28.jpg',
+    avatar: '/avatars/carol.jpg',
   },
   {
     name: 'Dave Kim',
@@ -34,7 +34,7 @@ const USERS = [
     password: 'password123',
     bio: 'DevOps & infra nerd • k8s wrangler • if it runs, I can break it',
     status: 'offline',
-    avatar: 'https://randomuser.me/api/portraits/men/55.jpg',
+    avatar: '/avatars/dave.jpg',
   },
   {
     name: 'Eve Johnson',
@@ -42,7 +42,7 @@ const USERS = [
     password: 'password123',
     bio: 'QA lead — professional bug hunter 🐛 • accessibility advocate',
     status: 'offline',
-    avatar: 'https://randomuser.me/api/portraits/women/68.jpg',
+    avatar: '/avatars/eve.jpg',
   },
   {
     name: 'Frank Lee',
@@ -50,7 +50,7 @@ const USERS = [
     password: 'password123',
     bio: "Full-stack + open source contributor • co-creator of 3 npm packages you've definitely used",
     status: 'offline',
-    avatar: 'https://randomuser.me/api/portraits/men/12.jpg',
+    avatar: '/avatars/frank.jpg',
   },
   {
     name: 'Grace Park',
@@ -58,7 +58,7 @@ const USERS = [
     password: 'password123',
     bio: 'ML engineer • PhD in NLP • turning research papers into production code',
     status: 'offline',
-    avatar: 'https://randomuser.me/api/portraits/women/17.jpg',
+    avatar: '/avatars/grace.jpg',
   },
   {
     name: 'Hank Torres',
@@ -66,7 +66,7 @@ const USERS = [
     password: 'password123',
     bio: 'CEO & co-founder @Slawk • prev eng @ Stripe & Figma • building AI tools for devs',
     status: 'offline',
-    avatar: 'https://randomuser.me/api/portraits/men/78.jpg',
+    avatar: '/avatars/hank.jpg',
   },
   {
     name: 'Iris Chen',
@@ -74,7 +74,7 @@ const USERS = [
     password: 'password123',
     bio: 'AI research lead • context windows, reasoning, and all the good stuff in between',
     status: 'offline',
-    avatar: 'https://randomuser.me/api/portraits/women/33.jpg',
+    avatar: '/avatars/iris.jpg',
   },
   {
     name: 'Jack Wilson',
@@ -82,7 +82,7 @@ const USERS = [
     password: 'password123',
     bio: 'Product manager • previously @ Linear, Notion • obsessed with developer experience',
     status: 'offline',
-    avatar: 'https://randomuser.me/api/portraits/men/22.jpg',
+    avatar: '/avatars/jack.jpg',
   },
 ];
 

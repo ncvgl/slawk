@@ -11,7 +11,6 @@ import { HeaderSearch } from './HeaderSearch';
 import { HeaderNotifications } from './HeaderNotifications';
 import { HeaderTabs } from './HeaderTabs';
 import { useMobileStore } from '@/stores/useMobileStore';
-import { HuddleButton } from '@/components/Huddle/HuddleButton';
 
 interface MessageHeaderProps {
   channel: Channel;
@@ -119,29 +118,22 @@ export function MessageHeader({ channel, showMembers, onToggleMembers, onToggleP
             )}
           >
             {previewMembers.length > 0 ? (
-              <div className="flex items-center">
+              <div className="flex items-center -space-x-1.5">
                 {previewMembers.map((member, index) => (
-                  <div
+                  <Avatar
                     key={member.user.id}
-                    className="relative"
-                    style={{ marginLeft: index === 0 ? 0 : -6, zIndex: previewMembers.length - index }}
-                  >
-                    <Avatar
-                      src={member.user.avatar ?? undefined}
-                      alt={member.user.name}
-                      fallback={member.user.name}
-                      size="sm"
-                      className="h-[18px] w-[18px] ring-1 ring-white"
-                    />
-                  </div>
+                    src={member.user.avatar ?? undefined}
+                    alt={member.user.name}
+                    fallback={member.user.name}
+                    size="sm"
+                    className="h-[18px] w-[18px] ring-1 ring-white"
+                    style={{ zIndex: previewMembers.length - index }}
+                  />
                 ))}
               </div>
             ) : null}
             <span>{channel.memberCount}</span>
           </button>
-          {!readOnly && (
-            <HuddleButton channelId={channel.id} />
-          )}
           <div className="hidden sm:block h-4 w-px bg-slack-border" />
           <div className="hidden sm:block">
             <HeaderNotifications excludeChannelId={channel.id} />

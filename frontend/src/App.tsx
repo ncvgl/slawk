@@ -316,6 +316,8 @@ function AppShell() {
       useHuddleStore.getState().onMuteChanged(data);
     const handleHuddleSignal = (data: { channelId: number; fromUserId: number; signal: { type: string; sdp?: string; candidate?: unknown } }) =>
       useHuddleStore.getState().onSignal(data);
+    const handleHuddleVideoChanged = (data: { channelId: number; userId: number; isVideoOn: boolean }) =>
+      useHuddleStore.getState().onVideoChanged(data);
     const handleHuddleEnded = (data: { channelId: number }) =>
       useHuddleStore.getState().onHuddleEnded(data);
 
@@ -324,6 +326,7 @@ function AppShell() {
     socket.on('huddle:participant-joined', handleParticipantJoined);
     socket.on('huddle:participant-left', handleParticipantLeft);
     socket.on('huddle:mute-changed', handleHuddleMuteChanged);
+    socket.on('huddle:video-changed', handleHuddleVideoChanged);
     socket.on('huddle:signal', handleHuddleSignal);
     socket.on('huddle:ended', handleHuddleEnded);
 
@@ -357,6 +360,7 @@ function AppShell() {
       socket.off('huddle:participant-joined', handleParticipantJoined);
       socket.off('huddle:participant-left', handleParticipantLeft);
       socket.off('huddle:mute-changed', handleHuddleMuteChanged);
+      socket.off('huddle:video-changed', handleHuddleVideoChanged);
       socket.off('huddle:signal', handleHuddleSignal);
       socket.off('huddle:ended', handleHuddleEnded);
       socket.off('disconnect', handleDisconnect);

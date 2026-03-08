@@ -27,6 +27,7 @@ import { HeaderSearch } from './HeaderSearch';
 import { HeaderNotifications } from './HeaderNotifications';
 import { HeaderTabs } from './HeaderTabs';
 import { PanelHeader } from './PanelHeader';
+import { HuddleButton } from '@/components/Huddle/HuddleButton';
 import { renderMessageContent } from '@/lib/renderMessageContent';
 import { useMobileStore } from '@/stores/useMobileStore';
 import type { DMMessage } from '@/stores/useDMStore';
@@ -173,6 +174,7 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
 
           {/* Right Section */}
           <div className="flex items-center gap-2">
+            <HuddleButton channelId={-userId} />
             <div className="hidden sm:block">
               <HeaderNotifications testIdPrefix="dm" />
             </div>

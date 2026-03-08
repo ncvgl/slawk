@@ -39,6 +39,7 @@ const RATE_LIMITS: Record<string, { max: number; windowMs: number }> = {
   'huddle:join': { max: 10, windowMs: 60_000 },
   'huddle:leave': { max: 10, windowMs: 60_000 },
   'huddle:mute': { max: 30, windowMs: 60_000 },
+  'huddle:video': { max: 30, windowMs: 60_000 },
   'huddle:signal': { max: 200, windowMs: 60_000 },
 };
 
@@ -633,7 +634,7 @@ export function initializeWebSocket(httpServer: HttpServer) {
 
     socket.on('disconnect', async () => {
       console.log(`User ${socket.user?.userId} disconnected`);
-      handleHuddleDisconnect(socket as AuthenticatedSocket, io);
+      handleHuddleDisconnect(socket as AuthenticatedSocket, io, onlineUsers);
 
       if (socket.user) {
         const userId = socket.user.userId;

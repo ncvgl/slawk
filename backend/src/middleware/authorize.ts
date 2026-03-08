@@ -353,21 +353,24 @@ export const wsUserIdSchema = z.number().int().positive();
 
 // ── Huddle Schemas ───────────────────────────────────────────────────
 
+// channelId can be negative for DM huddles (-otherUserId)
+const huddleChannelId = z.number().int().refine((n) => n !== 0, { message: 'channelId must not be zero' });
+
 export const wsHuddleJoinSchema = z.object({
-  channelId: z.number().int().positive(),
+  channelId: huddleChannelId,
 });
 
 export const wsHuddleLeaveSchema = z.object({
-  channelId: z.number().int().positive(),
+  channelId: huddleChannelId,
 });
 
 export const wsHuddleMuteSchema = z.object({
-  channelId: z.number().int().positive(),
+  channelId: huddleChannelId,
   isMuted: z.boolean(),
 });
 
 export const wsHuddleSignalSchema = z.object({
-  channelId: z.number().int().positive(),
+  channelId: huddleChannelId,
   toUserId: z.number().int().positive(),
   signal: z.object({
     type: z.enum(['offer', 'answer', 'ice-candidate']),

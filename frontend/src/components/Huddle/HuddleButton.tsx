@@ -10,9 +10,15 @@ export function HuddleButton({ channelId }: HuddleButtonProps) {
   const huddleParticipants = activeHuddles[channelId];
   const isActive = huddleParticipants && huddleParticipants.length > 0;
   const isInThisHuddle = currentChannelId === channelId;
+  const isInAnyHuddle = currentChannelId !== null;
 
   const handleClick = () => {
     if (isInThisHuddle || isJoining) return;
+    if (isInAnyHuddle) {
+      // Show error via store — must leave current huddle first
+      useHuddleStore.setState({ error: 'Leave your current huddle first' });
+      return;
+    }
     joinHuddle(channelId);
   };
 
@@ -23,11 +29,13 @@ export function HuddleButton({ channelId }: HuddleButtonProps) {
       className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-sm transition-colors ${
         isInThisHuddle
           ? 'bg-green-100 text-green-700'
-          : isActive
-            ? 'text-green-600 hover:bg-green-50'
-            : 'text-slack-secondary hover:bg-slack-hover'
+          : isInAnyHuddle
+            ? 'text-slack-secondary opacity-50 cursor-not-allowed'
+            : isActive
+              ? 'text-green-600 hover:bg-green-50'
+              : 'text-slack-secondary hover:bg-slack-hover'
       }`}
-      title={isInThisHuddle ? 'In huddle' : isActive ? 'Join huddle' : 'Start huddle'}
+      title={isInThisHuddle ? 'In huddle' : isInAnyHuddle ? 'Leave current huddle first' : isActive ? 'Join huddle' : 'Start huddle'}
     >
       <Headphones className={`h-4 w-4 ${isActive ? 'animate-pulse' : ''}`} />
       {isActive && (
