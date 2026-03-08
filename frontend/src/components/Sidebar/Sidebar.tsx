@@ -169,6 +169,8 @@ export function Sidebar() {
                 } else {
                   navTo('/later');
                 }
+              } else if (item.id === 'dms') {
+                handleOpenAddTeammates();
               }
             }}
             className={cn(
