@@ -4,6 +4,8 @@ import { clearDownloadToken } from '@/lib/api';
 import { disconnectSocket } from '@/lib/socket';
 import type { User } from '@/lib/types';
 
+let storageListenerRegistered = false;
+
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
@@ -75,13 +77,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const token = localStorage.getItem('token');
     if (token) {
       try {
-        // Untrusted hint from JWT payload -- used only until server confirms
+        // JWT payload only has { userId, tokenVersion } — placeholder until getMyProfile() resolves
         const payload = JSON.parse(atob(token.split('.')[1]));
         set({
           user: {
             id: payload.userId,
-            email: payload.email ?? '',
-            name: payload.email?.split('@')[0] ?? 'User',
+            email: '',
+            name: 'User',
           },
           isAuthenticated: true,
           isHydrating: true,
@@ -110,12 +112,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ isHydrating: false });
     }
 
-    // Cross-tab session sync: detect logout from another tab
-    window.addEventListener('storage', (e) => {
-      if (e.key === 'token' && e.newValue === null) {
-        disconnectSocket();
-        window.location.href = '/login';
-      }
-    });
+    // Cross-tab session sync: detect logout from another tab (guard against StrictMode double-call)
+    if (!storageListenerRegistered) {
+      storageListenerRegistered = true;
+      window.addEventListener('storage', (e) => {
+        if (e.key === 'token' && e.newValue === null) {
+          disconnectSocket();
+          window.location.href = '/login';
+        }
+      });
+    }
   },
 }));
