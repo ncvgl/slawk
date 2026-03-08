@@ -124,8 +124,11 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
   }, []);
 
   const handleReplyCountChange = useCallback((messageId: number, count: number) => {
-    updateReplyCount(messageId, userId, count);
-  }, [updateReplyCount, userId]);
+    const participant = currentUser
+      ? { id: currentUser.id, name: currentUser.name, avatar: currentUser.avatar ?? null }
+      : undefined;
+    updateReplyCount(messageId, userId, count, participant);
+  }, [updateReplyCount, userId, currentUser]);
 
   // Close thread panel when switching conversations
   useEffect(() => {
@@ -321,17 +324,15 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
                                 </button>
                               </div>
                             </div>
-                          ) : (
-                            {msg.content === 'Started a huddle. Join to talk!' ? (
+                          ) : msg.content === 'Started a huddle. Join to talk!' ? (
                               <HuddleInvite channelId={-userId} fromUserId={msg.fromUserId} />
-                            ) : (
+                          ) : (
                             <div className="whitespace-pre-wrap break-words text-[15px] leading-[22px] text-slack-primary">
                               {renderMessageContent(msg.content)}
                               {!showAvatar && msg.editedAt && (
                                 <span className="ml-1 text-[12px] text-slack-secondary">(edited)</span>
                               )}
                             </div>
-                            )}
                           )}
                           {msg.reactions.length > 0 && (
                             <MessageReactions
