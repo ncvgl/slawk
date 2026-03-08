@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { FileText, Download } from 'lucide-react';
+import { FileText, Download, Menu } from 'lucide-react';
 import { format } from 'date-fns';
 import { getUserFiles, getAuthFileUrl, refreshDownloadToken, type ApiFileWithUser } from '@/lib/api';
 import { formatBytes, FileIcon } from '@/lib/fileUtils';
+import { useMobileStore } from '@/stores/useMobileStore';
 
 export function FilesPage() {
   const [files, setFiles] = useState<ApiFileWithUser[]>([]);
@@ -28,6 +29,12 @@ export function FilesPage() {
     <div data-testid="files-page" className="flex h-full flex-col">
       {/* Header */}
       <div className="flex h-[49px] items-center border-b border-slack-border px-5">
+        <button
+          onClick={useMobileStore.getState().openSidebar}
+          className="mr-2 flex h-8 w-8 items-center justify-center rounded hover:bg-slack-hover md:hidden"
+        >
+          <Menu className="h-5 w-5 text-slack-secondary" />
+        </button>
         <FileText className="h-5 w-5 text-slack-secondary mr-2" />
         <span className="text-[18px] font-bold text-slack-primary">All files</span>
       </div>

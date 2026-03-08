@@ -206,3 +206,21 @@ body {
   text-decoration: underline;
 }
 
+/* Mobile responsiveness */
+@media (max-width: 767px) {
+  /* Prevent iOS zoom on input focus (font-size >= 16px) */
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+
+  /* Sidebar channel/DM items need bigger tap targets */
+  [data-testid="sidebar"] button {
+    min-height: 36px;
+  }
+}
+
+/* iOS safe area handling */
+#root {
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+

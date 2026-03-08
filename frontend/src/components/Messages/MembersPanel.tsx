@@ -69,7 +69,7 @@ export function MembersPanel({ channelId, onClose }: MembersPanelProps) {
   return (
     <div
       data-testid="members-panel"
-      className="flex w-[260px] flex-col border-l border-slack-border bg-white"
+      className="flex w-full md:w-[260px] flex-col border-l border-slack-border bg-white absolute inset-0 md:static md:inset-auto z-30 md:z-auto"
     >
       <PanelHeader title="Members" onClose={onClose} />
 

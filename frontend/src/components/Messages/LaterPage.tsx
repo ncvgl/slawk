@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Bookmark, Hash } from 'lucide-react';
+import { Bookmark, Hash, Menu } from 'lucide-react';
 import { format } from 'date-fns';
 import { getBookmarks } from '@/lib/api';
 import { Avatar } from '@/components/ui/avatar';
 import { renderMessageContent } from '@/lib/renderMessageContent';
 import { useBookmarkStore } from '@/stores/useBookmarkStore';
 import { useNavigate } from 'react-router-dom';
+import { useMobileStore } from '@/stores/useMobileStore';
 
 interface BookmarkedMessage {
   messageId: number;
@@ -55,6 +56,12 @@ export function LaterPage() {
   return (
     <div data-testid="later-page" className="flex h-full flex-col">
       <div className="flex h-[49px] items-center border-b border-slack-border px-5">
+        <button
+          onClick={useMobileStore.getState().openSidebar}
+          className="mr-2 flex h-8 w-8 items-center justify-center rounded hover:bg-slack-hover md:hidden"
+        >
+          <Menu className="h-5 w-5 text-slack-secondary" />
+        </button>
         <Bookmark className="h-5 w-5 text-slack-secondary mr-2" />
         <span className="text-[18px] font-bold text-slack-primary">Saved</span>
       </div>

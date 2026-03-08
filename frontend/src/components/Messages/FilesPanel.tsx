@@ -39,7 +39,7 @@ export function FilesPanel({ channelId, onClose, title }: FilesPanelProps) {
   const panelTitle = title ?? (channelId ? 'Channel files' : 'All files');
 
   return (
-    <div data-testid="files-panel" className="flex w-[300px] flex-col border-l border-slack-border bg-white">
+    <div data-testid="files-panel" className="flex w-full md:w-[300px] flex-col border-l border-slack-border bg-white absolute inset-0 md:static md:inset-auto z-30 md:z-auto">
       <PanelHeader icon={FileText} title={panelTitle} onClose={onClose} />
       <div className="flex-1 overflow-y-auto">
         {isLoading ? (

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Shield, Users, Link2, Hash } from 'lucide-react';
+import { Shield, Users, Link2, Hash, Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAdminStore } from '@/stores/useAdminStore';
+import { useMobileStore } from '@/stores/useMobileStore';
 import { AdminMembersTab } from './AdminMembersTab';
 import { AdminInvitesTab } from './AdminInvitesTab';
 import { AdminChannelsTab } from './AdminChannelsTab';
@@ -28,6 +29,12 @@ export function AdminPage() {
     <div className="flex h-full flex-col bg-white">
       {/* Header */}
       <div className="flex items-center gap-2 border-b border-slack-border px-6 py-3">
+        <button
+          onClick={useMobileStore.getState().openSidebar}
+          className="mr-1 flex h-8 w-8 items-center justify-center rounded hover:bg-slack-hover md:hidden"
+        >
+          <Menu className="h-5 w-5 text-slack-secondary" />
+        </button>
         <Shield className="h-5 w-5 text-slack-primary" />
         <h1 className="text-lg font-bold text-slack-primary">Admin Panel</h1>
       </div>

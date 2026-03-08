@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Hash } from 'lucide-react';
+import { Hash, Menu } from 'lucide-react';
+import { useMobileStore } from '@/stores/useMobileStore';
 import { useChannelStore } from '@/stores/useChannelStore';
 import { useMessageStore } from '@/stores/useMessageStore';
 import { MessageHeader } from './MessageHeader';
@@ -56,7 +57,13 @@ export function MessageArea() {
 
   if (!activeChannel) {
     return (
-      <div className="flex flex-1 items-center justify-center text-slack-hint">
+      <div className="flex flex-1 flex-col items-center justify-center text-slack-hint">
+        <button
+          onClick={useMobileStore.getState().openSidebar}
+          className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-slack-hover md:hidden"
+        >
+          <Menu className="h-5 w-5 text-slack-secondary" />
+        </button>
         Select a channel to start messaging
       </div>
     );
@@ -65,7 +72,7 @@ export function MessageArea() {
   const readOnly = !activeChannel.isMember;
 
   return (
-    <div className="flex h-full">
+    <div className="relative flex h-full">
       <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
         <MessageHeader
           channel={activeChannel}

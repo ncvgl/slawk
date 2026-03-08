@@ -4,6 +4,7 @@ import {
   Pin,
   FileText,
   Star,
+  Menu,
 } from 'lucide-react';
 import { Avatar } from '@/components/ui/avatar';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -27,6 +28,7 @@ import { HeaderNotifications } from './HeaderNotifications';
 import { HeaderTabs } from './HeaderTabs';
 import { PanelHeader } from './PanelHeader';
 import { renderMessageContent } from '@/lib/renderMessageContent';
+import { useMobileStore } from '@/stores/useMobileStore';
 import type { DMMessage } from '@/stores/useDMStore';
 
 interface DMConversationProps {
@@ -69,6 +71,7 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const hoverLeaveTimer = useRef<ReturnType<typeof setTimeout>>();
   const currentUser = useAuthStore((s) => s.user);
+  const openSidebar = useMobileStore((s) => s.openSidebar);
   const isSelf = userId === currentUser?.id;
   const dmEntry = useChannelStore((s) => s.directMessages.find((d) => d.userId === userId));
   const openProfile = useProfileStore((s) => s.openProfile);
@@ -135,6 +138,12 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
         <div className="flex h-[49px] items-center justify-between px-4">
           {/* Left Section */}
           <div className="flex items-center gap-1">
+            <button
+              onClick={openSidebar}
+              className="mr-1 flex h-8 w-8 items-center justify-center rounded hover:bg-slack-hover md:hidden"
+            >
+              <Menu className="h-5 w-5 text-slack-secondary" />
+            </button>
             <button onClick={() => openProfile(userId)} disabled={isSelf} className={cn(!isSelf && 'cursor-pointer')}>
               <Avatar
                 src={userAvatar || undefined}
@@ -164,9 +173,13 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
 
           {/* Right Section */}
           <div className="flex items-center gap-2">
-            <HeaderNotifications testIdPrefix="dm" />
-            <div className="h-4 w-px bg-slack-border" />
-            <HeaderSearch testIdPrefix="dm" />
+            <div className="hidden sm:block">
+              <HeaderNotifications testIdPrefix="dm" />
+            </div>
+            <div className="hidden sm:block h-4 w-px bg-slack-border" />
+            <div className="hidden sm:block">
+              <HeaderSearch testIdPrefix="dm" />
+            </div>
           </div>
         </div>
         {/* Tabs Row */}
@@ -180,7 +193,7 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
       </header>
 
       {/* Body: messages column + optional side panel */}
-      <div className="flex min-h-0 flex-1">
+      <div className="relative flex min-h-0 flex-1">
         {/* Messages column */}
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           {/* Messages list */}
@@ -396,7 +409,7 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
         {showPins && (
           <div
             data-testid="dm-pins-panel"
-            className="flex w-[300px] flex-col border-l border-slack-border bg-white"
+            className="flex w-full md:w-[300px] flex-col border-l border-slack-border bg-white absolute inset-0 md:static md:inset-auto z-30 md:z-auto"
           >
             <PanelHeader icon={Pin} title="Pinned messages" onClose={() => setShowPins(false)} />
             <div className="flex-1 overflow-y-auto p-4 text-center text-sm text-slack-hint">
@@ -409,7 +422,7 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
         {showFiles && (
           <div
             data-testid="dm-files-panel"
-            className="flex w-[300px] flex-col border-l border-slack-border bg-white"
+            className="flex w-full md:w-[300px] flex-col border-l border-slack-border bg-white absolute inset-0 md:static md:inset-auto z-30 md:z-auto"
           >
             <PanelHeader icon={FileText} title="Files" onClose={() => setShowFiles(false)} />
             <div className="flex-1 overflow-y-auto p-4 text-center text-sm text-slack-hint">

@@ -26,6 +26,7 @@ import { AddTeammatesDialog } from './AddTeammatesDialog';
 import type { Channel } from '@/lib/types';
 import { getChannels } from '@/lib/api';
 import type { AuthUser } from '@/lib/api';
+import { useMobileStore } from '@/stores/useMobileStore';
 
 const navItems = [
   { icon: MessageSquare, label: 'DMs', id: 'dms' },
@@ -40,6 +41,7 @@ export function Sidebar() {
     useChannelStore();
   const { user, logout } = useAuthStore();
   const { openProfile } = useProfileStore();
+  const closeSidebar = useMobileStore((s) => s.closeSidebar);
   const [channelsExpanded, setChannelsExpanded] = useState(true);
   const [dmsExpanded, setDmsExpanded] = useState(true);
   const activeNav = location.pathname === '/files' ? 'files' : location.pathname === '/later' ? 'later' : location.pathname === '/admin' ? 'admin' : 'dms';
@@ -103,14 +105,14 @@ export function Sidebar() {
   const handleCreateChannel = async (name: string, isPrivate?: boolean) => {
     const channelId = await createChannel(name, isPrivate);
     setShowAddChannelDialog(false);
-    navigate(`/c/${channelId}`);
+    navTo(`/c/${channelId}`);
   };
 
   const handleJoinChannel = async (channelId: number) => {
     try {
       await joinChannel(channelId);
       setShowAddChannelDialog(false);
-      navigate(`/c/${channelId}`);
+      navTo(`/c/${channelId}`);
     } catch {
       // error already logged in store
     }
@@ -123,7 +125,13 @@ export function Sidebar() {
   const handleSelectUser = (u: AuthUser) => {
     startDM(u.id, u.name, u.avatar ?? undefined);
     setShowAddTeammates(false);
-    navigate(`/d/${u.id}`);
+    navTo(`/d/${u.id}`);
+  };
+
+  // Navigate and close sidebar on mobile
+  const navTo = (path: string) => {
+    navigate(path);
+    closeSidebar();
   };
 
   const sortByName = (a: Channel, b: Channel) => a.name.localeCompare(b.name);
@@ -149,16 +157,16 @@ export function Sidebar() {
               if (item.id === 'files') {
                 if (activeNav === 'files') {
                   const firstChannel = channels.find((ch) => ch.isMember);
-                  if (firstChannel) navigate(`/c/${firstChannel.id}`);
+                  if (firstChannel) navTo(`/c/${firstChannel.id}`);
                 } else {
-                  navigate('/files');
+                  navTo('/files');
                 }
               } else if (item.id === 'later') {
                 if (activeNav === 'later') {
                   const firstChannel = channels.find((ch) => ch.isMember);
-                  if (firstChannel) navigate(`/c/${firstChannel.id}`);
+                  if (firstChannel) navTo(`/c/${firstChannel.id}`);
                 } else {
-                  navigate('/later');
+                  navTo('/later');
                 }
               }
             }}
@@ -186,9 +194,9 @@ export function Sidebar() {
             onClick={() => {
               if (activeNav === 'admin') {
                 const firstChannel = channels.find((ch) => ch.isMember);
-                if (firstChannel) navigate(`/c/${firstChannel.id}`);
+                if (firstChannel) navTo(`/c/${firstChannel.id}`);
               } else {
-                navigate('/admin');
+                navTo('/admin');
               }
             }}
             className={cn(
@@ -267,7 +275,7 @@ export function Sidebar() {
                     key={channel.id}
                     channel={channel}
                     isActive={activeChannelId === channel.id}
-                    onClick={() => navigate(`/c/${channel.id}`)}
+                    onClick={() => navTo(`/c/${channel.id}`)}
                     isPrivate={channel.isPrivate}
                   />
                 ))}
@@ -296,7 +304,7 @@ export function Sidebar() {
                     key={channel.id}
                     channel={channel}
                     isActive={activeChannelId === channel.id}
-                    onClick={() => navigate(`/c/${channel.id}`)}
+                    onClick={() => navTo(`/c/${channel.id}`)}
                   />
                 ))}
                 {privateChannels.map((channel) => (
@@ -304,7 +312,7 @@ export function Sidebar() {
                     key={channel.id}
                     channel={channel}
                     isActive={activeChannelId === channel.id}
-                    onClick={() => navigate(`/c/${channel.id}`)}
+                    onClick={() => navTo(`/c/${channel.id}`)}
                     isPrivate
                   />
                 ))}
@@ -342,7 +350,7 @@ export function Sidebar() {
                     key={dm.id}
                     dm={dm}
                     isActive={activeDMId === dm.id}
-                    onClick={() => navigate(`/d/${dm.userId}`)}
+                    onClick={() => navTo(`/d/${dm.userId}`)}
                   />
                 ))}
                 <button
@@ -367,7 +375,7 @@ export function Sidebar() {
         onJoinChannel={handleJoinChannel}
         onNavigateToChannel={(channelId) => {
           setShowAddChannelDialog(false);
-          navigate(`/c/${channelId}`);
+          navTo(`/c/${channelId}`);
         }}
         onBrowse={handleBrowseChannels}
       />

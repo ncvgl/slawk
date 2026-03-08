@@ -51,7 +51,7 @@ export function PinsPanel({ channelId, onClose }: PinsPanelProps) {
   }, [channelId]);
 
   return (
-    <div data-testid="pins-panel" className="flex w-[300px] flex-col border-l border-slack-border bg-white">
+    <div data-testid="pins-panel" className="flex w-full md:w-[300px] flex-col border-l border-slack-border bg-white absolute inset-0 md:static md:inset-auto z-30 md:z-auto">
       <PanelHeader icon={Pin} title="Pinned messages" onClose={onClose} />
       <div className="flex-1 overflow-y-auto">
         {isLoading ? (

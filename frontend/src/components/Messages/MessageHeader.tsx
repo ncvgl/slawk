@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Hash, Lock, Star, MoreVertical, LogOut } from 'lucide-react';
+import { Hash, Lock, Star, MoreVertical, LogOut, Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getChannelMembers, type ChannelMember } from '@/lib/api';
 import { useChannelStore } from '@/stores/useChannelStore';
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { HeaderSearch } from './HeaderSearch';
 import { HeaderNotifications } from './HeaderNotifications';
 import { HeaderTabs } from './HeaderTabs';
+import { useMobileStore } from '@/stores/useMobileStore';
 
 interface MessageHeaderProps {
   channel: Channel;
@@ -24,6 +25,7 @@ interface MessageHeaderProps {
 
 export function MessageHeader({ channel, showMembers, onToggleMembers, onTogglePins, showPins, onToggleFiles, showFiles, readOnly }: MessageHeaderProps) {
   const navigate = useNavigate();
+  const openSidebar = useMobileStore((s) => s.openSidebar);
   const toggleStar = useChannelStore((s) => s.toggleStar);
   const leaveChannel = useChannelStore((s) => s.leaveChannel);
   const [showMenu, setShowMenu] = useState(false);
@@ -79,6 +81,12 @@ export function MessageHeader({ channel, showMembers, onToggleMembers, onToggleP
       <div className="flex h-[49px] items-center justify-between px-4">
         {/* Left Section */}
         <div className="flex items-center gap-1">
+          <button
+            onClick={openSidebar}
+            className="mr-1 flex h-8 w-8 items-center justify-center rounded hover:bg-slack-hover md:hidden"
+          >
+            <Menu className="h-5 w-5 text-slack-secondary" />
+          </button>
           <div
             data-testid="channel-name-button"
             className="flex items-center gap-1 px-1.5 py-0.5"
@@ -130,10 +138,14 @@ export function MessageHeader({ channel, showMembers, onToggleMembers, onToggleP
             ) : null}
             <span>{channel.memberCount}</span>
           </button>
-          <div className="h-4 w-px bg-slack-border" />
-          <HeaderNotifications excludeChannelId={channel.id} />
-          <div className="h-4 w-px bg-slack-border" />
-          <HeaderSearch />
+          <div className="hidden sm:block h-4 w-px bg-slack-border" />
+          <div className="hidden sm:block">
+            <HeaderNotifications excludeChannelId={channel.id} />
+          </div>
+          <div className="hidden sm:block h-4 w-px bg-slack-border" />
+          <div className="hidden sm:block">
+            <HeaderSearch />
+          </div>
           {!readOnly && (
             <div className="relative" ref={menuRef}>
               <Button
