@@ -575,4 +575,85 @@ router.post('/:userId/unread', authMiddleware, async (req: AuthRequest, res: Res
   }
 });
 
+// POST /dms/messages/:id/pin - Pin a DM
+router.post('/messages/:id/pin', authMiddleware, requireDmAccess, async (req: AuthRequest, res: Response) => {
+  try {
+    const dmId = parseIntParam(req.params.id);
+    if (!dmId) { res.status(400).json({ error: 'Invalid message ID' }); return; }
+    const userId = req.user!.userId;
+
+    const updated = await prisma.directMessage.update({
+      where: { id: dmId },
+      data: { isPinned: true, pinnedBy: userId, pinnedAt: new Date() },
+      include: DM_INCLUDE_USERS,
+    });
+
+    // Broadcast to both participants
+    const io = getIO();
+    if (io) {
+      const room1 = `dm:${updated.fromUserId}:${updated.toUserId}`;
+      const room2 = `dm:${updated.toUserId}:${updated.fromUserId}`;
+      io.to(room1).to(room2).emit('dm:updated', updated);
+    }
+
+    res.json(updated);
+  } catch (error) {
+    logError('Pin DM error', error);
+    res.status(500).json({ error: 'Failed to pin message' });
+  }
+});
+
+// DELETE /dms/messages/:id/pin - Unpin a DM
+router.delete('/messages/:id/pin', authMiddleware, requireDmAccess, async (req: AuthRequest, res: Response) => {
+  try {
+    const dmId = parseIntParam(req.params.id);
+    if (!dmId) { res.status(400).json({ error: 'Invalid message ID' }); return; }
+
+    const updated = await prisma.directMessage.update({
+      where: { id: dmId },
+      data: { isPinned: false, pinnedBy: null, pinnedAt: null },
+      include: DM_INCLUDE_USERS,
+    });
+
+    const io = getIO();
+    if (io) {
+      const room1 = `dm:${updated.fromUserId}:${updated.toUserId}`;
+      const room2 = `dm:${updated.toUserId}:${updated.fromUserId}`;
+      io.to(room1).to(room2).emit('dm:updated', updated);
+    }
+
+    res.json(updated);
+  } catch (error) {
+    logError('Unpin DM error', error);
+    res.status(500).json({ error: 'Failed to unpin message' });
+  }
+});
+
+// GET /dms/:userId/pins - Get pinned messages in a DM conversation
+router.get('/:userId/pins', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const currentUserId = req.user!.userId;
+    const otherUserId = parseIntParam(req.params.userId);
+    if (!otherUserId) { res.status(400).json({ error: 'Invalid user ID' }); return; }
+
+    const pinned = await prisma.directMessage.findMany({
+      where: {
+        isPinned: true,
+        deletedAt: null,
+        OR: [
+          { fromUserId: currentUserId, toUserId: otherUserId },
+          { fromUserId: otherUserId, toUserId: currentUserId },
+        ],
+      },
+      include: DM_INCLUDE_USERS,
+      orderBy: { pinnedAt: 'desc' },
+    });
+
+    res.json(pinned);
+  } catch (error) {
+    logError('Get pinned DMs error', error);
+    res.status(500).json({ error: 'Failed to get pinned messages' });
+  }
+});
+
 export default router;

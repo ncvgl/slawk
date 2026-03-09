@@ -170,6 +170,9 @@ model DirectMessage {
   fromUserId Int
   toUserId   Int
   threadId   Int?
+  isPinned   Boolean   @default(false)
+  pinnedBy   Int?
+  pinnedAt   DateTime?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @default(now()) @updatedAt
   editedAt   DateTime?

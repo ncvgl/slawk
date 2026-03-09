@@ -11,6 +11,7 @@ export interface DMMessage {
   createdAt: Date;
   editedAt?: Date | null;
   threadId?: number | null;
+  isPinned?: boolean;
   replyCount: number;
   threadParticipants: { id: number; name: string; avatar: string | null }[];
   reactions: Reaction[];
@@ -41,6 +42,7 @@ function transformDM(dm: ApiDirectMessage): DMMessage {
     createdAt: new Date(dm.createdAt),
     editedAt: dm.editedAt ? new Date(dm.editedAt) : null,
     threadId: dm.threadId ?? null,
+    isPinned: dm.isPinned ?? false,
     replyCount: dm._count?.replies ?? 0,
     threadParticipants: dm.threadParticipants ?? [],
     reactions: groupReactions(dm.reactions),

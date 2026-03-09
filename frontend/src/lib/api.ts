@@ -222,6 +222,18 @@ export function markDMUnread(userId: number, messageId: number) {
   });
 }
 
+export function pinDM(dmId: number) {
+  return request(`/dms/messages/${dmId}/pin`, { method: 'POST' });
+}
+
+export function unpinDM(dmId: number) {
+  return request(`/dms/messages/${dmId}/pin`, { method: 'DELETE' });
+}
+
+export function getPinnedDMs(userId: number) {
+  return request<any[]>(`/dms/${userId}/pins`);
+}
+
 // ---- Messages ----
 
 export interface ApiReaction {
@@ -482,6 +494,7 @@ export interface ApiDirectMessage {
   fromUserId: number;
   toUserId: number;
   threadId?: number | null;
+  isPinned?: boolean;
   createdAt: string;
   updatedAt: string;
   editedAt: string | null;

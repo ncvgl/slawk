@@ -93,7 +93,13 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    res.json(user);
+    // Enrich with real-time WebSocket presence
+    const online = isUserOnline(userId);
+    res.json({
+      ...user,
+      status: online ? 'online' : (user.status || 'offline'),
+      isOnline: online,
+    });
   } catch (error) {
     logError('Get profile error', error);
     res.status(500).json({ error: 'Failed to get profile' });

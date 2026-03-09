@@ -30,7 +30,7 @@ import { PanelHeader } from './PanelHeader';
 import { HuddleButton } from '@/components/Huddle/HuddleButton';
 import { HuddleSystemMessage } from '@/components/Huddle/HuddleInvite';
 import { renderMessageContent } from '@/lib/renderMessageContent';
-import { markDMUnread } from '@/lib/api';
+import { markDMUnread, pinDM, unpinDM, getPinnedDMs } from '@/lib/api';
 import { useMobileStore } from '@/stores/useMobileStore';
 import type { DMMessage } from '@/stores/useDMStore';
 
@@ -69,6 +69,7 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
   const [showEmojiPickerId, setShowEmojiPickerId] = useState<number | null>(null);
   const [showPins, setShowPins] = useState(false);
   const [showFiles, setShowFiles] = useState(false);
+  const [pinnedMessages, setPinnedMessages] = useState<DMMessage[]>([]);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [isStarred, setIsStarred] = useState(false);
   const [highlightedId, setHighlightedId] = useState<number | null>(null);
@@ -154,6 +155,29 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
   const handleCloseThread = useCallback(() => {
     setActiveThreadId(null);
   }, []);
+
+  // Fetch pinned messages when pins panel is opened
+  useEffect(() => {
+    if (!showPins) return;
+    getPinnedDMs(userId).then(setPinnedMessages).catch(() => {});
+  }, [showPins, userId]);
+
+  const handleTogglePin = useCallback(async (msg: DMMessage) => {
+    setShowMoreMenuId(null);
+    try {
+      if (msg.isPinned) {
+        await unpinDM(msg.id);
+      } else {
+        await pinDM(msg.id);
+      }
+      // Refresh messages to reflect pin state
+      fetchConversation(userId);
+      // Refresh pins panel if open
+      if (showPins) {
+        getPinnedDMs(userId).then(setPinnedMessages).catch(() => {});
+      }
+    } catch { /* ignore */ }
+  }, [userId, fetchConversation, showPins]);
 
   const handleReplyCountChange = useCallback((messageId: number, count: number) => {
     const participant = currentUser
@@ -429,6 +453,8 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
                             showOwnerActions={isOwner}
                             onEdit={() => handleStartEdit(msg)}
                             onDelete={() => handleDelete(msg.id)}
+                            onPin={() => handleTogglePin(msg)}
+                            isPinned={msg.isPinned}
                             onMarkUnread={() => {
                               setShowMoreMenuId(null);
                               // Count unread messages from this point forward
@@ -472,8 +498,28 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
             className="flex w-full md:w-[300px] flex-col border-l border-slack-border bg-white absolute inset-0 md:static md:inset-auto z-30 md:z-auto"
           >
             <PanelHeader icon={Pin} title="Pinned messages" onClose={() => setShowPins(false)} />
-            <div className="flex-1 overflow-y-auto p-4 text-center text-sm text-slack-hint">
-              No pinned messages yet
+            <div className="flex-1 overflow-y-auto p-3">
+              {pinnedMessages.length === 0 ? (
+                <div className="text-center text-sm text-slack-hint py-4">No pinned messages yet</div>
+              ) : (
+                pinnedMessages.map((msg) => (
+                  <div key={msg.id} className="mb-3 rounded border border-slack-border p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Avatar
+                        src={msg.fromUser?.avatar}
+                        alt={msg.fromUser?.name || ''}
+                        fallback={msg.fromUser?.name || '?'}
+                        size="sm"
+                      />
+                      <span className="text-[13px] font-bold text-slack-primary">{msg.fromUser?.name}</span>
+                      <span className="text-[11px] text-slack-hint">
+                        {format(new Date(msg.createdAt), 'MMM d, h:mm a')}
+                      </span>
+                    </div>
+                    <div className="text-[13px] text-slack-primary">{renderMessageContent(msg.content)}</div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}
