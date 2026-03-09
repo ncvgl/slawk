@@ -134,20 +134,41 @@ export function useQuillEditor({
                 return true;
               },
             },
-            escapeCodeBlockRight: {
+            escapeCodeRight: {
               key: 'ArrowRight',
               handler: (range: any) => {
                 const q = quillRef.current;
-                if (q && range.index >= q.getLength() - 1 && range.length === 0) {
-                  const fmt = q.getFormat(range.index);
+                if (!q || range.length !== 0) return true;
+                const len = q.getLength();
+                const idx = range.index;
+
+                // End of document
+                if (idx >= len - 1) {
+                  const fmt = q.getFormat(idx);
                   if (fmt['code-block']) {
-                    const len = q.getLength();
                     q.insertText(len - 1, '\n');
                     q.formatLine(len, 1, 'code-block', false);
                     q.setSelection(len);
                     return false;
                   }
+                  if (fmt.code) {
+                    q.format('code', false);
+                    return false;
+                  }
+                  return true;
                 }
+
+                // Inline code right boundary: cursor has code format,
+                // char at cursor is code, next char is NOT code → escape
+                const cursorFmt = q.getFormat(idx);
+                const thisCharCode = !!q.getFormat(idx, 1).code;
+                const nextCharCode = idx + 1 < len ? !!q.getFormat(idx + 1, 1).code : false;
+                if (cursorFmt.code && thisCharCode && !nextCharCode) {
+                  q.setSelection(idx + 1);
+                  q.format('code', false);
+                  return false;
+                }
+
                 return true;
               },
             },
@@ -158,7 +179,21 @@ export function useQuillEditor({
     });
 
     quill.on('selection-change', (range: any) => {
-      if (range) lastSelectionRef.current = range;
+      if (!range) return;
+      lastSelectionRef.current = range;
+      // Clear sticky inline code format when cursor is not adjacent to any code characters
+      if (range.length === 0) {
+        const fmt = quill.getFormat(range.index);
+        if (fmt.code) {
+          const idx = range.index;
+          const len = quill.getLength();
+          const adjLeft = idx > 0 && !!quill.getFormat(idx - 1, 1).code;
+          const adjRight = idx < len - 1 && !!quill.getFormat(idx, 1).code;
+          if (!adjLeft && !adjRight) {
+            quill.format('code', false);
+          }
+        }
+      }
     });
 
     quill.on('text-change', (_delta: any, _oldDelta: any, source: string) => {
