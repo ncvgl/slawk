@@ -60,7 +60,7 @@ export function LaterPage() {
 
   return (
     <div data-testid="later-page" className="flex h-full flex-col">
-      <div className="flex flex-col border-b border-slack-border">
+      <div className="flex flex-col flex-shrink-0 border-b border-slack-border">
         <div className="flex h-[49px] items-center px-5">
           <button
             onClick={useMobileStore.getState().openSidebar}
@@ -102,7 +102,7 @@ export function LaterPage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4">
         {activeTab === 'scheduled' ? (
           <ScheduledMessagesTab />
         ) : isLoading ? (

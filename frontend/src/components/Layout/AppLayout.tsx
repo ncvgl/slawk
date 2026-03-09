@@ -56,7 +56,7 @@ export function AppLayout() {
       </div>
 
       {/* Main Content Area */}
-      <main className="flex flex-1 flex-col min-w-0 border-l border-slack-border">
+      <main className="flex flex-1 flex-col min-w-0 min-h-0 overflow-hidden border-l border-slack-border">
         {content}
       </main>
 
