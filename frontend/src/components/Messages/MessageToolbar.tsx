@@ -28,6 +28,7 @@ export function MessageToolbar({
         'flex items-center gap-0.5 rounded-lg border border-slack-border bg-white p-0.5 shadow-sm',
         className,
       )}
+      onTouchStart={(e) => e.stopPropagation()}
     >
       {onEmojiClick && (
         <Button

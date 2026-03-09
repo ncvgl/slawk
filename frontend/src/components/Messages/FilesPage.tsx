@@ -31,7 +31,7 @@ export function FilesPage() {
   return (
     <div data-testid="files-page" className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex h-[49px] flex-shrink-0 items-center border-b border-slack-border px-5">
+      <div className="flex h-[49px] flex-shrink-0 items-center border-b border-slack-border px-5 pt-[env(safe-area-inset-top)]">
         <button
           onClick={useMobileStore.getState().openSidebar}
           className="mr-2 flex h-8 w-8 items-center justify-center rounded hover:bg-slack-hover md:hidden"

@@ -58,8 +58,8 @@ export function AdminMembersTab() {
         />
       </div>
 
-      <div className="rounded-lg border border-slack-border overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="rounded-lg border border-slack-border overflow-x-auto">
+        <table className="w-full text-sm min-w-[600px]">
           <thead>
             <tr className="bg-gray-50 border-b border-slack-border">
               <th className="text-left px-4 py-2.5 font-medium text-slack-secondary">User</th>

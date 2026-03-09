@@ -194,7 +194,7 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
   return (
     <div data-testid="dm-conversation" className="flex h-full flex-col">
       {/* Header */}
-      <header className="flex flex-col flex-shrink-0 border-b border-slack-border bg-white">
+      <header className="flex flex-col flex-shrink-0 border-b border-slack-border bg-white pt-[env(safe-area-inset-top)]">
         {/* Top Row */}
         <div className="flex h-[49px] items-center justify-between px-4">
           {/* Left Section */}

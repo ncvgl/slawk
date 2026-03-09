@@ -42,13 +42,13 @@ export function AdminPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-slack-border px-6">
+      <div className="flex overflow-x-auto border-b border-slack-border px-6">
         {TABS.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={cn(
-              'flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors',
+              'flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap',
               activeTab === tab.id
                 ? 'border-slack-btn text-slack-btn'
                 : 'border-transparent text-slack-secondary hover:text-slack-primary hover:border-gray-300'

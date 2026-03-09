@@ -254,13 +254,6 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
       isOnline: online,
     };
 
-    // Only expose email when viewing your own profile
-    if (userId !== req.user!.userId) {
-      const { email: _, ...safeUser } = enrichedUser;
-      res.json(safeUser);
-      return;
-    }
-
     res.json(enrichedUser);
   } catch (error) {
     logError('Get user error', error);

@@ -60,7 +60,7 @@ export function LaterPage() {
 
   return (
     <div data-testid="later-page" className="flex h-full flex-col">
-      <div className="flex flex-col flex-shrink-0 border-b border-slack-border">
+      <div className="flex flex-col flex-shrink-0 border-b border-slack-border pt-[env(safe-area-inset-top)]">
         <div className="flex h-[49px] items-center px-5">
           <button
             onClick={useMobileStore.getState().openSidebar}
