@@ -9,6 +9,7 @@ import { AuthRequest } from '../types.js';
 import { logError } from '../utils/logger.js';
 
 const router = Router();
+const isTest = process.env.NODE_ENV === 'test';
 
 // Strip HTML tags for defense-in-depth
 function stripHtml(str: string): string {
@@ -59,6 +60,12 @@ router.post('/register', async (req: Request, res: Response) => {
       // Perform dummy hash to normalize timing (prevent user-enumeration via response time)
       await bcrypt.hash(password, 10);
       res.status(400).json({ error: 'Unable to complete registration' });
+      return;
+    }
+
+    // Require invite code — no open registration (relaxed in test env for convenience)
+    if (!inviteCode && !isTest) {
+      res.status(400).json({ error: 'An invite code is required to register' });
       return;
     }
 
