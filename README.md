@@ -24,7 +24,7 @@
 
 ## [Day 10](https://www.linkedin.com/posts/nathancavaglione_day-1014-cloning-slack-with-claude-code-activity-7436479309319475200-W8uQ?utm_source=share&utm_medium=member_desktop&rcm=ACoAABo_DiMBthZ8gqvy6PiOdSHUMuPt9XgMnfY)
 
-<img src="images/day_10.png" alt="Day 10" width="800">
+<img src="images/day_10.png" alt="Day 10" width="400">
 
 ## [Day 8+9](https://www.linkedin.com/posts/nathancavaglione_day-914-cloning-slack-with-claude-code-activity-7436051734357221376-p5Qu?utm_source=share&utm_medium=member_desktop&rcm=ACoAABo_DiMBthZ8gqvy6PiOdSHUMuPt9XgMnfY)
 
