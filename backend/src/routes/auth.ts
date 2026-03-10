@@ -30,16 +30,20 @@ const loginSchema = z.object({
 });
 
 // Account lockout: track failed login attempts per email
-const loginAttempts = new Map<string, { count: number; lockedUntil: number }>();
+const loginAttempts = new Map<string, { count: number; lockedUntil: number; lastAttempt: number }>();
 const MAX_FAILED_ATTEMPTS = 10;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 const MAX_LOCKOUT_ENTRIES = 10_000;
 
-// Periodic cleanup of expired lockout entries (every 5 minutes)
+// Periodic cleanup of stale lockout entries (every 5 minutes)
 setInterval(() => {
   const now = Date.now();
   for (const [email, entry] of loginAttempts) {
-    if (entry.lockedUntil > 0 && entry.lockedUntil < now) {
+    // Remove expired lockouts and stale attempt counters (no activity within lockout window)
+    if (
+      (entry.lockedUntil > 0 && entry.lockedUntil < now) ||
+      (entry.lockedUntil === 0 && (now - entry.lastAttempt) > LOCKOUT_DURATION_MS)
+    ) {
       loginAttempts.delete(email);
     }
   }
@@ -178,10 +182,12 @@ router.post('/login', async (req: Request, res: Response) => {
     if (!user) {
       // Track failed attempt even for non-existent users (prevent enumeration timing)
       if (loginAttempts.size < MAX_LOCKOUT_ENTRIES) {
-        const current = loginAttempts.get(email) || { count: 0, lockedUntil: 0 };
+        const now = Date.now();
+        const current = loginAttempts.get(email) || { count: 0, lockedUntil: 0, lastAttempt: now };
         current.count++;
+        current.lastAttempt = now;
         if (current.count >= MAX_FAILED_ATTEMPTS) {
-          current.lockedUntil = Date.now() + LOCKOUT_DURATION_MS;
+          current.lockedUntil = now + LOCKOUT_DURATION_MS;
           current.count = 0;
         }
         loginAttempts.set(email, current);
@@ -199,10 +205,12 @@ router.post('/login', async (req: Request, res: Response) => {
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
       if (loginAttempts.size < MAX_LOCKOUT_ENTRIES) {
-        const current = loginAttempts.get(email) || { count: 0, lockedUntil: 0 };
+        const now = Date.now();
+        const current = loginAttempts.get(email) || { count: 0, lockedUntil: 0, lastAttempt: now };
         current.count++;
+        current.lastAttempt = now;
         if (current.count >= MAX_FAILED_ATTEMPTS) {
-          current.lockedUntil = Date.now() + LOCKOUT_DURATION_MS;
+          current.lockedUntil = now + LOCKOUT_DURATION_MS;
           current.count = 0;
         }
         loginAttempts.set(email, current);
