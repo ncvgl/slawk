@@ -438,10 +438,17 @@ export function initializeWebSocket(httpServer: HttpServer) {
           return;
         }
 
-        await prisma.message.update({
-          where: { id: data.messageId },
-          data: { deletedAt: new Date() },
-        });
+        // Soft-delete message and detach its files so they don't become orphaned
+        await prisma.$transaction([
+          prisma.message.update({
+            where: { id: data.messageId },
+            data: { deletedAt: new Date() },
+          }),
+          prisma.file.updateMany({
+            where: { messageId: data.messageId },
+            data: { messageId: null },
+          }),
+        ]);
 
         io.to(`channel:${message.channelId}`).emit('message:deleted', {
           messageId: data.messageId,

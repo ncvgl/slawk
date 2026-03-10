@@ -156,10 +156,17 @@ router.delete('/:id', authMiddleware, requireMessageAccess, async (req: AuthRequ
       return;
     }
 
-    await prisma.message.update({
-      where: { id: messageId },
-      data: { deletedAt: new Date() },
-    });
+    // Soft-delete message and detach its files so they don't become orphaned
+    await prisma.$transaction([
+      prisma.message.update({
+        where: { id: messageId },
+        data: { deletedAt: new Date() },
+      }),
+      prisma.file.updateMany({
+        where: { messageId },
+        data: { messageId: null },
+      }),
+    ]);
 
     // Broadcast deletion to channel so other clients update in real-time
     const io = getIO();
