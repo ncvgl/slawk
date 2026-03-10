@@ -41,7 +41,7 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage,
   limits: {
-    fileSize: 1024 * 1024 * 1024, // 1GB limit
+    fileSize: 50 * 1024 * 1024, // 50MB limit
   },
   fileFilter: (req, file, cb) => {
     // Allow common file types
@@ -128,7 +128,7 @@ router.post('/', authMiddleware, uploadLimiter, (req: AuthRequest, res: Response
   upload.single('file')(req, res, (err: any) => {
     if (err) {
       if (err.code === 'LIMIT_FILE_SIZE') {
-        res.status(413).json({ error: 'File is too large. Maximum file size is 1 GB.' });
+        res.status(413).json({ error: 'File is too large. Maximum file size is 50 MB.' });
         return;
       }
       if (err.message === 'File type not allowed') {
@@ -278,6 +278,10 @@ router.post('/', authMiddleware, uploadLimiter, (req: AuthRequest, res: Response
 
     res.status(201).json(fileRecord);
   } catch (error) {
+    // Clean up orphaned file on disk if Prisma or any post-upload step fails
+    if (req.file?.path && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
     logError('Upload file error', error);
     res.status(500).json({ error: 'Failed to upload file' });
   }
