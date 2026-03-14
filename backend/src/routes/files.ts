@@ -197,7 +197,7 @@ router.post('/', authMiddleware, uploadLimiter, (req: AuthRequest, res: Response
         where: { id: messageId },
       });
 
-      if (!message) {
+      if (!message || message.deletedAt) {
         // Delete uploaded file
         fs.unlinkSync(file.path);
         res.status(404).json({ error: 'Message not found' });

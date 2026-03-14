@@ -92,6 +92,23 @@ describe('File Uploads', () => {
       expect(res.body.messageId).toBe(messageId);
     });
 
+    it('should NOT upload file to a deleted message', async () => {
+      // Delete the message
+      await request(app)
+        .delete(`/messages/${messageId}`)
+        .set('Authorization', `Bearer ${authToken}`);
+
+      // Try to upload a file to the deleted message
+      const res = await request(app)
+        .post('/files')
+        .set('Authorization', `Bearer ${authToken}`)
+        .field('messageId', messageId.toString())
+        .attach('file', testFilePath);
+
+      expect(res.status).toBe(404);
+      expect(res.body.error).toBe('Message not found');
+    });
+
     it('should require authentication', async () => {
       const res = await request(app)
         .post('/files')
