@@ -464,6 +464,45 @@ describe('Security - Input Validation', () => {
     });
   });
 
+  describe('Archived channel thread reply bypass', () => {
+    it('should NOT allow thread replies in archived channels', async () => {
+      // Send a message to create a thread parent
+      const msgRes = await request(app)
+        .post(`/channels/${channelId}/messages`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ content: 'Thread parent' });
+      expect(msgRes.status).toBe(201);
+      const parentId = msgRes.body.id;
+
+      // Archive the channel
+      await prisma.channel.update({
+        where: { id: channelId },
+        data: { archivedAt: new Date() },
+      });
+
+      // Verify top-level messages are blocked
+      const msgRes2 = await request(app)
+        .post(`/channels/${channelId}/messages`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ content: 'Should fail' });
+      expect(msgRes2.status).toBe(403);
+
+      // Thread reply should also be blocked
+      const replyRes = await request(app)
+        .post(`/messages/${parentId}/reply`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ content: 'Sneaky reply to archived channel' });
+      expect(replyRes.status).toBe(403);
+      expect(replyRes.body.error).toBe('This channel has been archived');
+
+      // Unarchive for cleanup
+      await prisma.channel.update({
+        where: { id: channelId },
+        data: { archivedAt: null },
+      });
+    });
+  });
+
   describe('Adding deactivated users to channels', () => {
     it('should NOT allow adding a deactivated user to a channel', async () => {
       // Create a second user and deactivate them

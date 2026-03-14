@@ -36,6 +36,16 @@ router.post('/:id/reply', authMiddleware, requireMessageAccess, async (req: Auth
       return;
     }
 
+    // Block replies in archived channels
+    const channel = await prisma.channel.findUnique({
+      where: { id: parentMessage.channelId },
+      select: { archivedAt: true },
+    });
+    if (channel?.archivedAt) {
+      res.status(403).json({ error: 'This channel has been archived' });
+      return;
+    }
+
     const reply = await prisma.$transaction(async (tx) => {
       const msg = await tx.message.create({
         data: {
