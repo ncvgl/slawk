@@ -39,10 +39,19 @@ router.post('/schedule', authMiddleware, async (req: AuthRequest, res: Response)
       return;
     }
 
-    // Check channel membership
+    // Check channel membership and archival status
     const isMember = await checkChannelMembership(userId, channelId);
     if (!isMember) {
       res.status(403).json({ error: 'You must be a member of the channel' });
+      return;
+    }
+
+    const channel = await prisma.channel.findUnique({
+      where: { id: channelId },
+      select: { archivedAt: true },
+    });
+    if (channel?.archivedAt) {
+      res.status(403).json({ error: 'This channel has been archived' });
       return;
     }
 

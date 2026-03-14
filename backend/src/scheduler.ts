@@ -68,6 +68,22 @@ export function startScheduler(): NodeJS.Timeout {
             continue;
           }
 
+          // Verify channel is not archived
+          const channel = await prisma.channel.findUnique({
+            where: { id: scheduled.channelId },
+            select: { archivedAt: true },
+          });
+          if (channel?.archivedAt) {
+            await prisma.scheduledMessage.update({
+              where: { id: scheduled.id },
+              data: { sent: true },
+            });
+            console.log(
+              `Scheduler: cancelled scheduled message ${scheduled.id} — channel ${scheduled.channelId} has been archived`
+            );
+            continue;
+          }
+
           // Atomically claim and create message to prevent duplicates on crash
           const message = await prisma.$transaction(async (tx) => {
             const claimed = await tx.scheduledMessage.updateMany({

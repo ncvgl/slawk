@@ -797,6 +797,36 @@ describe('Security - Input Validation', () => {
     });
   });
 
+  describe('Scheduled messages in archived channels', () => {
+    it('should NOT allow scheduling messages in archived channels', async () => {
+      // Archive the channel
+      await prisma.channel.update({
+        where: { id: channelId },
+        data: { archivedAt: new Date() },
+      });
+
+      const futureDate = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+      const res = await request(app)
+        .post('/messages/schedule')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ content: 'Bypass archive', channelId, scheduledAt: futureDate });
+
+      expect(res.status).toBe(403);
+      expect(res.body.error).toBe('This channel has been archived');
+
+      // Verify no scheduled message was created
+      const pending = await prisma.scheduledMessage.findMany({
+        where: { channelId, sent: false },
+      });
+      expect(pending).toHaveLength(0);
+
+      await prisma.channel.update({
+        where: { id: channelId },
+        data: { archivedAt: null },
+      });
+    });
+  });
+
   describe('Deactivated user scheduled messages', () => {
     let adminToken: string;
     let targetToken: string;
