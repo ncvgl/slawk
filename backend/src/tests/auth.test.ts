@@ -91,5 +91,40 @@ describe('Authentication', () => {
       expect(res.status).toBe(401);
       expect(res.body.error).toBe('Invalid credentials');
     });
+
+    it('should not reveal whether an email exists via timing', async () => {
+      // Non-existent user should take a similar time to an existing user
+      // (both must run bcrypt). We verify the non-existent path takes at
+      // least 50ms, proving a dummy bcrypt compare runs.
+      const start = Date.now();
+      await request(app)
+        .post('/auth/login')
+        .send({ email: 'nobody-here@example.com', password: 'password123' });
+      const elapsed = Date.now() - start;
+
+      // bcrypt typically takes 50-300ms; without the dummy hash it would be <10ms
+      expect(elapsed).toBeGreaterThanOrEqual(50);
+    });
+
+    it('should not reveal deactivated status via timing', async () => {
+      // Deactivate the user
+      const user = await prisma.user.findUnique({ where: { email: testUser.email } });
+      await prisma.user.update({
+        where: { id: user!.id },
+        data: { deactivatedAt: new Date() },
+      });
+
+      // Deactivated user login should still run bcrypt (not return early)
+      const start = Date.now();
+      const res = await request(app)
+        .post('/auth/login')
+        .send({ email: testUser.email, password: testUser.password });
+      const elapsed = Date.now() - start;
+
+      expect(res.status).toBe(401);
+      expect(res.body.error).toBe('Invalid credentials');
+      // Must take bcrypt time, proving we didn't short-circuit before compare
+      expect(elapsed).toBeGreaterThanOrEqual(50);
+    });
   });
 });

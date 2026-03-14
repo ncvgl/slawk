@@ -188,7 +188,8 @@ router.post('/login', async (req: Request, res: Response) => {
 
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
-      // Track failed attempt even for non-existent users (prevent enumeration timing)
+      // Dummy bcrypt to normalize response time (prevent timing-based email enumeration)
+      await bcrypt.compare(password, '$2b$10$invalidhashfortimingpadding.padding');
       if (loginAttempts.size < MAX_LOCKOUT_ENTRIES) {
         const now = Date.now();
         const current = loginAttempts.get(email) || { count: 0, lockedUntil: 0, lastAttempt: now };
@@ -204,13 +205,12 @@ router.post('/login', async (req: Request, res: Response) => {
       return;
     }
 
-    // Block deactivated accounts (generic message to prevent enumeration)
+    // Block deactivated accounts — still run bcrypt to prevent timing enumeration
+    const validPassword = await bcrypt.compare(password, user.password);
     if (user.deactivatedAt) {
       res.status(401).json({ error: 'Invalid credentials' });
       return;
     }
-
-    const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
       if (loginAttempts.size < MAX_LOCKOUT_ENTRIES) {
         const now = Date.now();
