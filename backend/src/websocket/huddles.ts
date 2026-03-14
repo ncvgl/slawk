@@ -238,12 +238,12 @@ export function registerHuddleHandlers(
       return;
     }
 
-    // Check if target user exists
+    // Check if target user exists and is active
     const targetUser = await prisma.user.findUnique({
       where: { id: toUserId },
-      select: { id: true },
+      select: { id: true, deactivatedAt: true },
     });
-    if (!targetUser) {
+    if (!targetUser || targetUser.deactivatedAt) {
       sock.emit('huddle:error', { message: 'User not found' });
       return;
     }
