@@ -134,7 +134,7 @@ router.post('/register', async (req: Request, res: Response) => {
     for (const channelName of channelsToJoin) {
       try {
         let channel = await prisma.channel.findFirst({
-          where: { name: channelName, isPrivate: false },
+          where: { name: channelName, isPrivate: false, archivedAt: null },
         });
         if (!channel) {
           try {
@@ -144,7 +144,7 @@ router.post('/register', async (req: Request, res: Response) => {
           } catch {
             // Race condition: another request created it concurrently
             channel = await prisma.channel.findFirst({
-              where: { name: channelName, isPrivate: false },
+              where: { name: channelName, isPrivate: false, archivedAt: null },
             });
           }
         }

@@ -31,6 +31,40 @@ describe('Authentication', () => {
       expect(res.body.user).not.toHaveProperty('password');
     });
 
+    it('should not auto-join archived default channels', async () => {
+      // Archive the 'general' channel if it exists, or create one and archive it
+      let general = await prisma.channel.findFirst({ where: { name: 'general', isPrivate: false } });
+      if (!general) {
+        general = await prisma.channel.create({ data: { name: 'general', isPrivate: false } });
+      }
+      await prisma.channel.update({
+        where: { id: general.id },
+        data: { archivedAt: new Date() },
+      });
+
+      // Register a new user
+      const res = await request(app).post('/auth/register').send({
+        email: 'archived-join@example.com',
+        password: 'password123',
+        name: 'Archived Join User',
+      });
+      expect(res.status).toBe(201);
+
+      // Verify user was NOT added to the archived channel
+      const membership = await prisma.channelMember.findUnique({
+        where: {
+          userId_channelId: { userId: res.body.user.id, channelId: general.id },
+        },
+      });
+      expect(membership).toBeNull();
+
+      // Cleanup
+      await prisma.channel.update({
+        where: { id: general.id },
+        data: { archivedAt: null },
+      });
+    });
+
     it('should not register with duplicate email', async () => {
       await request(app).post('/auth/register').send(testUser);
 
