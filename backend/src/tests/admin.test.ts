@@ -711,5 +711,35 @@ describe('Admin API', () => {
 
       expect(res.status).toBe(403);
     });
+
+    it('should NOT allow transferring ownership to a guest', async () => {
+      // Promote admin to OWNER
+      await prisma.user.update({
+        where: { id: adminId },
+        data: { role: 'OWNER' },
+      });
+      const ownerLoginRes = await request(app).post('/auth/login').send({
+        email: adminUser.email,
+        password: adminUser.password,
+      });
+      const ownerToken = ownerLoginRes.body.token;
+
+      // Get the guest user ID
+      const guest = await prisma.user.findFirst({ where: { email: 'guest@example.com' } });
+
+      const res = await request(app)
+        .post('/admin/transfer-ownership')
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({ userId: guest!.id });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('Cannot transfer ownership to a guest user');
+
+      // Verify roles didn't change
+      const ownerAfter = await prisma.user.findUnique({ where: { id: adminId } });
+      expect(ownerAfter!.role).toBe('OWNER');
+      const guestAfter = await prisma.user.findUnique({ where: { id: guest!.id } });
+      expect(guestAfter!.role).toBe('GUEST');
+    });
   });
 });

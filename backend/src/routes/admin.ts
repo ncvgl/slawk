@@ -699,7 +699,7 @@ router.post('/transfer-ownership', async (req: AuthRequest, res: Response) => {
 
     const target = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, name: true, deactivatedAt: true },
+      select: { id: true, name: true, role: true, deactivatedAt: true },
     });
 
     if (!target) {
@@ -709,6 +709,11 @@ router.post('/transfer-ownership', async (req: AuthRequest, res: Response) => {
 
     if (target.deactivatedAt) {
       res.status(400).json({ error: 'Cannot transfer ownership to a deactivated user' });
+      return;
+    }
+
+    if (target.role === 'GUEST') {
+      res.status(400).json({ error: 'Cannot transfer ownership to a guest user' });
       return;
     }
 
