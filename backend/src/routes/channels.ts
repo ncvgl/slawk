@@ -226,6 +226,12 @@ router.post('/:id/join', authMiddleware, async (req: AuthRequest, res: Response)
       return;
     }
 
+    // Prevent joining archived channels
+    if (channel.archivedAt) {
+      res.status(403).json({ error: 'This channel has been archived' });
+      return;
+    }
+
     const existingMembership = await prisma.channelMember.findUnique({
       where: {
         userId_channelId: { userId, channelId },
@@ -343,6 +349,10 @@ router.post('/:id/members', authMiddleware, requireChannelMembership, async (req
 
     // For private channels, only the channel creator can add users
     const channel = await prisma.channel.findUnique({ where: { id: channelId } });
+    if (channel?.archivedAt) {
+      res.status(403).json({ error: 'This channel has been archived' });
+      return;
+    }
     if (channel?.isPrivate) {
       if (channel.createdBy !== req.user!.userId) {
         res.status(403).json({ error: 'Only the channel creator can add members to private channels' });

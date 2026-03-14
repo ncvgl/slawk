@@ -525,6 +525,62 @@ describe('Security - Input Validation', () => {
     });
   });
 
+  describe('Archived channel membership changes', () => {
+    it('should NOT allow joining an archived channel', async () => {
+      // Create a public channel and archive it
+      const chRes = await request(app)
+        .post('/channels')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ name: 'archive-join-test' });
+      const archChannelId = chRes.body.id;
+
+      await prisma.channel.update({
+        where: { id: archChannelId },
+        data: { archivedAt: new Date() },
+      });
+
+      // Create second user and try to join
+      const user2Res = await request(app).post('/auth/register').send({
+        email: 'join-archived@example.com',
+        password: 'password123',
+        name: 'Join Archived User',
+      });
+
+      const res = await request(app)
+        .post(`/channels/${archChannelId}/join`)
+        .set('Authorization', `Bearer ${user2Res.body.token}`);
+
+      expect(res.status).toBe(403);
+      expect(res.body.error).toBe('This channel has been archived');
+    });
+
+    it('should NOT allow adding members to an archived channel', async () => {
+      await prisma.channel.update({
+        where: { id: channelId },
+        data: { archivedAt: new Date() },
+      });
+
+      const user2Res = await request(app).post('/auth/register').send({
+        email: 'add-archived@example.com',
+        password: 'password123',
+        name: 'Add Archived User',
+      });
+
+      const res = await request(app)
+        .post(`/channels/${channelId}/members`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ userId: user2Res.body.user.id });
+
+      expect(res.status).toBe(403);
+      expect(res.body.error).toBe('This channel has been archived');
+
+      await prisma.channel.update({
+        where: { id: channelId },
+        data: { archivedAt: null },
+      });
+    });
+  });
+
   describe('Archived channel edit/delete bypass', () => {
     it('should NOT allow editing messages in archived channels', async () => {
       const msgRes = await request(app)
