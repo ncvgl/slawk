@@ -220,6 +220,17 @@ router.post('/:id/pin', authMiddleware, requireMessageAccess, async (req: AuthRe
   try {
     const messageId = parseIntParam(req.params.id)!;
     const userId = req.user!.userId;
+    const message = req.message;
+
+    // Block pinning in archived channels
+    const pinChannel = await prisma.channel.findUnique({
+      where: { id: message.channelId },
+      select: { archivedAt: true },
+    });
+    if (pinChannel?.archivedAt) {
+      res.status(403).json({ error: 'This channel has been archived' });
+      return;
+    }
 
     const updated = await prisma.message.update({
       where: { id: messageId },
@@ -246,6 +257,16 @@ router.delete('/:id/pin', authMiddleware, requireMessageAccess, async (req: Auth
     const messageId = parseIntParam(req.params.id)!;
     const userId = req.user!.userId;
     const message = req.message;
+
+    // Block unpinning in archived channels
+    const unpinChannel = await prisma.channel.findUnique({
+      where: { id: message.channelId },
+      select: { archivedAt: true },
+    });
+    if (unpinChannel?.archivedAt) {
+      res.status(403).json({ error: 'This channel has been archived' });
+      return;
+    }
 
     const updated = await prisma.message.update({
       where: { id: messageId },

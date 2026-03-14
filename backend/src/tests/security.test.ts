@@ -464,6 +464,67 @@ describe('Security - Input Validation', () => {
     });
   });
 
+  describe('Archived channel pin/unpin bypass', () => {
+    it('should NOT allow pinning messages in archived channels', async () => {
+      const msgRes = await request(app)
+        .post(`/channels/${channelId}/messages`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ content: 'Pin me' });
+      const msgId = msgRes.body.id;
+
+      await prisma.channel.update({
+        where: { id: channelId },
+        data: { archivedAt: new Date() },
+      });
+
+      const res = await request(app)
+        .post(`/messages/${msgId}/pin`)
+        .set('Authorization', `Bearer ${authToken}`);
+      expect(res.status).toBe(403);
+      expect(res.body.error).toBe('This channel has been archived');
+
+      await prisma.channel.update({
+        where: { id: channelId },
+        data: { archivedAt: null },
+      });
+    });
+
+    it('should NOT allow unpinning messages in archived channels', async () => {
+      const msgRes = await request(app)
+        .post(`/channels/${channelId}/messages`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ content: 'Pinned before archive' });
+      const msgId = msgRes.body.id;
+
+      // Pin the message first
+      await request(app)
+        .post(`/messages/${msgId}/pin`)
+        .set('Authorization', `Bearer ${authToken}`);
+
+      // Archive the channel
+      await prisma.channel.update({
+        where: { id: channelId },
+        data: { archivedAt: new Date() },
+      });
+
+      // Unpin should be blocked
+      const res = await request(app)
+        .delete(`/messages/${msgId}/pin`)
+        .set('Authorization', `Bearer ${authToken}`);
+      expect(res.status).toBe(403);
+      expect(res.body.error).toBe('This channel has been archived');
+
+      // Verify message is still pinned
+      const msg = await prisma.message.findUnique({ where: { id: msgId } });
+      expect(msg!.isPinned).toBe(true);
+
+      await prisma.channel.update({
+        where: { id: channelId },
+        data: { archivedAt: null },
+      });
+    });
+  });
+
   describe('Archived channel edit/delete bypass', () => {
     it('should NOT allow editing messages in archived channels', async () => {
       const msgRes = await request(app)
