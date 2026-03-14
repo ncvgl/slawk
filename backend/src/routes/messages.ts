@@ -41,12 +41,12 @@ router.post('/:id/messages', authMiddleware, requireChannelMembership, async (re
       return;
     }
 
-    // Validate threadId belongs to the same channel (prevent cross-channel thread injection)
+    // Validate threadId belongs to the same channel and is not deleted
     if (threadId) {
       const parentMessage = await prisma.message.findUnique({
         where: { id: threadId },
       });
-      if (!parentMessage || parentMessage.channelId !== channelId) {
+      if (!parentMessage || parentMessage.deletedAt || parentMessage.channelId !== channelId) {
         res.status(400).json({ error: 'Thread parent must belong to the same channel' });
         return;
       }

@@ -181,6 +181,22 @@ describe('Messages', () => {
 
       expect(res.status).toBe(404);
     });
+
+    it('should NOT allow threading under a deleted parent via message creation', async () => {
+      // Delete the parent message
+      await request(app)
+        .delete(`/messages/${messageId}`)
+        .set('Authorization', `Bearer ${authToken}`);
+
+      // Try to create a new message with threadId pointing to the deleted parent
+      const res = await request(app)
+        .post(`/channels/${channelId}/messages`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ content: 'Phantom thread reply', threadId: messageId });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('Thread parent must belong to the same channel');
+    });
   });
 
   describe('GET /search', () => {

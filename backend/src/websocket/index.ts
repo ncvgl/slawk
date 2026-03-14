@@ -303,12 +303,12 @@ export function initializeWebSocket(httpServer: HttpServer) {
           return;
         }
 
-        // Validate threadId belongs to the same channel
+        // Validate threadId belongs to the same channel and is not deleted
         if (data.threadId) {
           const parentMessage = await prisma.message.findUnique({
             where: { id: data.threadId },
           });
-          if (!parentMessage || parentMessage.channelId !== data.channelId) {
+          if (!parentMessage || parentMessage.deletedAt || parentMessage.channelId !== data.channelId) {
             socket.emit('error', { message: 'Thread parent must belong to the same channel' });
             return;
           }
