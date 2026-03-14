@@ -93,18 +93,24 @@ router.post('/register', async (req: Request, res: Response) => {
       let assignedRole: 'OWNER' | 'ADMIN' | 'MEMBER' | 'GUEST' = 'MEMBER';
 
       if (inviteCode) {
-        // Re-validate inside transaction to prevent TOCTOU race
-        const invite = await tx.inviteLink.findUnique({ where: { code: inviteCode } });
-        if (!invite || (invite.expiresAt && invite.expiresAt < new Date()) ||
-            (invite.maxUses !== null && invite.useCount >= invite.maxUses)) {
+        // Atomic check-and-increment: a single UPDATE with WHERE conditions
+        // eliminates the race window between findUnique and update that existed
+        // under READ COMMITTED isolation (two concurrent registrations could
+        // both read useCount=0 with maxUses=1, both pass the check, both increment).
+        const claimed = await tx.$queryRaw<Array<{ id: number; role: string }>>`
+          UPDATE "InviteLink"
+          SET "useCount" = "useCount" + 1
+          WHERE "code" = ${inviteCode}
+            AND ("expiresAt" IS NULL OR "expiresAt" >= NOW())
+            AND ("maxUses" IS NULL OR "useCount" < "maxUses")
+          RETURNING id, role
+        `;
+        if (claimed.length === 0) {
           throw new Error('INVITE_INVALID');
         }
         // Cap self-service registration to MEMBER/GUEST — OWNER/ADMIN require admin action
-        assignedRole = (invite.role === 'MEMBER' || invite.role === 'GUEST') ? invite.role : 'MEMBER';
-        await tx.inviteLink.update({
-          where: { id: invite.id },
-          data: { useCount: { increment: 1 } },
-        });
+        const inviteRole = claimed[0].role;
+        assignedRole = (inviteRole === 'MEMBER' || inviteRole === 'GUEST') ? inviteRole as 'MEMBER' | 'GUEST' : 'MEMBER';
       }
 
       return tx.user.create({

@@ -447,6 +447,40 @@ describe('Admin API', () => {
 
         expect(regRes.status).toBe(400);
       });
+
+      it('should not allow concurrent registrations to exceed maxUses', async () => {
+        const inviteRes = await request(app)
+          .post('/admin/invites')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({ role: 'MEMBER', maxUses: 1 });
+
+        const code = inviteRes.body.code;
+
+        // Fire 5 concurrent registration requests with the same invite code
+        const results = await Promise.all(
+          Array.from({ length: 5 }, (_, i) =>
+            request(app)
+              .post('/auth/register')
+              .send({
+                email: `race-${i}@example.com`,
+                password: 'password123',
+                name: `Race User ${i}`,
+                inviteCode: code,
+              })
+          )
+        );
+
+        const successes = results.filter(r => r.status === 201);
+        const failures = results.filter(r => r.status === 400);
+
+        // Exactly 1 should succeed, the rest should fail
+        expect(successes).toHaveLength(1);
+        expect(failures).toHaveLength(4);
+
+        // Verify useCount didn't exceed maxUses
+        const invite = await prisma.inviteLink.findUnique({ where: { code } });
+        expect(invite!.useCount).toBe(1);
+      });
     });
   });
 
