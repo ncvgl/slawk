@@ -565,6 +565,7 @@ router.post('/:userId/read', authMiddleware, async (req: AuthRequest, res: Respo
     // Check if user exists
     const user = await prisma.user.findUnique({
       where: { id: otherUserId },
+      select: { id: true },
     });
 
     if (!user) {

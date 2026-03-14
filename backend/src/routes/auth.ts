@@ -55,7 +55,7 @@ router.post('/register', async (req: Request, res: Response) => {
   try {
     const { email, password, name, inviteCode } = registerSchema.parse(req.body);
 
-    const existingUser = await prisma.user.findUnique({ where: { email } });
+    const existingUser = await prisma.user.findUnique({ where: { email }, select: { id: true } });
     if (existingUser) {
       // Perform dummy hash to normalize timing (prevent user-enumeration via response time)
       await bcrypt.hash(password, 10);
@@ -192,7 +192,13 @@ router.post('/login', async (req: Request, res: Response) => {
       return;
     }
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true, email: true, name: true, avatar: true, role: true,
+        password: true, deactivatedAt: true, tokenVersion: true, createdAt: true,
+      },
+    });
     if (!user) {
       // Dummy bcrypt to normalize response time (prevent timing-based email enumeration)
       await bcrypt.compare(password, '$2b$10$invalidhashfortimingpadding.padding');
@@ -273,7 +279,10 @@ router.post('/change-password', authMiddleware, async (req: AuthRequest, res: Re
     const userId = req.user!.userId;
     const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
 
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, password: true },
+    });
     if (!user) {
       res.status(404).json({ error: 'User not found' });
       return;
