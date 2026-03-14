@@ -130,8 +130,8 @@ router.post('/register', async (req: Request, res: Response) => {
       });
     });
 
-    // Auto-join default channels — guests only join 'general'
-    const channelsToJoin = user.role === 'GUEST' ? ['general'] : ['general', 'random'];
+    // Auto-join default channels — guests get NO auto-join (admin assigns channels)
+    const channelsToJoin = user.role === 'GUEST' ? [] : ['general', 'random'];
     for (const channelName of channelsToJoin) {
       try {
         let channel = await prisma.channel.findFirst({

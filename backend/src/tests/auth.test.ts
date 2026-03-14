@@ -10,6 +10,7 @@ describe('Authentication', () => {
   };
 
   beforeEach(async () => {
+    await prisma.inviteLink.deleteMany();
     await prisma.message.deleteMany();
     await prisma.channelRead.deleteMany();
     await prisma.channelMember.deleteMany();
@@ -63,6 +64,44 @@ describe('Authentication', () => {
         where: { id: general.id },
         data: { archivedAt: null },
       });
+    });
+
+    it('should not auto-join guests to any channel', async () => {
+      // Create a guest invite
+      const adminRes = await request(app).post('/auth/register').send({
+        email: 'guest-admin@example.com',
+        password: 'password123',
+        name: 'Guest Admin',
+      });
+      await prisma.user.update({
+        where: { id: adminRes.body.user.id },
+        data: { role: 'ADMIN' },
+      });
+      const adminLoginRes = await request(app).post('/auth/login').send({
+        email: 'guest-admin@example.com',
+        password: 'password123',
+      });
+
+      const inviteRes = await request(app)
+        .post('/admin/invites')
+        .set('Authorization', `Bearer ${adminLoginRes.body.token}`)
+        .send({ role: 'GUEST' });
+
+      // Register as guest
+      const guestRes = await request(app).post('/auth/register').send({
+        email: 'no-channels-guest@example.com',
+        password: 'password123',
+        name: 'No Channels Guest',
+        inviteCode: inviteRes.body.code,
+      });
+      expect(guestRes.status).toBe(201);
+      expect(guestRes.body.user.role).toBe('GUEST');
+
+      // Guest should have zero channel memberships
+      const memberships = await prisma.channelMember.findMany({
+        where: { userId: guestRes.body.user.id },
+      });
+      expect(memberships).toHaveLength(0);
     });
 
     it('should not register with duplicate email', async () => {
