@@ -39,6 +39,21 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
         res.status(400).json({ error: 'Unable to send message' });
         return;
       }
+
+      // Guests can only DM users who share a channel with them
+      if (req.user!.role === 'GUEST') {
+        const sharedChannel = await prisma.$queryRaw<Array<{ id: number }>>`
+          SELECT cm1."channelId" AS id
+          FROM "ChannelMember" cm1
+          JOIN "ChannelMember" cm2 ON cm2."channelId" = cm1."channelId"
+          WHERE cm1."userId" = ${fromUserId} AND cm2."userId" = ${toUserId}
+          LIMIT 1
+        `;
+        if (sharedChannel.length === 0) {
+          res.status(400).json({ error: 'Unable to send message' });
+          return;
+        }
+      }
     }
 
     const dm = await prisma.$transaction(async (tx) => {
@@ -172,6 +187,21 @@ router.get('/:userId', authMiddleware, async (req: AuthRequest, res: Response) =
     if (!otherUser) {
       res.status(404).json({ error: 'User not found' });
       return;
+    }
+
+    // Guests can only view DM conversations with shared-channel members
+    if (req.user!.role === 'GUEST' && currentUserId !== otherUserId) {
+      const sharedChannel = await prisma.$queryRaw<Array<{ id: number }>>`
+        SELECT cm1."channelId" AS id
+        FROM "ChannelMember" cm1
+        JOIN "ChannelMember" cm2 ON cm2."channelId" = cm1."channelId"
+        WHERE cm1."userId" = ${currentUserId} AND cm2."userId" = ${otherUserId}
+        LIMIT 1
+      `;
+      if (sharedChannel.length === 0) {
+        res.status(404).json({ error: 'User not found' });
+        return;
+      }
     }
 
     // Get messages between the two users

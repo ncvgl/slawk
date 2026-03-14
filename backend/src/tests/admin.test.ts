@@ -784,6 +784,33 @@ describe('Admin API', () => {
       expect(adminSearchRes.body.find((u: any) => u.name === 'Isolated User')).toBeTruthy();
     });
 
+    it('should prevent guest from DMing or viewing users outside shared channels', async () => {
+      // Create a user not in any shared channel with guest
+      const isolatedRes = await request(app).post('/auth/register').send({
+        email: 'dm-isolated@example.com',
+        password: 'password123',
+        name: 'DM Isolated User',
+      });
+      const isolatedId = isolatedRes.body.user.id;
+
+      // Remove from all channels that guest might share
+      await prisma.channelMember.deleteMany({ where: { userId: isolatedId } });
+
+      // Guest tries to send DM — should be blocked
+      const dmRes = await request(app)
+        .post('/dms')
+        .set('Authorization', `Bearer ${guestToken}`)
+        .send({ toUserId: isolatedId, content: 'Hello from guest' });
+      expect(dmRes.status).toBe(400);
+      expect(dmRes.body.error).toBe('Unable to send message');
+
+      // Guest tries to view DM conversation — should be blocked
+      const convRes = await request(app)
+        .get(`/dms/${isolatedId}`)
+        .set('Authorization', `Bearer ${guestToken}`);
+      expect(convRes.status).toBe(404);
+    });
+
     it('should prevent guest from reading public channels they are not a member of', async () => {
       // Create a public channel as admin
       const chRes = await request(app)
