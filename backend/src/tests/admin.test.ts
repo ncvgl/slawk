@@ -745,6 +745,45 @@ describe('Admin API', () => {
       expect(res.status).toBe(403);
     });
 
+    it('should only show shared-channel users to guests in user search', async () => {
+      // Create a user that does NOT share any channel with the guest
+      const isolatedRes = await request(app).post('/auth/register').send({
+        email: 'isolated@example.com',
+        password: 'password123',
+        name: 'Isolated User',
+      });
+      // This user auto-joins 'general' and 'random', but may share 'general' with guest
+      // Remove them from general so they share NO channels with guest
+      const general = await prisma.channel.findFirst({ where: { name: 'general' } });
+      if (general) {
+        await prisma.channelMember.deleteMany({
+          where: { userId: isolatedRes.body.user.id, channelId: general.id },
+        });
+      }
+      const random = await prisma.channel.findFirst({ where: { name: 'random' } });
+      if (random) {
+        await prisma.channelMember.deleteMany({
+          where: { userId: isolatedRes.body.user.id, channelId: random.id },
+        });
+      }
+
+      // Guest searches for the isolated user
+      const res = await request(app)
+        .get('/users?search=Isolated')
+        .set('Authorization', `Bearer ${guestToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.find((u: any) => u.name === 'Isolated User')).toBeUndefined();
+
+      // Admin CAN see the isolated user
+      const adminSearchRes = await request(app)
+        .get('/users?search=Isolated')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(adminSearchRes.status).toBe(200);
+      expect(adminSearchRes.body.find((u: any) => u.name === 'Isolated User')).toBeTruthy();
+    });
+
     it('should prevent guest from reading public channels they are not a member of', async () => {
       // Create a public channel as admin
       const chRes = await request(app)

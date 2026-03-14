@@ -267,8 +267,27 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     const search = rawSearch || undefined;
     const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
 
+    // Guests can only see users who share a channel with them
+    let visibleUserIds: number[] | undefined;
+    if (req.user!.role === 'GUEST') {
+      const guestChannels = await prisma.channelMember.findMany({
+        where: { userId: req.user!.userId },
+        select: { channelId: true },
+      });
+      const channelIds = guestChannels.map(c => c.channelId);
+      const sharedMembers = channelIds.length > 0
+        ? await prisma.channelMember.findMany({
+            where: { channelId: { in: channelIds } },
+            select: { userId: true },
+            distinct: ['userId'],
+          })
+        : [];
+      visibleUserIds = sharedMembers.map(m => m.userId);
+    }
+
     const where = {
       deactivatedAt: null,
+      ...(visibleUserIds && { id: { in: visibleUserIds } }),
       ...(search && { name: { contains: search, mode: 'insensitive' as const } }),
     };
 
