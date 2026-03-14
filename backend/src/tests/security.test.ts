@@ -636,6 +636,29 @@ describe('Security - Input Validation', () => {
         data: { archivedAt: null },
       });
     });
+
+    it('should NOT allow leaving an archived channel (prevents cascade deletion)', async () => {
+      await prisma.channel.update({
+        where: { id: channelId },
+        data: { archivedAt: new Date() },
+      });
+
+      const res = await request(app)
+        .post(`/channels/${channelId}/leave`)
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(res.status).toBe(403);
+      expect(res.body.error).toBe('This channel has been archived');
+
+      // Verify channel still exists
+      const ch = await prisma.channel.findUnique({ where: { id: channelId } });
+      expect(ch).not.toBeNull();
+
+      await prisma.channel.update({
+        where: { id: channelId },
+        data: { archivedAt: null },
+      });
+    });
   });
 
   describe('Archived channel edit/delete bypass', () => {

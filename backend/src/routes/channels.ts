@@ -267,6 +267,16 @@ router.post('/:id/leave', authMiddleware, requireChannelMembership, async (req: 
     const channelId = req.channelId!;
     const userId = req.user!.userId;
 
+    // Block leaving archived channels — prevents cascade deletion of archived history
+    const channel = await prisma.channel.findUnique({
+      where: { id: channelId },
+      select: { archivedAt: true },
+    });
+    if (channel?.archivedAt) {
+      res.status(403).json({ error: 'This channel has been archived' });
+      return;
+    }
+
     // Wrap in transaction to avoid race condition on member count
     const result = await prisma.$transaction(async (tx) => {
       const memberCount = await tx.channelMember.count({ where: { channelId } });
