@@ -588,6 +588,16 @@ router.post('/channels/:id/members', async (req: AuthRequest, res: Response) => 
       data: { userId, channelId },
     });
 
+    const channel = await prisma.channel.findUnique({ where: { id: channelId }, select: { name: true } });
+    writeAuditLog({
+      action: 'channel.member_added',
+      actorId: req.user!.userId,
+      targetType: 'channel',
+      targetId: channelId,
+      targetName: channel?.name,
+      details: `Added user ${userId} to channel`,
+    });
+
     res.json({ message: 'Member added' });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -609,6 +619,8 @@ router.delete('/channels/:id/members/:userId', async (req: AuthRequest, res: Res
       return;
     }
 
+    const channel = await prisma.channel.findUnique({ where: { id: channelId }, select: { name: true } });
+
     await prisma.channelMember.delete({
       where: { userId_channelId: { userId, channelId } },
     });
@@ -623,6 +635,15 @@ router.delete('/channels/:id/members/:userId', async (req: AuthRequest, res: Res
       });
       io.in(`user:${userId}`).socketsLeave(`channel:${channelId}`);
     }
+
+    writeAuditLog({
+      action: 'channel.member_removed',
+      actorId: req.user!.userId,
+      targetType: 'channel',
+      targetId: channelId,
+      targetName: channel?.name,
+      details: `Removed user ${userId} from channel`,
+    });
 
     res.json({ message: 'Member removed' });
   } catch (error) {

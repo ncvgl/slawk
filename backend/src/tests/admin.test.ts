@@ -559,6 +559,21 @@ describe('Admin API', () => {
         const found = membersRes.body.find((m: any) => m.user.id === memberId);
         expect(found).toBeTruthy();
       });
+
+      it('should create audit log when adding a member', async () => {
+        await request(app)
+          .post(`/admin/channels/${channelId}/members`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({ userId: memberId });
+
+        const logs = await prisma.auditLog.findMany({
+          where: { action: 'channel.member_added', targetId: channelId },
+          orderBy: { createdAt: 'desc' },
+        });
+        expect(logs.length).toBeGreaterThanOrEqual(1);
+        expect(logs[0].actorId).toBe(adminId);
+        expect(logs[0].details).toContain(String(memberId));
+      });
     });
 
     describe('DELETE /admin/channels/:id/members/:userId', () => {
@@ -581,6 +596,26 @@ describe('Admin API', () => {
 
         const found = membersRes.body.find((m: any) => m.user.id === memberId);
         expect(found).toBeUndefined();
+      });
+
+      it('should create audit log when removing a member', async () => {
+        // Add then remove
+        await request(app)
+          .post(`/admin/channels/${channelId}/members`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({ userId: memberId });
+
+        await request(app)
+          .delete(`/admin/channels/${channelId}/members/${memberId}`)
+          .set('Authorization', `Bearer ${adminToken}`);
+
+        const logs = await prisma.auditLog.findMany({
+          where: { action: 'channel.member_removed', targetId: channelId },
+          orderBy: { createdAt: 'desc' },
+        });
+        expect(logs.length).toBeGreaterThanOrEqual(1);
+        expect(logs[0].actorId).toBe(adminId);
+        expect(logs[0].details).toContain(String(memberId));
       });
 
       it('should revoke channel access after admin removal', async () => {
