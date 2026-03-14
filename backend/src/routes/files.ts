@@ -305,9 +305,13 @@ const downloadTokenSchema = z.object({
 router.post('/download-token', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const parsed = downloadTokenSchema.safeParse(req.body);
-    const fileId = parsed.success ? parsed.data.fileId : undefined;
+    if (!parsed.success) {
+      res.status(400).json({ error: 'fileId is required' });
+      return;
+    }
+    const { fileId } = parsed.data;
     const downloadToken = jwt.sign(
-      { userId: req.user!.userId, purpose: 'file-download', ...(fileId && { fileId }) },
+      { userId: req.user!.userId, purpose: 'file-download', fileId },
       JWT_SECRET,
       { algorithm: 'HS256', expiresIn: '5m' },
     );
@@ -328,8 +332,8 @@ router.get('/:id/download', (req: AuthRequest, res: Response, next) => {
         res.status(403).json({ error: 'Invalid download token' });
         return;
       }
-      // If token is scoped to a file, verify it matches the requested file
-      if (payload.fileId && payload.fileId !== parseIntParam(req.params.id)) {
+      // Download tokens must be scoped to a specific file
+      if (!payload.fileId || payload.fileId !== parseIntParam(req.params.id)) {
         res.status(403).json({ error: 'Token not valid for this file' });
         return;
       }
@@ -448,8 +452,8 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response) =>
       return;
     }
 
-    // Prevent deletion of files attached to messages
-    if (file.messageId) {
+    // Prevent deletion of files attached to messages or DMs
+    if (file.messageId || file.dmId) {
       res.status(400).json({ error: 'Cannot delete a file that is attached to a message' });
       return;
     }

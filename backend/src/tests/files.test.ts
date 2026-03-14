@@ -40,8 +40,10 @@ describe('File Uploads', () => {
   });
 
   beforeEach(async () => {
+    await prisma.dMReaction.deleteMany();
     await prisma.reaction.deleteMany();
     await prisma.file.deleteMany();
+    await prisma.directMessage.deleteMany();
     await prisma.message.deleteMany();
     await prisma.channelRead.deleteMany();
     await prisma.channelMember.deleteMany();
@@ -162,6 +164,37 @@ describe('File Uploads', () => {
         .get(`/files/${fileId}`)
         .set('Authorization', `Bearer ${authToken}`);
       expect(getRes.status).toBe(404);
+    });
+
+    it('should NOT delete a file attached to a DM', async () => {
+      // Create a second user for the DM
+      const user2Res = await request(app).post('/auth/register').send({
+        email: 'dm-del@example.com',
+        password: 'password123',
+        name: 'DM Delete Test',
+      });
+      const user2Id = user2Res.body.user.id;
+
+      // Send a DM with the file attached
+      const dmRes = await request(app)
+        .post('/dms')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ toUserId: user2Id, content: 'File for you', fileIds: [fileId] });
+      expect(dmRes.status).toBe(201);
+
+      // Try to delete the file — should be blocked
+      const res = await request(app)
+        .delete(`/files/${fileId}`)
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toMatch(/attached/i);
+
+      // Verify file still exists
+      const getRes = await request(app)
+        .get(`/files/${fileId}`)
+        .set('Authorization', `Bearer ${authToken}`);
+      expect(getRes.status).toBe(200);
     });
 
     it('should not delete another user file', async () => {
@@ -295,6 +328,76 @@ describe('File Uploads', () => {
 
       expect(res.status).toBe(400);
       expect(res.body.error).toMatch(/invalid/i);
+    });
+
+    it('should reject download token without fileId', async () => {
+      const res = await request(app)
+        .post('/files/download-token')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({});
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('fileId is required');
+    });
+
+    it('should reject download token with invalid fileId', async () => {
+      const res = await request(app)
+        .post('/files/download-token')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ fileId: 'abc' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('fileId is required');
+    });
+
+    it('should issue a file-scoped download token', async () => {
+      // Upload a file
+      const uploadRes = await request(app)
+        .post('/files')
+        .set('Authorization', `Bearer ${authToken}`)
+        .attach('file', testFilePath);
+      const fileId = uploadRes.body.id;
+
+      // Get a scoped download token
+      const tokenRes = await request(app)
+        .post('/files/download-token')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ fileId });
+
+      expect(tokenRes.status).toBe(200);
+      expect(tokenRes.body).toHaveProperty('token');
+
+      // Token should work for the correct file
+      const downloadRes = await request(app)
+        .get(`/files/${fileId}/download?token=${tokenRes.body.token}`);
+      expect(downloadRes.status).toBe(200);
+    });
+
+    it('should reject download token used for a different file', async () => {
+      // Upload two files
+      const upload1 = await request(app)
+        .post('/files')
+        .set('Authorization', `Bearer ${authToken}`)
+        .attach('file', testFilePath);
+      const file1Id = upload1.body.id;
+
+      const upload2 = await request(app)
+        .post('/files')
+        .set('Authorization', `Bearer ${authToken}`)
+        .attach('file', testFilePath);
+      const file2Id = upload2.body.id;
+
+      // Get token scoped to file 1
+      const tokenRes = await request(app)
+        .post('/files/download-token')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ fileId: file1Id });
+
+      // Try to use it for file 2 — should be rejected
+      const downloadRes = await request(app)
+        .get(`/files/${file2Id}/download?token=${tokenRes.body.token}`);
+      expect(downloadRes.status).toBe(403);
+      expect(downloadRes.body.error).toBe('Token not valid for this file');
     });
 
     it('should reject upload to non-member channel message', async () => {

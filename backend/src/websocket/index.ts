@@ -328,7 +328,7 @@ export function initializeWebSocket(httpServer: HttpServer) {
           // Attach files atomically — validates ownership and unattached status
           if (data.fileIds && data.fileIds.length > 0) {
             const updated = await tx.file.updateMany({
-              where: { id: { in: data.fileIds }, userId: socket.user!.userId, messageId: null },
+              where: { id: { in: data.fileIds }, userId: socket.user!.userId, messageId: null, dmId: null },
               data: { messageId: msg.id },
             });
             if (updated.count !== data.fileIds.length) {

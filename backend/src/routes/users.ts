@@ -232,7 +232,6 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
       where: { id: userId },
       select: {
         id: true,
-        email: true,
         name: true,
         avatar: true,
         status: true,

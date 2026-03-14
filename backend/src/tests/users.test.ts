@@ -129,7 +129,27 @@ describe('User Profiles', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.id).toBe(userId);
-      expect(res.body.email).toBe(testUser.email);
+      expect(res.body.name).toBe(testUser.name);
+    });
+
+    it('should NOT expose email when viewing another user profile', async () => {
+      // Create a second user
+      const otherRes = await request(app).post('/auth/register').send({
+        email: 'other-user@example.com',
+        password: 'password123',
+        name: 'Other User',
+      });
+      const otherUserId = otherRes.body.user.id;
+
+      // View the other user's profile
+      const res = await request(app)
+        .get(`/users/${otherUserId}`)
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.id).toBe(otherUserId);
+      expect(res.body.name).toBe('Other User');
+      expect(res.body).not.toHaveProperty('email');
     });
 
     it('should return 404 for non-existent user', async () => {

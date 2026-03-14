@@ -48,7 +48,7 @@ router.post('/:id/reply', authMiddleware, requireMessageAccess, async (req: Auth
 
       if (fileIds && fileIds.length > 0) {
         const updated = await tx.file.updateMany({
-          where: { id: { in: fileIds }, userId, messageId: null },
+          where: { id: { in: fileIds }, userId, messageId: null, dmId: null },
           data: { messageId: msg.id },
         });
         if (updated.count !== fileIds.length) {

@@ -345,6 +345,26 @@ describe('Direct Messages', () => {
     });
   });
 
+  describe('Email non-disclosure', () => {
+    it('should NOT expose email in DM conversations list', async () => {
+      // Alice sends to Bob to create a conversation
+      await request(app)
+        .post('/dms')
+        .set('Authorization', `Bearer ${aliceToken}`)
+        .send({ toUserId: bobId, content: 'Hey Bob!' });
+
+      const res = await request(app)
+        .get('/dms')
+        .set('Authorization', `Bearer ${aliceToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.length).toBeGreaterThan(0);
+      res.body.forEach((convo: any) => {
+        expect(convo.otherUser).not.toHaveProperty('email');
+      });
+    });
+  });
+
   describe('Unread count edge cases', () => {
     it('should not count sent messages as unread', async () => {
       // Alice sends to Bob

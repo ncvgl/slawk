@@ -183,10 +183,19 @@ router.post('/users/:id/reactivate', async (req: AuthRequest, res: Response) => 
 
     const target = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true },
+      select: { id: true, role: true },
     });
     if (!target) {
       res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    // Enforce same role hierarchy as deactivation:
+    // only OWNER can reactivate ADMIN-level users; an ADMIN cannot
+    // reactivate someone at or above their own rank.
+    const actorRole = req.user!.role || 'MEMBER';
+    if (actorRole !== 'OWNER' && ROLE_RANK[target.role] >= ROLE_RANK[actorRole]) {
+      res.status(403).json({ error: 'Cannot reactivate a user with equal or higher role' });
       return;
     }
 

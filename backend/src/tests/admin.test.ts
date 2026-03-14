@@ -225,6 +225,68 @@ describe('Admin API', () => {
 
       expect(res.status).toBe(404);
     });
+
+    it('should NOT allow an ADMIN to reactivate another ADMIN', async () => {
+      // Create a second admin
+      const admin2Res = await request(app).post('/auth/register').send({
+        email: 'admin2-test@example.com',
+        password: 'password123',
+        name: 'Admin Two',
+      });
+      const admin2Id = admin2Res.body.user.id;
+
+      // Promote to ADMIN and then deactivate via DB (simulating OWNER action)
+      await prisma.user.update({
+        where: { id: admin2Id },
+        data: { role: 'ADMIN', deactivatedAt: new Date(), tokenVersion: { increment: 1 } },
+      });
+
+      // First admin (also ADMIN role) tries to reactivate — should be blocked
+      const res = await request(app)
+        .post(`/admin/users/${admin2Id}/reactivate`)
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.status).toBe(403);
+      expect(res.body.error).toBe('Cannot reactivate a user with equal or higher role');
+
+      // Verify user is still deactivated
+      const user = await prisma.user.findUnique({ where: { id: admin2Id } });
+      expect(user!.deactivatedAt).not.toBeNull();
+    });
+
+    it('should allow OWNER to reactivate an ADMIN', async () => {
+      // Promote the admin to OWNER
+      await prisma.user.update({
+        where: { id: adminId },
+        data: { role: 'OWNER' },
+      });
+      // Re-login as OWNER
+      const ownerLoginRes = await request(app).post('/auth/login').send({
+        email: adminUser.email,
+        password: adminUser.password,
+      });
+      const ownerToken = ownerLoginRes.body.token;
+
+      // Create and deactivate an admin
+      const admin2Res = await request(app).post('/auth/register').send({
+        email: 'admin3-test@example.com',
+        password: 'password123',
+        name: 'Admin Three',
+      });
+      const admin2Id = admin2Res.body.user.id;
+      await prisma.user.update({
+        where: { id: admin2Id },
+        data: { role: 'ADMIN', deactivatedAt: new Date(), tokenVersion: { increment: 1 } },
+      });
+
+      // OWNER reactivates the deactivated admin — should succeed
+      const res = await request(app)
+        .post(`/admin/users/${admin2Id}/reactivate`)
+        .set('Authorization', `Bearer ${ownerToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.deactivatedAt).toBeNull();
+    });
   });
 
   // ─── Invite Links ──────────────────────────────────────────

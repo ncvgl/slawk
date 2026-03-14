@@ -528,6 +528,39 @@ describe('Messages', () => {
       expect(res.body.error).toMatch(/invalid|attached/i);
     });
 
+    it('should NOT allow re-attaching a DM file to a channel message', async () => {
+      // Create a second user for the DM
+      const user2Res = await request(app).post('/auth/register').send({
+        email: 'dm-file-leak@example.com',
+        password: 'password123',
+        name: 'DM File Leak User',
+      });
+      const user2Id = user2Res.body.user.id;
+
+      // Upload a file
+      const uploadRes = await request(app)
+        .post('/files')
+        .set('Authorization', `Bearer ${authToken}`)
+        .attach('file', testFilePath);
+      const fileId = uploadRes.body.id;
+
+      // Attach file to a DM
+      const dmRes = await request(app)
+        .post('/dms')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ toUserId: user2Id, content: 'Private file', fileIds: [fileId] });
+      expect(dmRes.status).toBe(201);
+
+      // Try to re-attach the DM file to a channel message — should be rejected
+      const res = await request(app)
+        .post(`/channels/${channelId}/messages`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ content: 'Leaking DM file to channel', fileIds: [fileId] });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toMatch(/invalid|attached/i);
+    });
+
     it('should create message without fileIds (backward compat)', async () => {
       const res = await request(app)
         .post(`/channels/${channelId}/messages`)

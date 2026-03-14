@@ -28,6 +28,24 @@ export function startScheduler(): NodeJS.Timeout {
 
       for (const scheduled of due) {
         try {
+          // Verify user is not deactivated
+          const user = await prisma.user.findUnique({
+            where: { id: scheduled.userId },
+            select: { deactivatedAt: true },
+          });
+
+          if (user?.deactivatedAt) {
+            // User has been deactivated — cancel the scheduled message
+            await prisma.scheduledMessage.update({
+              where: { id: scheduled.id },
+              data: { sent: true },
+            });
+            console.log(
+              `Scheduler: cancelled scheduled message ${scheduled.id} — user ${scheduled.userId} has been deactivated`
+            );
+            continue;
+          }
+
           // Verify user is still a member of the channel
           const membership = await prisma.channelMember.findUnique({
             where: {

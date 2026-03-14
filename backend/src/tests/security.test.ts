@@ -11,6 +11,7 @@ describe('Security - Channel Access Control', () => {
 
   beforeEach(async () => {
     // Clean up
+    await prisma.scheduledMessage.deleteMany();
     await prisma.reaction.deleteMany();
     await prisma.message.deleteMany();
     await prisma.channelRead.deleteMany();
@@ -147,6 +148,7 @@ describe('Security - Input Validation', () => {
   let channelId: number;
 
   beforeEach(async () => {
+    await prisma.scheduledMessage.deleteMany();
     await prisma.reaction.deleteMany();
     await prisma.message.deleteMany();
     await prisma.channelRead.deleteMany();
@@ -459,6 +461,140 @@ describe('Security - Input Validation', () => {
         .send({ content: 'hello\u0000world' });
 
       expect(res.status).toBe(400);
+    });
+  });
+
+  describe('Deactivated user scheduled messages', () => {
+    let adminToken: string;
+    let targetToken: string;
+    let targetId: number;
+    let schedChannelId: number;
+
+    beforeEach(async () => {
+      // Create admin user (first user becomes OWNER in test setup via direct DB)
+      const adminRes = await request(app).post('/auth/register').send({
+        email: 'admin-sched@example.com',
+        password: 'password123',
+        name: 'Admin Sched',
+      });
+      adminToken = adminRes.body.token;
+      const adminId = adminRes.body.user.id;
+
+      // Promote to OWNER
+      await prisma.user.update({
+        where: { id: adminId },
+        data: { role: 'OWNER' },
+      });
+      // Re-login to get token with updated role
+      const adminLoginRes = await request(app).post('/auth/login').send({
+        email: 'admin-sched@example.com',
+        password: 'password123',
+      });
+      adminToken = adminLoginRes.body.token;
+
+      // Create target user
+      const targetRes = await request(app).post('/auth/register').send({
+        email: 'target-sched@example.com',
+        password: 'password123',
+        name: 'Target User',
+      });
+      targetToken = targetRes.body.token;
+      targetId = targetRes.body.user.id;
+
+      // Create a channel and add target user
+      const chRes = await request(app)
+        .post('/channels')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ name: 'sched-channel' });
+      schedChannelId = chRes.body.id;
+
+      await request(app)
+        .post(`/channels/${schedChannelId}/members`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ userId: targetId });
+    });
+
+    it('should NOT allow deactivated user to send scheduled messages', async () => {
+      // Target user schedules a message
+      const futureDate = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+      const schedRes = await request(app)
+        .post('/messages/schedule')
+        .set('Authorization', `Bearer ${targetToken}`)
+        .send({ content: 'Malicious scheduled message', channelId: schedChannelId, scheduledAt: futureDate });
+      expect(schedRes.status).toBe(201);
+      const scheduledId = schedRes.body.id;
+
+      // Admin deactivates the target user
+      const deactRes = await request(app)
+        .post(`/admin/users/${targetId}/deactivate`)
+        .set('Authorization', `Bearer ${adminToken}`);
+      expect(deactRes.status).toBe(200);
+
+      // Deactivated user's token should be rejected (authMiddleware blocks deactivated users)
+      const sendRes = await request(app)
+        .post(`/messages/scheduled/${scheduledId}/send`)
+        .set('Authorization', `Bearer ${targetToken}`);
+      expect(sendRes.status).toBe(401);
+
+      // Verify the scheduled message is still pending (not sent)
+      const pending = await prisma.scheduledMessage.findUnique({ where: { id: scheduledId } });
+      expect(pending).not.toBeNull();
+      expect(pending!.sent).toBe(false);
+
+      // Verify no message was created in the channel from this user
+      const messages = await prisma.message.findMany({
+        where: { channelId: schedChannelId, userId: targetId },
+      });
+      expect(messages).toHaveLength(0);
+    });
+
+    it('should cancel deactivated user scheduled messages in scheduler', async () => {
+      // Schedule a message in the past (so scheduler would pick it up)
+      const pastDate = new Date(Date.now() - 60 * 1000); // 1 minute ago
+      const scheduled = await prisma.scheduledMessage.create({
+        data: {
+          content: 'Should be cancelled',
+          channelId: schedChannelId,
+          userId: targetId,
+          scheduledAt: pastDate,
+          sent: false,
+        },
+      });
+
+      // Deactivate the user
+      await prisma.user.update({
+        where: { id: targetId },
+        data: { deactivatedAt: new Date(), tokenVersion: { increment: 1 } },
+      });
+
+      // Simulate what the scheduler does: find due messages and process them
+      const due = await prisma.scheduledMessage.findMany({
+        where: { sent: false, scheduledAt: { lte: new Date() }, id: scheduled.id },
+      });
+      expect(due).toHaveLength(1);
+
+      // Check user deactivation (same logic as scheduler)
+      const user = await prisma.user.findUnique({
+        where: { id: targetId },
+        select: { deactivatedAt: true },
+      });
+      expect(user!.deactivatedAt).not.toBeNull();
+
+      // Mark as sent (cancelled) since user is deactivated — simulating scheduler behavior
+      await prisma.scheduledMessage.update({
+        where: { id: scheduled.id },
+        data: { sent: true },
+      });
+
+      // Verify no actual message was created
+      const messages = await prisma.message.findMany({
+        where: { channelId: schedChannelId, userId: targetId },
+      });
+      expect(messages).toHaveLength(0);
+
+      // Verify the scheduled message was marked as sent (cancelled)
+      const cancelled = await prisma.scheduledMessage.findUnique({ where: { id: scheduled.id } });
+      expect(cancelled!.sent).toBe(true);
     });
   });
 

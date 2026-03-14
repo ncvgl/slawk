@@ -119,7 +119,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       )
       SELECT
         jsonb_build_object(
-          'id', u.id, 'name', u.name, 'email', u.email, 'avatar', u.avatar, 'status', u.status
+          'id', u.id, 'name', u.name, 'avatar', u.avatar, 'status', u.status
         ) AS "otherUser",
         jsonb_build_object(
           'id', lm.id, 'content', lm.content, 'fromUserId', lm."fromUserId",
