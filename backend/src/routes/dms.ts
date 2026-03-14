@@ -306,6 +306,18 @@ router.post('/messages/:id/reply', authMiddleware, requireDmAccess, async (req: 
     // Reply goes to the same conversation (same from/to pair)
     const toUserId = parentDm.fromUserId === fromUserId ? parentDm.toUserId : parentDm.fromUserId;
 
+    // Block replies to deactivated users (same check as POST /dms)
+    if (fromUserId !== toUserId) {
+      const recipient = await prisma.user.findUnique({
+        where: { id: toUserId },
+        select: { id: true, deactivatedAt: true },
+      });
+      if (recipient?.deactivatedAt) {
+        res.status(400).json({ error: 'Unable to send message' });
+        return;
+      }
+    }
+
     const reply = await prisma.$transaction(async (tx) => {
       const created = await tx.directMessage.create({
         data: {

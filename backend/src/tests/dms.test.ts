@@ -124,6 +124,31 @@ describe('Direct Messages', () => {
       });
       expect(dms).toHaveLength(0);
     });
+
+    it('should NOT allow replying to a DM thread with a deactivated user', async () => {
+      // Alice sends a DM to Bob (while Bob is still active)
+      const dmRes = await request(app)
+        .post('/dms')
+        .set('Authorization', `Bearer ${aliceToken}`)
+        .send({ toUserId: bobId, content: 'Hey Bob!' });
+      expect(dmRes.status).toBe(201);
+      const parentDmId = dmRes.body.id;
+
+      // Deactivate Bob
+      await prisma.user.update({
+        where: { id: bobId },
+        data: { deactivatedAt: new Date(), tokenVersion: { increment: 1 } },
+      });
+
+      // Alice tries to reply to the thread — should be blocked
+      const replyRes = await request(app)
+        .post(`/dms/messages/${parentDmId}/reply`)
+        .set('Authorization', `Bearer ${aliceToken}`)
+        .send({ content: 'Are you still there?' });
+
+      expect(replyRes.status).toBe(400);
+      expect(replyRes.body.error).toBe('Unable to send message');
+    });
   });
 
   describe('GET /dms/:userId', () => {
