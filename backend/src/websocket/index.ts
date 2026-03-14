@@ -158,10 +158,10 @@ export function initializeWebSocket(httpServer: HttpServer) {
     const users = connectedUserIds.length > 0
       ? await prisma.user.findMany({
           where: { id: { in: connectedUserIds } },
-          select: { id: true, tokenVersion: true },
+          select: { id: true, tokenVersion: true, deactivatedAt: true },
         })
       : [];
-    const versionMap = new Map(users.map(u => [u.id, u.tokenVersion]));
+    const userMap = new Map(users.map(u => [u.id, u]));
 
     for (const [, socket] of io.sockets.sockets) {
       const authSocket = socket as AuthenticatedSocket;
@@ -169,10 +169,16 @@ export function initializeWebSocket(httpServer: HttpServer) {
       if (!token) continue;
       try {
         const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] }) as JwtPayload & { tokenVersion?: number };
-        // Check tokenVersion if present in JWT
-        if (decoded.tokenVersion !== undefined && decoded.userId) {
-          const currentVersion = versionMap.get(decoded.userId);
-          if (currentVersion !== undefined && currentVersion !== decoded.tokenVersion) {
+        if (decoded.userId) {
+          const dbUser = userMap.get(decoded.userId);
+          // Disconnect if user was deleted or deactivated
+          if (!dbUser || dbUser.deactivatedAt) {
+            authSocket.emit('error', { message: 'Session revoked' });
+            authSocket.disconnect(true);
+            continue;
+          }
+          // Check tokenVersion mismatch (password change, admin action)
+          if (decoded.tokenVersion !== undefined && dbUser.tokenVersion !== decoded.tokenVersion) {
             authSocket.emit('error', { message: 'Session revoked' });
             authSocket.disconnect(true);
           }
