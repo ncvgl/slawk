@@ -184,4 +184,40 @@ describe('Authentication', () => {
       expect(elapsed).toBeGreaterThanOrEqual(50);
     });
   });
+
+  describe('POST /auth/change-password', () => {
+    beforeEach(async () => {
+      await request(app).post('/auth/register').send(testUser);
+    });
+
+    it('should invalidate old token after password change', async () => {
+      // Login to get a token
+      const loginRes = await request(app)
+        .post('/auth/login')
+        .send({ email: testUser.email, password: testUser.password });
+      const oldToken = loginRes.body.token;
+
+      // Change password
+      const changeRes = await request(app)
+        .post('/auth/change-password')
+        .set('Authorization', `Bearer ${oldToken}`)
+        .send({ currentPassword: testUser.password, newPassword: 'newpassword123' });
+
+      expect(changeRes.status).toBe(200);
+      expect(changeRes.body).toHaveProperty('token');
+      const newToken = changeRes.body.token;
+
+      // Old token should be rejected (tokenVersion mismatch)
+      const oldTokenRes = await request(app)
+        .get('/users/me')
+        .set('Authorization', `Bearer ${oldToken}`);
+      expect(oldTokenRes.status).toBe(401);
+
+      // New token should work
+      const newTokenRes = await request(app)
+        .get('/users/me')
+        .set('Authorization', `Bearer ${newToken}`);
+      expect(newTokenRes.status).toBe(200);
+    });
+  });
 });

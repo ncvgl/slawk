@@ -7,6 +7,7 @@ import { JWT_SECRET } from '../config.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { AuthRequest } from '../types.js';
 import { logError } from '../utils/logger.js';
+import { kickUser } from '../websocket/index.js';
 
 const router = Router();
 const isTest = process.env.NODE_ENV === 'test';
@@ -305,6 +306,11 @@ router.post('/change-password', authMiddleware, async (req: AuthRequest, res: Re
       },
       select: { id: true, tokenVersion: true },
     });
+
+    // Immediately disconnect all WebSocket connections for this user
+    // (don't wait for the 5-minute periodic revalidation — the password
+    // change may be in response to a compromised account)
+    kickUser(userId);
 
     // Issue a fresh token with the new tokenVersion
     const token = jwt.sign({ userId: updated.id, tokenVersion: updated.tokenVersion }, JWT_SECRET, {
