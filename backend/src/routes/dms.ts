@@ -346,6 +346,21 @@ router.post('/messages/:id/reply', authMiddleware, requireDmAccess, async (req: 
         res.status(400).json({ error: 'Unable to send message' });
         return;
       }
+
+      // Guests can only reply to DMs with shared-channel members
+      if (req.user!.role === 'GUEST') {
+        const sharedChannel = await prisma.$queryRaw<Array<{ id: number }>>`
+          SELECT cm1."channelId" AS id
+          FROM "ChannelMember" cm1
+          JOIN "ChannelMember" cm2 ON cm2."channelId" = cm1."channelId"
+          WHERE cm1."userId" = ${fromUserId} AND cm2."userId" = ${toUserId}
+          LIMIT 1
+        `;
+        if (sharedChannel.length === 0) {
+          res.status(400).json({ error: 'Unable to send message' });
+          return;
+        }
+      }
     }
 
     const reply = await prisma.$transaction(async (tx) => {
