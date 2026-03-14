@@ -217,5 +217,44 @@ describe('User Profiles', () => {
       const profileTestUser = res.body.find((u: { name: string }) => u.name === 'Profile Test User');
       expect(profileTestUser).toBeUndefined();
     });
+
+    it('should NOT return deactivated users in search results', async () => {
+      // Deactivate Alice
+      const alice = await prisma.user.findFirst({ where: { name: 'Alice' } });
+      await prisma.user.update({
+        where: { id: alice!.id },
+        data: { deactivatedAt: new Date() },
+      });
+
+      // Search for Alice — should not appear
+      const res = await request(app)
+        .get('/users?search=Alice')
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.find((u: { name: string }) => u.name === 'Alice')).toBeUndefined();
+    });
+
+    it('should NOT return deactivated users in full listing', async () => {
+      // Get count before deactivation
+      const beforeRes = await request(app)
+        .get('/users')
+        .set('Authorization', `Bearer ${authToken}`);
+      const countBefore = beforeRes.body.length;
+
+      // Deactivate Bob
+      const bob = await prisma.user.findFirst({ where: { name: 'Bob' } });
+      await prisma.user.update({
+        where: { id: bob!.id },
+        data: { deactivatedAt: new Date() },
+      });
+
+      const afterRes = await request(app)
+        .get('/users')
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(afterRes.body.length).toBe(countBefore - 1);
+      expect(afterRes.body.find((u: { name: string }) => u.name === 'Bob')).toBeUndefined();
+    });
   });
 });

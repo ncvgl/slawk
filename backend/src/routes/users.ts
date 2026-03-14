@@ -267,11 +267,10 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     const search = rawSearch || undefined;
     const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
 
-    const where = search
-      ? {
-          name: { contains: search, mode: 'insensitive' as const },
-        }
-      : {};
+    const where = {
+      deactivatedAt: null,
+      ...(search && { name: { contains: search, mode: 'insensitive' as const } }),
+    };
 
     const users = await prisma.user.findMany({
       where,
