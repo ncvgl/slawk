@@ -92,6 +92,12 @@ router.patch('/users/:id', async (req: AuthRequest, res: Response) => {
       select: ADMIN_USER_SELECT,
     });
 
+    // Force-disconnect WebSocket sessions so the user reconnects with
+    // the new role.  Without this, the cached socket.user.role stays
+    // stale until the 5-minute periodic revalidation, letting a user
+    // demoted to GUEST bypass GUEST restrictions (DM/huddle checks).
+    kickUser(userId);
+
     writeAuditLog({
       action: 'user.role_changed',
       actorId: req.user!.userId,
@@ -722,6 +728,11 @@ router.post('/transfer-ownership', async (req: AuthRequest, res: Response) => {
       prisma.user.update({ where: { id: ownerId }, data: { role: 'ADMIN' } }),
       prisma.user.update({ where: { id: userId }, data: { role: 'OWNER' } }),
     ]);
+
+    // Force both users to reconnect so their WebSocket sessions pick up
+    // the new roles immediately (same rationale as role-change kick).
+    kickUser(ownerId);
+    kickUser(userId);
 
     writeAuditLog({
       action: 'workspace.ownership_transferred',

@@ -850,6 +850,50 @@ describe('Admin API', () => {
       expect(msgRes.status).toBe(403);
     });
 
+    it('should enforce GUEST DM restrictions immediately after role demotion', async () => {
+      // Create a target user not sharing a channel with the demoted user
+      const targetRes = await request(app).post('/auth/register').send({
+        email: 'dm-target@example.com',
+        password: 'password123',
+        name: 'DM Target',
+      });
+      const targetId = targetRes.body.user.id;
+
+      // Member can DM anyone (not guest-restricted)
+      const dmBefore = await request(app)
+        .post('/dms')
+        .set('Authorization', `Bearer ${memberToken}`)
+        .send({ toUserId: targetId, content: 'Before demotion' });
+      expect(dmBefore.status).toBe(201);
+
+      // Admin demotes the member to GUEST
+      const demoteRes = await request(app)
+        .patch(`/admin/users/${memberId}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ role: 'GUEST' });
+      expect(demoteRes.status).toBe(200);
+      expect(demoteRes.body.role).toBe('GUEST');
+
+      // Now the user is a GUEST — re-login to get a fresh token
+      const guestLoginRes = await request(app).post('/auth/login').send({
+        email: memberUser.email,
+        password: memberUser.password,
+      });
+      const freshGuestToken = guestLoginRes.body.token;
+
+      // Remove the demoted user from all channels so they share none
+      // with the target (simulates the GUEST isolation model)
+      await prisma.channelMember.deleteMany({ where: { userId: memberId } });
+
+      // GUEST should NOT be able to DM the target (no shared channel)
+      const dmAfter = await request(app)
+        .post('/dms')
+        .set('Authorization', `Bearer ${freshGuestToken}`)
+        .send({ toUserId: targetId, content: 'After demotion' });
+      expect(dmAfter.status).toBe(400);
+      expect(dmAfter.body.error).toBe('Unable to send message');
+    });
+
     it('should NOT allow transferring ownership to a guest', async () => {
       // Promote admin to OWNER
       await prisma.user.update({
