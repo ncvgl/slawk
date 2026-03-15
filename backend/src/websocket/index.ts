@@ -127,6 +127,12 @@ export function initializeWebSocket(httpServer: HttpServer) {
         return next(new Error('Invalid token'));
       }
 
+      // Reject tokens missing tokenVersion — matches HTTP auth middleware.
+      // Without this, revocation via password change / deactivation is bypassed.
+      if (decoded.tokenVersion === undefined) {
+        return next(new Error('Invalid token'));
+      }
+
       // Verify tokenVersion against DB to reject revoked/outdated tokens
       const user = await prisma.user.findUnique({
         where: { id: decoded.userId },
@@ -135,7 +141,7 @@ export function initializeWebSocket(httpServer: HttpServer) {
       if (!user || user.deactivatedAt) {
         return next(new Error('Invalid token'));
       }
-      if (decoded.tokenVersion !== undefined && user.tokenVersion !== decoded.tokenVersion) {
+      if (user.tokenVersion !== decoded.tokenVersion) {
         return next(new Error('Invalid token'));
       }
 
@@ -178,7 +184,9 @@ export function initializeWebSocket(httpServer: HttpServer) {
             continue;
           }
           // Check tokenVersion mismatch (password change, admin action)
-          if (decoded.tokenVersion !== undefined && dbUser.tokenVersion !== decoded.tokenVersion) {
+          // Also disconnect tokens missing tokenVersion entirely — matches
+          // the initial auth check and the HTTP auth middleware.
+          if (decoded.tokenVersion === undefined || dbUser.tokenVersion !== decoded.tokenVersion) {
             authSocket.emit('error', { message: 'Session revoked' });
             authSocket.disconnect(true);
             continue;
