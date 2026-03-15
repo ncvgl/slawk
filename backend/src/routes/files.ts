@@ -9,11 +9,19 @@ import rateLimit from 'express-rate-limit';
 import { Storage } from '@google-cloud/storage';
 import prisma from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
-import { requireFileAccess } from '../middleware/authorize.js';
+import { requireFileAccess, verifyFileAccess } from '../middleware/authorize.js';
 import { AuthRequest } from '../types.js';
 import { parseIntParam } from '../utils/params.js';
 import { logError } from '../utils/logger.js';
 import { JWT_SECRET } from '../config.js';
+
+// Strip internal storage details from file records before sending to clients.
+// The gcsPath reveals the GCS bucket structure and could enable direct bucket
+// access if the bucket has misconfigured ACLs.
+function stripInternalFields(file: any): any {
+  const { gcsPath, ...safe } = file;
+  return safe;
+}
 
 // GCS setup - only initialize if bucket name is configured
 const GCS_BUCKET_NAME = process.env.GCS_BUCKET_NAME;
@@ -197,7 +205,7 @@ router.post('/', authMiddleware, uploadLimiter, (req: AuthRequest, res: Response
         where: { id: messageId },
       });
 
-      if (!message) {
+      if (!message || message.deletedAt) {
         // Delete uploaded file
         fs.unlinkSync(file.path);
         res.status(404).json({ error: 'Message not found' });
@@ -211,15 +219,27 @@ router.post('/', authMiddleware, uploadLimiter, (req: AuthRequest, res: Response
         return;
       }
 
-      const membership = await prisma.channelMember.findUnique({
-        where: {
-          userId_channelId: { userId, channelId: message.channelId },
-        },
-      });
+      const [membership, channel] = await Promise.all([
+        prisma.channelMember.findUnique({
+          where: {
+            userId_channelId: { userId, channelId: message.channelId },
+          },
+        }),
+        prisma.channel.findUnique({
+          where: { id: message.channelId },
+          select: { archivedAt: true },
+        }),
+      ]);
 
       if (!membership) {
         fs.unlinkSync(file.path);
         res.status(403).json({ error: 'You must be a member of the channel' });
+        return;
+      }
+
+      if (channel?.archivedAt) {
+        fs.unlinkSync(file.path);
+        res.status(403).json({ error: 'This channel has been archived' });
         return;
       }
     }
@@ -276,7 +296,7 @@ router.post('/', authMiddleware, uploadLimiter, (req: AuthRequest, res: Response
     });
     fileRecord.url = downloadUrl;
 
-    res.status(201).json(fileRecord);
+    res.status(201).json(stripInternalFields(fileRecord));
   } catch (error) {
     // Clean up orphaned file on disk if Prisma or any post-upload step fails
     if (req.file?.path && fs.existsSync(req.file.path)) {
@@ -290,7 +310,7 @@ router.post('/', authMiddleware, uploadLimiter, (req: AuthRequest, res: Response
 // GET /files/:id - Get file info
 router.get('/:id', authMiddleware, requireFileAccess, async (req: AuthRequest, res: Response) => {
   try {
-    res.json(req.file);
+    res.json(stripInternalFields(req.file));
   } catch (error) {
     logError('Get file error', error);
     res.status(500).json({ error: 'Failed to get file' });
@@ -305,9 +325,23 @@ const downloadTokenSchema = z.object({
 router.post('/download-token', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const parsed = downloadTokenSchema.safeParse(req.body);
-    const fileId = parsed.success ? parsed.data.fileId : undefined;
+    if (!parsed.success) {
+      res.status(400).json({ error: 'fileId is required' });
+      return;
+    }
+    const { fileId } = parsed.data;
+
+    // Verify the user has access to this file before issuing a token.
+    // Tokens are bearer credentials usable without authentication, so
+    // we must not issue them for files the requester cannot access.
+    const file = await verifyFileAccess(req.user!.userId, fileId);
+    if (!file) {
+      res.status(404).json({ error: 'File not found' });
+      return;
+    }
+
     const downloadToken = jwt.sign(
-      { userId: req.user!.userId, purpose: 'file-download', ...(fileId && { fileId }) },
+      { userId: req.user!.userId, purpose: 'file-download', fileId },
       JWT_SECRET,
       { algorithm: 'HS256', expiresIn: '5m' },
     );
@@ -328,8 +362,8 @@ router.get('/:id/download', (req: AuthRequest, res: Response, next) => {
         res.status(403).json({ error: 'Invalid download token' });
         return;
       }
-      // If token is scoped to a file, verify it matches the requested file
-      if (payload.fileId && payload.fileId !== parseIntParam(req.params.id)) {
+      // Download tokens must be scoped to a specific file
+      if (!payload.fileId || payload.fileId !== parseIntParam(req.params.id)) {
         res.status(403).json({ error: 'Token not valid for this file' });
         return;
       }
@@ -444,12 +478,13 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response) =>
     }
 
     if (file.userId !== userId) {
-      res.status(403).json({ error: 'You can only delete your own files' });
+      // Return 404 (not 403) to prevent file-existence enumeration
+      res.status(404).json({ error: 'File not found' });
       return;
     }
 
-    // Prevent deletion of files attached to messages
-    if (file.messageId) {
+    // Prevent deletion of files attached to messages or DMs
+    if (file.messageId || file.dmId) {
       res.status(400).json({ error: 'Cannot delete a file that is attached to a message' });
       return;
     }
@@ -505,7 +540,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       take: limit,
     });
 
-    res.json(files);
+    res.json(files.map(stripInternalFields));
   } catch (error) {
     logError('List files error', error);
     res.status(500).json({ error: 'Failed to list files' });

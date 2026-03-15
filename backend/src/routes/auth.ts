@@ -2,11 +2,13 @@ import { Router, Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 import prisma from '../db.js';
 import { JWT_SECRET } from '../config.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { AuthRequest } from '../types.js';
 import { logError } from '../utils/logger.js';
+import { kickUser } from '../websocket/index.js';
 
 const router = Router();
 const isTest = process.env.NODE_ENV === 'test';
@@ -17,7 +19,7 @@ function stripHtml(str: string): string {
 }
 
 const registerSchema = z.object({
-  email: z.string().email().max(255),
+  email: z.string().email().max(255).transform(e => e.toLowerCase()),
   password: z.string().min(6).max(72),
   name: z.string().min(1).max(100)
     .refine(val => !val.includes('\u0000'), { message: 'Name cannot contain null bytes' })
@@ -26,7 +28,7 @@ const registerSchema = z.object({
 });
 
 const loginSchema = z.object({
-  email: z.string().email(),
+  email: z.string().email().transform(e => e.toLowerCase()),
   password: z.string().min(1).max(72),
 });
 
@@ -55,7 +57,7 @@ router.post('/register', async (req: Request, res: Response) => {
   try {
     const { email, password, name, inviteCode } = registerSchema.parse(req.body);
 
-    const existingUser = await prisma.user.findUnique({ where: { email } });
+    const existingUser = await prisma.user.findUnique({ where: { email }, select: { id: true } });
     if (existingUser) {
       // Perform dummy hash to normalize timing (prevent user-enumeration via response time)
       await bcrypt.hash(password, 10);
@@ -93,18 +95,24 @@ router.post('/register', async (req: Request, res: Response) => {
       let assignedRole: 'OWNER' | 'ADMIN' | 'MEMBER' | 'GUEST' = 'MEMBER';
 
       if (inviteCode) {
-        // Re-validate inside transaction to prevent TOCTOU race
-        const invite = await tx.inviteLink.findUnique({ where: { code: inviteCode } });
-        if (!invite || (invite.expiresAt && invite.expiresAt < new Date()) ||
-            (invite.maxUses !== null && invite.useCount >= invite.maxUses)) {
+        // Atomic check-and-increment: a single UPDATE with WHERE conditions
+        // eliminates the race window between findUnique and update that existed
+        // under READ COMMITTED isolation (two concurrent registrations could
+        // both read useCount=0 with maxUses=1, both pass the check, both increment).
+        const claimed = await tx.$queryRaw<Array<{ id: number; role: string }>>`
+          UPDATE "InviteLink"
+          SET "useCount" = "useCount" + 1
+          WHERE "code" = ${inviteCode}
+            AND ("expiresAt" IS NULL OR "expiresAt" >= NOW())
+            AND ("maxUses" IS NULL OR "useCount" < "maxUses")
+          RETURNING id, role
+        `;
+        if (claimed.length === 0) {
           throw new Error('INVITE_INVALID');
         }
         // Cap self-service registration to MEMBER/GUEST — OWNER/ADMIN require admin action
-        assignedRole = (invite.role === 'MEMBER' || invite.role === 'GUEST') ? invite.role : 'MEMBER';
-        await tx.inviteLink.update({
-          where: { id: invite.id },
-          data: { useCount: { increment: 1 } },
-        });
+        const inviteRole = claimed[0].role;
+        assignedRole = (inviteRole === 'MEMBER' || inviteRole === 'GUEST') ? inviteRole as 'MEMBER' | 'GUEST' : 'MEMBER';
       }
 
       return tx.user.create({
@@ -123,12 +131,12 @@ router.post('/register', async (req: Request, res: Response) => {
       });
     });
 
-    // Auto-join default channels — guests only join 'general'
-    const channelsToJoin = user.role === 'GUEST' ? ['general'] : ['general', 'random'];
+    // Auto-join default channels — guests get NO auto-join (admin assigns channels)
+    const channelsToJoin = user.role === 'GUEST' ? [] : ['general', 'random'];
     for (const channelName of channelsToJoin) {
       try {
         let channel = await prisma.channel.findFirst({
-          where: { name: channelName, isPrivate: false },
+          where: { name: channelName, isPrivate: false, archivedAt: null },
         });
         if (!channel) {
           try {
@@ -138,7 +146,7 @@ router.post('/register', async (req: Request, res: Response) => {
           } catch {
             // Race condition: another request created it concurrently
             channel = await prisma.channel.findFirst({
-              where: { name: channelName, isPrivate: false },
+              where: { name: channelName, isPrivate: false, archivedAt: null },
             });
           }
         }
@@ -169,6 +177,14 @@ router.post('/register', async (req: Request, res: Response) => {
       res.status(400).json({ error: 'Invite code is no longer valid' });
       return;
     }
+    // Handle unique constraint violation (concurrent registration race).
+    // Return the same status + message as the normal existing-email path
+    // so concurrent requests can't differentiate "email already existed"
+    // (400) from "email just now taken by a racing request" (was 500).
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      res.status(400).json({ error: 'Unable to complete registration' });
+      return;
+    }
     logError('Register error', error);
     res.status(500).json({ error: 'Failed to register user' });
   }
@@ -186,9 +202,16 @@ router.post('/login', async (req: Request, res: Response) => {
       return;
     }
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true, email: true, name: true, avatar: true, role: true,
+        password: true, deactivatedAt: true, tokenVersion: true, createdAt: true,
+      },
+    });
     if (!user) {
-      // Track failed attempt even for non-existent users (prevent enumeration timing)
+      // Dummy bcrypt to normalize response time (prevent timing-based email enumeration)
+      await bcrypt.compare(password, '$2b$10$invalidhashfortimingpadding.padding');
       if (loginAttempts.size < MAX_LOCKOUT_ENTRIES) {
         const now = Date.now();
         const current = loginAttempts.get(email) || { count: 0, lockedUntil: 0, lastAttempt: now };
@@ -204,13 +227,12 @@ router.post('/login', async (req: Request, res: Response) => {
       return;
     }
 
-    // Block deactivated accounts (generic message to prevent enumeration)
+    // Block deactivated accounts — still run bcrypt to prevent timing enumeration
+    const validPassword = await bcrypt.compare(password, user.password);
     if (user.deactivatedAt) {
       res.status(401).json({ error: 'Invalid credentials' });
       return;
     }
-
-    const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
       if (loginAttempts.size < MAX_LOCKOUT_ENTRIES) {
         const now = Date.now();
@@ -262,12 +284,41 @@ const changePasswordSchema = z.object({
   newPassword: z.string().min(6).max(72),
 });
 
+// Brute-force protection for password change (keyed on userId, not email,
+// since this endpoint is authenticated).  Without this, an attacker with
+// a stolen JWT can dictionary-attack the currentPassword at 120 req/min.
+const passwordChangeAttempts = new Map<number, { count: number; lockedUntil: number; lastAttempt: number }>();
+const MAX_PW_CHANGE_ATTEMPTS = 5;
+const PW_CHANGE_LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [uid, entry] of passwordChangeAttempts) {
+    if (
+      (entry.lockedUntil > 0 && entry.lockedUntil < now) ||
+      (entry.lockedUntil === 0 && (now - entry.lastAttempt) > PW_CHANGE_LOCKOUT_MS)
+    ) {
+      passwordChangeAttempts.delete(uid);
+    }
+  }
+}, 5 * 60 * 1000).unref();
+
 router.post('/change-password', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.userId;
     const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
 
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    // Check lockout before any DB or bcrypt work
+    const pwAttempts = passwordChangeAttempts.get(userId);
+    if (pwAttempts && pwAttempts.lockedUntil > Date.now()) {
+      res.status(429).json({ error: 'Too many failed attempts. Try again later.' });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, password: true },
+    });
     if (!user) {
       res.status(404).json({ error: 'User not found' });
       return;
@@ -275,9 +326,22 @@ router.post('/change-password', authMiddleware, async (req: AuthRequest, res: Re
 
     const validPassword = await bcrypt.compare(currentPassword, user.password);
     if (!validPassword) {
+      // Track failed attempt
+      const now = Date.now();
+      const current = passwordChangeAttempts.get(userId) || { count: 0, lockedUntil: 0, lastAttempt: now };
+      current.count++;
+      current.lastAttempt = now;
+      if (current.count >= MAX_PW_CHANGE_ATTEMPTS) {
+        current.lockedUntil = now + PW_CHANGE_LOCKOUT_MS;
+        current.count = 0;
+      }
+      passwordChangeAttempts.set(userId, current);
       res.status(401).json({ error: 'Current password is incorrect' });
       return;
     }
+
+    // Clear failed attempts on success
+    passwordChangeAttempts.delete(userId);
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
@@ -290,6 +354,11 @@ router.post('/change-password', authMiddleware, async (req: AuthRequest, res: Re
       },
       select: { id: true, tokenVersion: true },
     });
+
+    // Immediately disconnect all WebSocket connections for this user
+    // (don't wait for the 5-minute periodic revalidation — the password
+    // change may be in response to a compromised account)
+    kickUser(userId);
 
     // Issue a fresh token with the new tokenVersion
     const token = jwt.sign({ userId: updated.id, tokenVersion: updated.tokenVersion }, JWT_SECRET, {

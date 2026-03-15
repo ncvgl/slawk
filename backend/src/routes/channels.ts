@@ -171,18 +171,19 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
 
     const isMember = channel.members.some(m => m.userId === userId);
 
-    // Check access for private channels
-    if (channel.isPrivate && !isMember) {
+    // Check access: private channels require membership; guests can only access their own channels
+    if (!isMember && (channel.isPrivate || req.user!.role === 'GUEST')) {
       res.status(404).json({ error: 'Channel not found' });
       return;
     }
 
-    // Strip emails from member list for non-members viewing public channels
+    // Non-members viewing public channels get a minimal member list:
+    // only user id + name.  The ...m spread that was here previously
+    // leaked ChannelMember fields (role, joinedAt) to non-members.
     if (!isMember) {
       const sanitized = {
         ...channel,
         members: channel.members.map(m => ({
-          ...m,
           user: { id: m.user.id, name: m.user.name },
         })),
       };
@@ -226,6 +227,12 @@ router.post('/:id/join', authMiddleware, async (req: AuthRequest, res: Response)
       return;
     }
 
+    // Prevent joining archived channels
+    if (channel.archivedAt) {
+      res.status(403).json({ error: 'This channel has been archived' });
+      return;
+    }
+
     const existingMembership = await prisma.channelMember.findUnique({
       where: {
         userId_channelId: { userId, channelId },
@@ -260,6 +267,16 @@ router.post('/:id/leave', authMiddleware, requireChannelMembership, async (req: 
   try {
     const channelId = req.channelId!;
     const userId = req.user!.userId;
+
+    // Block leaving archived channels — prevents cascade deletion of archived history
+    const channel = await prisma.channel.findUnique({
+      where: { id: channelId },
+      select: { archivedAt: true },
+    });
+    if (channel?.archivedAt) {
+      res.status(403).json({ error: 'This channel has been archived' });
+      return;
+    }
 
     // Wrap in transaction to avoid race condition on member count
     const result = await prisma.$transaction(async (tx) => {
@@ -343,6 +360,10 @@ router.post('/:id/members', authMiddleware, requireChannelMembership, async (req
 
     // For private channels, only the channel creator can add users
     const channel = await prisma.channel.findUnique({ where: { id: channelId } });
+    if (channel?.archivedAt) {
+      res.status(403).json({ error: 'This channel has been archived' });
+      return;
+    }
     if (channel?.isPrivate) {
       if (channel.createdBy !== req.user!.userId) {
         res.status(403).json({ error: 'Only the channel creator can add members to private channels' });
@@ -350,10 +371,24 @@ router.post('/:id/members', authMiddleware, requireChannelMembership, async (req
       }
     }
 
-    // Check user exists
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    // Check user exists and is active
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, role: true, deactivatedAt: true },
+    });
     if (!user) {
       res.status(404).json({ error: 'User not found' });
+      return;
+    }
+    if (user.deactivatedAt) {
+      res.status(400).json({ error: 'Cannot add a deactivated user to a channel' });
+      return;
+    }
+
+    // Only admins/owners can add guest users to channels (prevents
+    // regular members from expanding guest access beyond admin intent)
+    if (user.role === 'GUEST' && req.user!.role !== 'ADMIN' && req.user!.role !== 'OWNER') {
+      res.status(403).json({ error: 'Only workspace admins can add guest users to channels' });
       return;
     }
 
@@ -420,6 +455,16 @@ router.patch('/:id/members/:userId', authMiddleware, requireChannelMembership, a
 
     const { role } = updateMemberRoleSchema.parse(req.body);
     const actorId = req.user!.userId;
+
+    // Block role changes in archived channels
+    const roleChannel = await prisma.channel.findUnique({
+      where: { id: channelId },
+      select: { archivedAt: true },
+    });
+    if (roleChannel?.archivedAt) {
+      res.status(403).json({ error: 'This channel has been archived' });
+      return;
+    }
 
     // Get actor's channel membership
     const actorMember = await prisma.channelMember.findUnique({
@@ -581,7 +626,15 @@ router.get('/:id/files', authMiddleware, requirePublicChannelReadAccess, async (
       where: {
         message: { channelId, deletedAt: null },
       },
-      include: {
+      select: {
+        id: true,
+        filename: true,
+        originalName: true,
+        mimetype: true,
+        size: true,
+        url: true,
+        userId: true,
+        createdAt: true,
         user: { select: { id: true, name: true, avatar: true } },
       },
       orderBy: { createdAt: 'desc' },

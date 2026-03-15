@@ -77,10 +77,56 @@ export async function requireMessageAccess(
 }
 
 /**
- * Requires the authenticated user to have access to the file
- * specified by req.params.id. If the file is attached to a message,
- * checks channel membership. If unattached, only the file owner
- * can access it. Attaches req.file on success.
+ * Checks whether the given user has access to the specified file.
+ * Returns the file record if access is granted, or null otherwise.
+ *
+ * - Message-attached files: requires channel membership
+ * - DM-attached files: requires DM participation (sender or recipient)
+ * - Unattached files: requires file ownership
+ *
+ * Used by both the requireFileAccess middleware and the download-token
+ * endpoint to avoid duplicating authorization logic.
+ */
+export async function verifyFileAccess(
+  userId: number,
+  fileId: number,
+): Promise<any | null> {
+  const file = await prisma.file.findUnique({
+    where: { id: fileId },
+    include: {
+      user: { select: { id: true, name: true } },
+    },
+  });
+
+  if (!file) return null;
+
+  if (file.messageId) {
+    const message = await prisma.message.findUnique({
+      where: { id: file.messageId, deletedAt: null },
+    });
+    if (!message) return null;
+
+    const membership = await prisma.channelMember.findUnique({
+      where: { userId_channelId: { userId, channelId: message.channelId } },
+    });
+    if (!membership) return null;
+  } else if (file.dmId) {
+    const dm = await prisma.directMessage.findUnique({
+      where: { id: file.dmId },
+    });
+    if (!dm || dm.deletedAt) return null;
+    if (dm.fromUserId !== userId && dm.toUserId !== userId) return null;
+  } else {
+    if (file.userId !== userId) return null;
+  }
+
+  return file;
+}
+
+/**
+ * Express middleware that requires the authenticated user to have access
+ * to the file specified by req.params.id. Attaches req.file on success.
+ * Returns 404 for all unauthorized/missing files to prevent enumeration.
  */
 export async function requireFileAccess(
   req: AuthRequest,
@@ -93,45 +139,10 @@ export async function requireFileAccess(
     return;
   }
 
-  const file = await prisma.file.findUnique({
-    where: { id: fileId },
-    include: {
-      user: { select: { id: true, name: true } },
-    },
-  });
-
+  const file = await verifyFileAccess(req.user!.userId, fileId);
   if (!file) {
     res.status(404).json({ error: 'File not found' });
     return;
-  }
-
-  const userId = req.user!.userId;
-
-  if (file.messageId) {
-    // File is attached to a message — check channel membership and soft-delete
-    const message = await prisma.message.findUnique({
-      where: { id: file.messageId, deletedAt: null },
-    });
-
-    if (!message) {
-      res.status(404).json({ error: 'File not found' });
-      return;
-    }
-
-    const membership = await prisma.channelMember.findUnique({
-      where: { userId_channelId: { userId, channelId: message.channelId } },
-    });
-
-    if (!membership) {
-      res.status(403).json({ error: 'You must be a member of this channel' });
-      return;
-    }
-  } else {
-    // Unattached file — only the owner can access it
-    if (file.userId !== userId) {
-      res.status(403).json({ error: 'Access denied' });
-      return;
-    }
   }
 
   req.file = file;
@@ -241,7 +252,7 @@ export async function requirePublicChannelReadAccess(
     return;
   }
 
-  if (!membership && channel.isPrivate) {
+  if (!membership && (channel.isPrivate || req.user!.role === 'GUEST')) {
     res.status(403).json({ error: 'You must be a member of this channel' });
     return;
   }
@@ -291,7 +302,7 @@ export async function requirePublicMessageReadAccess(
     return;
   }
 
-  if (!membership && channel.isPrivate) {
+  if (!membership && (channel.isPrivate || req.user!.role === 'GUEST')) {
     res.status(403).json({ error: 'You must be a member of this channel' });
     return;
   }

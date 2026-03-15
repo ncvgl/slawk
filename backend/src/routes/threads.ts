@@ -14,7 +14,7 @@ const router = Router();
 const replySchema = z.object({
   content: z.string().min(1).max(4000)
     .refine(val => !val.includes('\u0000'), { message: 'Content cannot contain null bytes' }),
-  fileIds: z.array(z.number()).max(10).optional(),
+  fileIds: z.array(z.number().int().positive()).max(10).optional(),
 });
 
 const editMessageSchema = z.object({
@@ -36,6 +36,16 @@ router.post('/:id/reply', authMiddleware, requireMessageAccess, async (req: Auth
       return;
     }
 
+    // Block replies in archived channels
+    const channel = await prisma.channel.findUnique({
+      where: { id: parentMessage.channelId },
+      select: { archivedAt: true },
+    });
+    if (channel?.archivedAt) {
+      res.status(403).json({ error: 'This channel has been archived' });
+      return;
+    }
+
     const reply = await prisma.$transaction(async (tx) => {
       const msg = await tx.message.create({
         data: {
@@ -48,7 +58,7 @@ router.post('/:id/reply', authMiddleware, requireMessageAccess, async (req: Auth
 
       if (fileIds && fileIds.length > 0) {
         const updated = await tx.file.updateMany({
-          where: { id: { in: fileIds }, userId, messageId: null },
+          where: { id: { in: fileIds }, userId, messageId: null, dmId: null },
           data: { messageId: msg.id },
         });
         if (updated.count !== fileIds.length) {
@@ -124,6 +134,16 @@ router.patch('/:id', authMiddleware, requireMessageAccess, async (req: AuthReque
       return;
     }
 
+    // Block edits in archived channels
+    const channel = await prisma.channel.findUnique({
+      where: { id: message.channelId },
+      select: { archivedAt: true },
+    });
+    if (channel?.archivedAt) {
+      res.status(403).json({ error: 'This channel has been archived' });
+      return;
+    }
+
     const updatedMessage = await prisma.message.update({
       where: { id: messageId },
       data: { content, editedAt: new Date() },
@@ -153,6 +173,16 @@ router.delete('/:id', authMiddleware, requireMessageAccess, async (req: AuthRequ
 
     if (message.userId !== userId) {
       res.status(403).json({ error: 'You can only delete your own messages' });
+      return;
+    }
+
+    // Block deletes in archived channels
+    const channel = await prisma.channel.findUnique({
+      where: { id: message.channelId },
+      select: { archivedAt: true },
+    });
+    if (channel?.archivedAt) {
+      res.status(403).json({ error: 'This channel has been archived' });
       return;
     }
 
@@ -190,6 +220,17 @@ router.post('/:id/pin', authMiddleware, requireMessageAccess, async (req: AuthRe
   try {
     const messageId = parseIntParam(req.params.id)!;
     const userId = req.user!.userId;
+    const message = req.message;
+
+    // Block pinning in archived channels
+    const pinChannel = await prisma.channel.findUnique({
+      where: { id: message.channelId },
+      select: { archivedAt: true },
+    });
+    if (pinChannel?.archivedAt) {
+      res.status(403).json({ error: 'This channel has been archived' });
+      return;
+    }
 
     const updated = await prisma.message.update({
       where: { id: messageId },
@@ -216,6 +257,16 @@ router.delete('/:id/pin', authMiddleware, requireMessageAccess, async (req: Auth
     const messageId = parseIntParam(req.params.id)!;
     const userId = req.user!.userId;
     const message = req.message;
+
+    // Block unpinning in archived channels
+    const unpinChannel = await prisma.channel.findUnique({
+      where: { id: message.channelId },
+      select: { archivedAt: true },
+    });
+    if (unpinChannel?.archivedAt) {
+      res.status(403).json({ error: 'This channel has been archived' });
+      return;
+    }
 
     const updated = await prisma.message.update({
       where: { id: messageId },

@@ -69,29 +69,49 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     // Search DMs (only if no channelId filter)
     let dms: any[] = [];
     if (searchDMs && !channelId) {
-      dms = await prisma.directMessage.findMany({
-        where: {
+      // Guests: restrict DM search to shared-channel members only
+      let dmUserFilter: number[] | undefined;
+      if (req.user!.role === 'GUEST') {
+        const sharedMembers = await prisma.$queryRaw<Array<{ userId: number }>>`
+          SELECT DISTINCT cm2."userId"
+          FROM "ChannelMember" cm1
+          JOIN "ChannelMember" cm2 ON cm2."channelId" = cm1."channelId" AND cm2."userId" != cm1."userId"
+          WHERE cm1."userId" = ${userId}
+        `;
+        dmUserFilter = sharedMembers.map(m => m.userId);
+        if (dmUserFilter.length === 0) {
+          // Guest has no shared-channel members — skip DM search entirely
+          dmUserFilter = undefined;
+        }
+      }
+
+      if (req.user!.role !== 'GUEST' || dmUserFilter) {
+        const dmWhere: any = {
           OR: [
-            { fromUserId: userId },
-            { toUserId: userId },
+            { fromUserId: userId, ...(dmUserFilter && { toUserId: { in: dmUserFilter } }) },
+            { toUserId: userId, ...(dmUserFilter && { fromUserId: { in: dmUserFilter } }) },
           ],
           deletedAt: null,
           content: {
             contains: query,
             mode: 'insensitive',
           },
-        },
-        include: {
-          fromUser: {
-            select: { id: true, name: true, avatar: true },
+        };
+
+        dms = await prisma.directMessage.findMany({
+          where: dmWhere,
+          include: {
+            fromUser: {
+              select: { id: true, name: true, avatar: true },
+            },
+            toUser: {
+              select: { id: true, name: true, avatar: true },
+            },
           },
-          toUser: {
-            select: { id: true, name: true, avatar: true },
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 25,
-      });
+          orderBy: { createdAt: 'desc' },
+          take: 25,
+        });
+      }
     }
 
     // Combine and format results

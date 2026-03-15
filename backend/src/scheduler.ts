@@ -28,29 +28,29 @@ export function startScheduler(): NodeJS.Timeout {
 
       for (const scheduled of due) {
         try {
-          // Verify user is still a member of the channel
-          const membership = await prisma.channelMember.findUnique({
-            where: {
-              userId_channelId: {
-                userId: scheduled.userId,
-                channelId: scheduled.channelId,
-              },
-            },
+          // Verify user is not deactivated
+          const user = await prisma.user.findUnique({
+            where: { id: scheduled.userId },
+            select: { deactivatedAt: true },
           });
 
-          if (!membership) {
-            // User is no longer a member — cancel the scheduled message
+          if (user?.deactivatedAt) {
+            // User has been deactivated — cancel the scheduled message
             await prisma.scheduledMessage.update({
               where: { id: scheduled.id },
               data: { sent: true },
             });
             console.log(
-              `Scheduler: cancelled scheduled message ${scheduled.id} — user ${scheduled.userId} is no longer a member of channel ${scheduled.channelId}`
+              `Scheduler: cancelled scheduled message ${scheduled.id} — user ${scheduled.userId} has been deactivated`
             );
             continue;
           }
 
-          // Atomically claim and create message to prevent duplicates on crash
+          // Atomically claim, re-verify authorization, and create message.
+          // Membership and archival are checked inside the transaction to
+          // close the TOCTOU gap — without this, a user removed from the
+          // channel between the check and the INSERT could still inject a
+          // message into a channel they no longer belong to.
           const message = await prisma.$transaction(async (tx) => {
             const claimed = await tx.scheduledMessage.updateMany({
               where: { id: scheduled.id, sent: false },
@@ -58,7 +58,25 @@ export function startScheduler(): NodeJS.Timeout {
             });
             if (claimed.count === 0) return null; // Already processed
 
-            return tx.message.create({
+            // Verify membership inside transaction
+            const membership = await tx.channelMember.findUnique({
+              where: {
+                userId_channelId: {
+                  userId: scheduled.userId,
+                  channelId: scheduled.channelId,
+                },
+              },
+            });
+            if (!membership) return { cancelled: 'not-member' as const };
+
+            // Verify channel is not archived inside transaction
+            const channel = await tx.channel.findUnique({
+              where: { id: scheduled.channelId },
+              select: { archivedAt: true },
+            });
+            if (channel?.archivedAt) return { cancelled: 'archived' as const };
+
+            const msg = await tx.message.create({
               data: {
                 content: scheduled.content,
                 userId: scheduled.userId,
@@ -69,7 +87,18 @@ export function startScheduler(): NodeJS.Timeout {
                 files: { select: FILE_SELECT },
               },
             });
+            return msg;
           });
+
+          if (!message) continue; // Already claimed by another instance
+
+          if ('cancelled' in message) {
+            const reason = message.cancelled === 'not-member'
+              ? `user ${scheduled.userId} is no longer a member of channel ${scheduled.channelId}`
+              : `channel ${scheduled.channelId} has been archived`;
+            console.log(`Scheduler: cancelled scheduled message ${scheduled.id} — ${reason}`);
+            continue;
+          }
 
           if (!message) continue; // Already claimed by another instance
 

@@ -226,6 +226,68 @@ describe('Admin API', () => {
 
       expect(res.status).toBe(404);
     });
+
+    it('should NOT allow an ADMIN to reactivate another ADMIN', async () => {
+      // Create a second admin
+      const admin2Res = await request(app).post('/auth/register').send({
+        email: 'admin2-test@example.com',
+        password: 'password123',
+        name: 'Admin Two',
+      });
+      const admin2Id = admin2Res.body.user.id;
+
+      // Promote to ADMIN and then deactivate via DB (simulating OWNER action)
+      await prisma.user.update({
+        where: { id: admin2Id },
+        data: { role: 'ADMIN', deactivatedAt: new Date(), tokenVersion: { increment: 1 } },
+      });
+
+      // First admin (also ADMIN role) tries to reactivate — should be blocked
+      const res = await request(app)
+        .post(`/admin/users/${admin2Id}/reactivate`)
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.status).toBe(403);
+      expect(res.body.error).toBe('Cannot reactivate a user with equal or higher role');
+
+      // Verify user is still deactivated
+      const user = await prisma.user.findUnique({ where: { id: admin2Id } });
+      expect(user!.deactivatedAt).not.toBeNull();
+    });
+
+    it('should allow OWNER to reactivate an ADMIN', async () => {
+      // Promote the admin to OWNER
+      await prisma.user.update({
+        where: { id: adminId },
+        data: { role: 'OWNER' },
+      });
+      // Re-login as OWNER
+      const ownerLoginRes = await request(app).post('/auth/login').send({
+        email: adminUser.email,
+        password: adminUser.password,
+      });
+      const ownerToken = ownerLoginRes.body.token;
+
+      // Create and deactivate an admin
+      const admin2Res = await request(app).post('/auth/register').send({
+        email: 'admin3-test@example.com',
+        password: 'password123',
+        name: 'Admin Three',
+      });
+      const admin2Id = admin2Res.body.user.id;
+      await prisma.user.update({
+        where: { id: admin2Id },
+        data: { role: 'ADMIN', deactivatedAt: new Date(), tokenVersion: { increment: 1 } },
+      });
+
+      // OWNER reactivates the deactivated admin — should succeed
+      const res = await request(app)
+        .post(`/admin/users/${admin2Id}/reactivate`)
+        .set('Authorization', `Bearer ${ownerToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.deactivatedAt).toBeNull();
+    });
   });
 
   // ─── Invite Links ──────────────────────────────────────────
@@ -386,6 +448,40 @@ describe('Admin API', () => {
 
         expect(regRes.status).toBe(400);
       });
+
+      it('should not allow concurrent registrations to exceed maxUses', async () => {
+        const inviteRes = await request(app)
+          .post('/admin/invites')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({ role: 'MEMBER', maxUses: 1 });
+
+        const code = inviteRes.body.code;
+
+        // Fire 5 concurrent registration requests with the same invite code
+        const results = await Promise.all(
+          Array.from({ length: 5 }, (_, i) =>
+            request(app)
+              .post('/auth/register')
+              .send({
+                email: `race-${i}@example.com`,
+                password: 'password123',
+                name: `Race User ${i}`,
+                inviteCode: code,
+              })
+          )
+        );
+
+        const successes = results.filter(r => r.status === 201);
+        const failures = results.filter(r => r.status === 400);
+
+        // Exactly 1 should succeed, the rest should fail
+        expect(successes).toHaveLength(1);
+        expect(failures).toHaveLength(4);
+
+        // Verify useCount didn't exceed maxUses
+        const invite = await prisma.inviteLink.findUnique({ where: { code } });
+        expect(invite!.useCount).toBe(1);
+      });
     });
   });
 
@@ -464,6 +560,21 @@ describe('Admin API', () => {
         const found = membersRes.body.find((m: any) => m.user.id === memberId);
         expect(found).toBeTruthy();
       });
+
+      it('should create audit log when adding a member', async () => {
+        await request(app)
+          .post(`/admin/channels/${channelId}/members`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({ userId: memberId });
+
+        const logs = await prisma.auditLog.findMany({
+          where: { action: 'channel.member_added', targetId: channelId },
+          orderBy: { createdAt: 'desc' },
+        });
+        expect(logs.length).toBeGreaterThanOrEqual(1);
+        expect(logs[0].actorId).toBe(adminId);
+        expect(logs[0].details).toContain(String(memberId));
+      });
     });
 
     describe('DELETE /admin/channels/:id/members/:userId', () => {
@@ -486,6 +597,63 @@ describe('Admin API', () => {
 
         const found = membersRes.body.find((m: any) => m.user.id === memberId);
         expect(found).toBeUndefined();
+      });
+
+      it('should create audit log when removing a member', async () => {
+        // Add then remove
+        await request(app)
+          .post(`/admin/channels/${channelId}/members`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({ userId: memberId });
+
+        await request(app)
+          .delete(`/admin/channels/${channelId}/members/${memberId}`)
+          .set('Authorization', `Bearer ${adminToken}`);
+
+        const logs = await prisma.auditLog.findMany({
+          where: { action: 'channel.member_removed', targetId: channelId },
+          orderBy: { createdAt: 'desc' },
+        });
+        expect(logs.length).toBeGreaterThanOrEqual(1);
+        expect(logs[0].actorId).toBe(adminId);
+        expect(logs[0].details).toContain(String(memberId));
+      });
+
+      it('should revoke channel access after admin removal', async () => {
+        // Make the channel private so non-members are blocked
+        await prisma.channel.update({
+          where: { id: channelId },
+          data: { isPrivate: true },
+        });
+
+        // Add member and send a message
+        await request(app)
+          .post(`/admin/channels/${channelId}/members`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({ userId: memberId });
+
+        await request(app)
+          .post(`/channels/${channelId}/messages`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({ content: 'Secret message' });
+
+        // Member can read messages while still a member
+        const beforeRes = await request(app)
+          .get(`/channels/${channelId}/messages`)
+          .set('Authorization', `Bearer ${memberToken}`);
+        expect(beforeRes.status).toBe(200);
+        expect(beforeRes.body.messages).toHaveLength(1);
+
+        // Admin removes the member
+        await request(app)
+          .delete(`/admin/channels/${channelId}/members/${memberId}`)
+          .set('Authorization', `Bearer ${adminToken}`);
+
+        // Removed user can no longer read messages
+        const afterRes = await request(app)
+          .get(`/channels/${channelId}/messages`)
+          .set('Authorization', `Bearer ${memberToken}`);
+        expect(afterRes.status).toBe(403);
       });
     });
   });
@@ -537,12 +705,224 @@ describe('Admin API', () => {
       expect(res.status).toBe(403);
     });
 
+    it('should prevent regular members from adding guests to channels', async () => {
+      // Get the guest user
+      const guest = await prisma.user.findFirst({ where: { email: 'guest@example.com' } });
+
+      // Create a channel as a regular member (memberToken)
+      const chRes = await request(app)
+        .post('/channels')
+        .set('Authorization', `Bearer ${memberToken}`)
+        .send({ name: 'member-channel' });
+
+      // Regular member tries to add guest — should be blocked
+      const res = await request(app)
+        .post(`/channels/${chRes.body.id}/members`)
+        .set('Authorization', `Bearer ${memberToken}`)
+        .send({ userId: guest!.id });
+
+      expect(res.status).toBe(403);
+      expect(res.body.error).toBe('Only workspace admins can add guest users to channels');
+
+      // Admin CAN add the guest
+      // First join the channel as admin
+      await request(app)
+        .post(`/channels/${chRes.body.id}/join`)
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      const adminRes = await request(app)
+        .post(`/channels/${chRes.body.id}/members`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ userId: guest!.id });
+
+      expect(adminRes.status).toBe(200);
+    });
+
     it('should prevent guest from accessing admin routes', async () => {
       const res = await request(app)
         .get('/admin/users')
         .set('Authorization', `Bearer ${guestToken}`);
 
       expect(res.status).toBe(403);
+    });
+
+    it('should only show shared-channel users to guests in user search', async () => {
+      // Create a user that does NOT share any channel with the guest
+      const isolatedRes = await request(app).post('/auth/register').send({
+        email: 'isolated@example.com',
+        password: 'password123',
+        name: 'Isolated User',
+      });
+      // This user auto-joins 'general' and 'random', but may share 'general' with guest
+      // Remove them from general so they share NO channels with guest
+      const general = await prisma.channel.findFirst({ where: { name: 'general' } });
+      if (general) {
+        await prisma.channelMember.deleteMany({
+          where: { userId: isolatedRes.body.user.id, channelId: general.id },
+        });
+      }
+      const random = await prisma.channel.findFirst({ where: { name: 'random' } });
+      if (random) {
+        await prisma.channelMember.deleteMany({
+          where: { userId: isolatedRes.body.user.id, channelId: random.id },
+        });
+      }
+
+      // Guest searches for the isolated user
+      const res = await request(app)
+        .get('/users?search=Isolated')
+        .set('Authorization', `Bearer ${guestToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.find((u: any) => u.name === 'Isolated User')).toBeUndefined();
+
+      // Admin CAN see the isolated user
+      const adminSearchRes = await request(app)
+        .get('/users?search=Isolated')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(adminSearchRes.status).toBe(200);
+      expect(adminSearchRes.body.find((u: any) => u.name === 'Isolated User')).toBeTruthy();
+    });
+
+    it('should prevent guest from DMing or viewing users outside shared channels', async () => {
+      // Create a user not in any shared channel with guest
+      const isolatedRes = await request(app).post('/auth/register').send({
+        email: 'dm-isolated@example.com',
+        password: 'password123',
+        name: 'DM Isolated User',
+      });
+      const isolatedId = isolatedRes.body.user.id;
+
+      // Remove from all channels that guest might share
+      await prisma.channelMember.deleteMany({ where: { userId: isolatedId } });
+
+      // Guest tries to send DM — should be blocked
+      const dmRes = await request(app)
+        .post('/dms')
+        .set('Authorization', `Bearer ${guestToken}`)
+        .send({ toUserId: isolatedId, content: 'Hello from guest' });
+      expect(dmRes.status).toBe(400);
+      expect(dmRes.body.error).toBe('Unable to send message');
+
+      // Guest tries to view DM conversation — should be blocked
+      const convRes = await request(app)
+        .get(`/dms/${isolatedId}`)
+        .set('Authorization', `Bearer ${guestToken}`);
+      expect(convRes.status).toBe(404);
+
+      // Guest tries to view user profile by ID — should be blocked
+      const profileRes = await request(app)
+        .get(`/users/${isolatedId}`)
+        .set('Authorization', `Bearer ${guestToken}`);
+      expect(profileRes.status).toBe(404);
+
+      // Guest tries to check presence by ID — should be blocked
+      const presenceRes = await request(app)
+        .get(`/users/${isolatedId}/presence`)
+        .set('Authorization', `Bearer ${guestToken}`);
+      expect(presenceRes.status).toBe(404);
+    });
+
+    it('should prevent guest from reading public channels they are not a member of', async () => {
+      // Create a public channel as admin
+      const chRes = await request(app)
+        .post('/channels')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ name: 'guest-blocked-public' });
+      const publicChannelId = chRes.body.id;
+
+      // Send a message in it
+      await request(app)
+        .post(`/channels/${publicChannelId}/messages`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ content: 'Not for guests' });
+
+      // Guest should not be able to view channel details
+      const detailRes = await request(app)
+        .get(`/channels/${publicChannelId}`)
+        .set('Authorization', `Bearer ${guestToken}`);
+      expect(detailRes.status).toBe(404);
+
+      // Guest should not be able to read messages
+      const msgRes = await request(app)
+        .get(`/channels/${publicChannelId}/messages`)
+        .set('Authorization', `Bearer ${guestToken}`);
+      expect(msgRes.status).toBe(403);
+    });
+
+    it('should enforce GUEST DM restrictions immediately after role demotion', async () => {
+      // Create a target user not sharing a channel with the demoted user
+      const targetRes = await request(app).post('/auth/register').send({
+        email: 'dm-target@example.com',
+        password: 'password123',
+        name: 'DM Target',
+      });
+      const targetId = targetRes.body.user.id;
+
+      // Member can DM anyone (not guest-restricted)
+      const dmBefore = await request(app)
+        .post('/dms')
+        .set('Authorization', `Bearer ${memberToken}`)
+        .send({ toUserId: targetId, content: 'Before demotion' });
+      expect(dmBefore.status).toBe(201);
+
+      // Admin demotes the member to GUEST
+      const demoteRes = await request(app)
+        .patch(`/admin/users/${memberId}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ role: 'GUEST' });
+      expect(demoteRes.status).toBe(200);
+      expect(demoteRes.body.role).toBe('GUEST');
+
+      // Now the user is a GUEST — re-login to get a fresh token
+      const guestLoginRes = await request(app).post('/auth/login').send({
+        email: memberUser.email,
+        password: memberUser.password,
+      });
+      const freshGuestToken = guestLoginRes.body.token;
+
+      // Remove the demoted user from all channels so they share none
+      // with the target (simulates the GUEST isolation model)
+      await prisma.channelMember.deleteMany({ where: { userId: memberId } });
+
+      // GUEST should NOT be able to DM the target (no shared channel)
+      const dmAfter = await request(app)
+        .post('/dms')
+        .set('Authorization', `Bearer ${freshGuestToken}`)
+        .send({ toUserId: targetId, content: 'After demotion' });
+      expect(dmAfter.status).toBe(400);
+      expect(dmAfter.body.error).toBe('Unable to send message');
+    });
+
+    it('should NOT allow transferring ownership to a guest', async () => {
+      // Promote admin to OWNER
+      await prisma.user.update({
+        where: { id: adminId },
+        data: { role: 'OWNER' },
+      });
+      const ownerLoginRes = await request(app).post('/auth/login').send({
+        email: adminUser.email,
+        password: adminUser.password,
+      });
+      const ownerToken = ownerLoginRes.body.token;
+
+      // Get the guest user ID
+      const guest = await prisma.user.findFirst({ where: { email: 'guest@example.com' } });
+
+      const res = await request(app)
+        .post('/admin/transfer-ownership')
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({ userId: guest!.id });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('Cannot transfer ownership to a guest user');
+
+      // Verify roles didn't change
+      const ownerAfter = await prisma.user.findUnique({ where: { id: adminId } });
+      expect(ownerAfter!.role).toBe('OWNER');
+      const guestAfter = await prisma.user.findUnique({ where: { id: guest!.id } });
+      expect(guestAfter!.role).toBe('GUEST');
     });
   });
 });

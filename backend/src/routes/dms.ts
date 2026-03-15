@@ -16,7 +16,7 @@ const sendDMSchema = z.object({
   toUserId: z.number().int().positive(),
   content: z.string().max(4000)
     .refine(val => !val.includes('\u0000'), { message: 'Content cannot contain null bytes' }),
-  fileIds: z.array(z.number()).max(10).optional(),
+  fileIds: z.array(z.number().int().positive()).max(10).optional(),
 }).refine(
   (data) => (data.content?.trim().length ?? 0) > 0 || (data.fileIds && data.fileIds.length > 0),
   { message: 'Message must have content or file attachments' },
@@ -28,15 +28,31 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     const fromUserId = req.user!.userId;
     const { toUserId, content, fileIds } = sendDMSchema.parse(req.body);
 
-    // Check if recipient exists (self-DM is allowed)
+    // Check if recipient exists and is active (self-DM is allowed)
     if (fromUserId !== toUserId) {
       const recipient = await prisma.user.findUnique({
         where: { id: toUserId },
+        select: { id: true, deactivatedAt: true },
       });
 
-      if (!recipient) {
+      if (!recipient || recipient.deactivatedAt) {
         res.status(400).json({ error: 'Unable to send message' });
         return;
+      }
+
+      // Guests can only DM users who share a channel with them
+      if (req.user!.role === 'GUEST') {
+        const sharedChannel = await prisma.$queryRaw<Array<{ id: number }>>`
+          SELECT cm1."channelId" AS id
+          FROM "ChannelMember" cm1
+          JOIN "ChannelMember" cm2 ON cm2."channelId" = cm1."channelId"
+          WHERE cm1."userId" = ${fromUserId} AND cm2."userId" = ${toUserId}
+          LIMIT 1
+        `;
+        if (sharedChannel.length === 0) {
+          res.status(400).json({ error: 'Unable to send message' });
+          return;
+        }
       }
     }
 
@@ -119,7 +135,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       )
       SELECT
         jsonb_build_object(
-          'id', u.id, 'name', u.name, 'email', u.email, 'avatar', u.avatar, 'status', u.status
+          'id', u.id, 'name', u.name, 'avatar', u.avatar, 'status', u.status
         ) AS "otherUser",
         jsonb_build_object(
           'id', lm.id, 'content', lm.content, 'fromUserId', lm."fromUserId",
@@ -135,8 +151,23 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       ORDER BY lm."createdAt" DESC NULLS LAST
     `;
 
+    // Guests: filter conversations to only shared-channel members
+    let filteredConversations = conversations;
+    if (req.user!.role === 'GUEST') {
+      const sharedMembers = await prisma.$queryRaw<Array<{ userId: number }>>`
+        SELECT DISTINCT cm2."userId"
+        FROM "ChannelMember" cm1
+        JOIN "ChannelMember" cm2 ON cm2."channelId" = cm1."channelId" AND cm2."userId" != cm1."userId"
+        WHERE cm1."userId" = ${userId}
+      `;
+      const sharedIds = new Set(sharedMembers.map(m => m.userId));
+      filteredConversations = conversations.filter(
+        (conv: any) => conv.otherUser && sharedIds.has(conv.otherUser.id)
+      );
+    }
+
     // Apply online status from WebSocket tracking
-    const result = conversations.map((conv) => ({
+    const result = filteredConversations.map((conv) => ({
       otherUser: conv.otherUser ? {
         ...conv.otherUser,
         status: isUserOnline(conv.otherUser.id) ? 'online' : 'offline',
@@ -171,6 +202,21 @@ router.get('/:userId', authMiddleware, async (req: AuthRequest, res: Response) =
     if (!otherUser) {
       res.status(404).json({ error: 'User not found' });
       return;
+    }
+
+    // Guests can only view DM conversations with shared-channel members
+    if (req.user!.role === 'GUEST' && currentUserId !== otherUserId) {
+      const sharedChannel = await prisma.$queryRaw<Array<{ id: number }>>`
+        SELECT cm1."channelId" AS id
+        FROM "ChannelMember" cm1
+        JOIN "ChannelMember" cm2 ON cm2."channelId" = cm1."channelId"
+        WHERE cm1."userId" = ${currentUserId} AND cm2."userId" = ${otherUserId}
+        LIMIT 1
+      `;
+      if (sharedChannel.length === 0) {
+        res.status(404).json({ error: 'User not found' });
+        return;
+      }
     }
 
     // Get messages between the two users
@@ -295,7 +341,7 @@ router.post('/messages/:id/reply', authMiddleware, requireDmAccess, async (req: 
     const replySchema = z.object({
       content: z.string().max(4000)
         .refine(val => !val.includes('\u0000'), { message: 'Content cannot contain null bytes' }),
-      fileIds: z.array(z.number()).max(10).optional(),
+      fileIds: z.array(z.number().int().positive()).max(10).optional(),
     }).refine(
       (data) => (data.content?.trim().length ?? 0) > 0 || (data.fileIds && data.fileIds.length > 0),
       { message: 'Reply must have content or file attachments' },
@@ -304,6 +350,33 @@ router.post('/messages/:id/reply', authMiddleware, requireDmAccess, async (req: 
 
     // Reply goes to the same conversation (same from/to pair)
     const toUserId = parentDm.fromUserId === fromUserId ? parentDm.toUserId : parentDm.fromUserId;
+
+    // Block replies to deactivated users (same check as POST /dms)
+    if (fromUserId !== toUserId) {
+      const recipient = await prisma.user.findUnique({
+        where: { id: toUserId },
+        select: { id: true, deactivatedAt: true },
+      });
+      if (!recipient || recipient.deactivatedAt) {
+        res.status(400).json({ error: 'Unable to send message' });
+        return;
+      }
+
+      // Guests can only reply to DMs with shared-channel members
+      if (req.user!.role === 'GUEST') {
+        const sharedChannel = await prisma.$queryRaw<Array<{ id: number }>>`
+          SELECT cm1."channelId" AS id
+          FROM "ChannelMember" cm1
+          JOIN "ChannelMember" cm2 ON cm2."channelId" = cm1."channelId"
+          WHERE cm1."userId" = ${fromUserId} AND cm2."userId" = ${toUserId}
+          LIMIT 1
+        `;
+        if (sharedChannel.length === 0) {
+          res.status(400).json({ error: 'Unable to send message' });
+          return;
+        }
+      }
+    }
 
     const reply = await prisma.$transaction(async (tx) => {
       const created = await tx.directMessage.create({
@@ -552,11 +625,27 @@ router.post('/:userId/read', authMiddleware, async (req: AuthRequest, res: Respo
     // Check if user exists
     const user = await prisma.user.findUnique({
       where: { id: otherUserId },
+      select: { id: true },
     });
 
     if (!user) {
       res.status(404).json({ error: 'User not found' });
       return;
+    }
+
+    // Guests can only interact with shared-channel members
+    if (req.user!.role === 'GUEST' && currentUserId !== otherUserId) {
+      const sharedChannel = await prisma.$queryRaw<Array<{ id: number }>>`
+        SELECT cm1."channelId" AS id
+        FROM "ChannelMember" cm1
+        JOIN "ChannelMember" cm2 ON cm2."channelId" = cm1."channelId"
+        WHERE cm1."userId" = ${currentUserId} AND cm2."userId" = ${otherUserId}
+        LIMIT 1
+      `;
+      if (sharedChannel.length === 0) {
+        res.status(404).json({ error: 'User not found' });
+        return;
+      }
     }
 
     // Mark all unread messages from the other user as read
@@ -580,6 +669,10 @@ router.post('/:userId/read', authMiddleware, async (req: AuthRequest, res: Respo
 });
 
 // POST /dms/:userId/unread - Mark DM conversation as unread from a specific message
+const markDmUnreadSchema = z.object({
+  messageId: z.number().int().positive(),
+});
+
 router.post('/:userId/unread', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const currentUserId = req.user!.userId;
@@ -589,9 +682,34 @@ router.post('/:userId/unread', authMiddleware, async (req: AuthRequest, res: Res
       return;
     }
 
-    const messageId = req.body?.messageId;
-    if (!messageId || typeof messageId !== 'number') {
-      res.status(400).json({ error: 'messageId is required' });
+    const { messageId } = markDmUnreadSchema.parse(req.body);
+
+    // Guests can only interact with shared-channel members
+    if (req.user!.role === 'GUEST') {
+      const sharedChannel = await prisma.$queryRaw<Array<{ id: number }>>`
+        SELECT cm1."channelId" AS id
+        FROM "ChannelMember" cm1
+        JOIN "ChannelMember" cm2 ON cm2."channelId" = cm1."channelId"
+        WHERE cm1."userId" = ${currentUserId} AND cm2."userId" = ${otherUserId}
+        LIMIT 1
+      `;
+      if (sharedChannel.length === 0) {
+        res.status(404).json({ error: 'User not found' });
+        return;
+      }
+    }
+
+    // Verify the message belongs to this DM conversation
+    const targetMessage = await prisma.directMessage.findFirst({
+      where: {
+        id: messageId,
+        fromUserId: otherUserId,
+        toUserId: currentUserId,
+        deletedAt: null,
+      },
+    });
+    if (!targetMessage) {
+      res.status(404).json({ error: 'Message not found in this conversation' });
       return;
     }
 
@@ -610,6 +728,10 @@ router.post('/:userId/unread', authMiddleware, async (req: AuthRequest, res: Res
 
     res.json({ markedAsUnread: result.count });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: error.issues });
+      return;
+    }
     logError('Mark DMs as unread error', error);
     res.status(500).json({ error: 'Failed to mark messages as unread' });
   }
@@ -675,6 +797,21 @@ router.get('/:userId/pins', authMiddleware, async (req: AuthRequest, res: Respon
     const currentUserId = req.user!.userId;
     const otherUserId = parseIntParam(req.params.userId);
     if (!otherUserId) { res.status(400).json({ error: 'Invalid user ID' }); return; }
+
+    // Guests can only view pins with shared-channel members
+    if (req.user!.role === 'GUEST' && currentUserId !== otherUserId) {
+      const sharedChannel = await prisma.$queryRaw<Array<{ id: number }>>`
+        SELECT cm1."channelId" AS id
+        FROM "ChannelMember" cm1
+        JOIN "ChannelMember" cm2 ON cm2."channelId" = cm1."channelId"
+        WHERE cm1."userId" = ${currentUserId} AND cm2."userId" = ${otherUserId}
+        LIMIT 1
+      `;
+      if (sharedChannel.length === 0) {
+        res.status(404).json({ error: 'User not found' });
+        return;
+      }
+    }
 
     const pinned = await prisma.directMessage.findMany({
       where: {

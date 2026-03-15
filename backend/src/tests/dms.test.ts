@@ -103,6 +103,53 @@ describe('Direct Messages', () => {
 
       expect(res.status).toBe(400);
     });
+
+    it('should NOT allow sending DMs to deactivated users', async () => {
+      // Deactivate Bob directly in DB
+      await prisma.user.update({
+        where: { id: bobId },
+        data: { deactivatedAt: new Date(), tokenVersion: { increment: 1 } },
+      });
+
+      const res = await request(app)
+        .post('/dms')
+        .set('Authorization', `Bearer ${aliceToken}`)
+        .send({ toUserId: bobId, content: 'Are you there?' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('Unable to send message');
+
+      // Verify no DM was created
+      const dms = await prisma.directMessage.findMany({
+        where: { fromUserId: aliceId, toUserId: bobId },
+      });
+      expect(dms).toHaveLength(0);
+    });
+
+    it('should NOT allow replying to a DM thread with a deactivated user', async () => {
+      // Alice sends a DM to Bob (while Bob is still active)
+      const dmRes = await request(app)
+        .post('/dms')
+        .set('Authorization', `Bearer ${aliceToken}`)
+        .send({ toUserId: bobId, content: 'Hey Bob!' });
+      expect(dmRes.status).toBe(201);
+      const parentDmId = dmRes.body.id;
+
+      // Deactivate Bob
+      await prisma.user.update({
+        where: { id: bobId },
+        data: { deactivatedAt: new Date(), tokenVersion: { increment: 1 } },
+      });
+
+      // Alice tries to reply to the thread — should be blocked
+      const replyRes = await request(app)
+        .post(`/dms/messages/${parentDmId}/reply`)
+        .set('Authorization', `Bearer ${aliceToken}`)
+        .send({ content: 'Are you still there?' });
+
+      expect(replyRes.status).toBe(400);
+      expect(replyRes.body.error).toBe('Unable to send message');
+    });
   });
 
   describe('GET /dms/:userId', () => {
@@ -346,6 +393,26 @@ describe('Direct Messages', () => {
     });
   });
 
+  describe('Email non-disclosure', () => {
+    it('should NOT expose email in DM conversations list', async () => {
+      // Alice sends to Bob to create a conversation
+      await request(app)
+        .post('/dms')
+        .set('Authorization', `Bearer ${aliceToken}`)
+        .send({ toUserId: bobId, content: 'Hey Bob!' });
+
+      const res = await request(app)
+        .get('/dms')
+        .set('Authorization', `Bearer ${aliceToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.length).toBeGreaterThan(0);
+      res.body.forEach((convo: any) => {
+        expect(convo.otherUser).not.toHaveProperty('email');
+      });
+    });
+  });
+
   describe('Unread count edge cases', () => {
     it('should not count sent messages as unread', async () => {
       // Alice sends to Bob
@@ -377,6 +444,95 @@ describe('Direct Messages', () => {
 
       const bobConvo = res.body.find((c: any) => c.otherUser.id === bobId);
       expect(bobConvo.unreadCount).toBe(1);
+    });
+  });
+
+  describe('POST /dms/:userId/unread - input validation', () => {
+    let dmId: number;
+
+    beforeEach(async () => {
+      // Bob sends 3 messages to Alice, then Alice reads them
+      for (let i = 0; i < 3; i++) {
+        const res = await request(app)
+          .post('/dms')
+          .set('Authorization', `Bearer ${bobToken}`)
+          .send({ toUserId: aliceId, content: `Message ${i + 1}` });
+        if (i === 1) dmId = res.body.id; // save the second message ID
+      }
+
+      // Alice reads all messages
+      await request(app)
+        .post(`/dms/${bobId}/read`)
+        .set('Authorization', `Bearer ${aliceToken}`);
+    });
+
+    it('should reject negative messageId', async () => {
+      const res = await request(app)
+        .post(`/dms/${bobId}/unread`)
+        .set('Authorization', `Bearer ${aliceToken}`)
+        .send({ messageId: -1 });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('should reject float messageId', async () => {
+      const res = await request(app)
+        .post(`/dms/${bobId}/unread`)
+        .set('Authorization', `Bearer ${aliceToken}`)
+        .send({ messageId: 1.5 });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('should reject zero messageId', async () => {
+      const res = await request(app)
+        .post(`/dms/${bobId}/unread`)
+        .set('Authorization', `Bearer ${aliceToken}`)
+        .send({ messageId: 0 });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('should reject messageId from a different conversation', async () => {
+      // Create a third user and a DM in a separate conversation
+      const charlieRes = await request(app).post('/auth/register').send({
+        email: 'charlie-dm@example.com',
+        password: 'password123',
+        name: 'Charlie DM',
+      });
+
+      const otherDm = await request(app)
+        .post('/dms')
+        .set('Authorization', `Bearer ${charlieRes.body.token}`)
+        .send({ toUserId: aliceId, content: 'From Charlie' });
+      const otherDmId = otherDm.body.id;
+
+      // Alice tries to use Charlie's messageId in the Bob conversation
+      const res = await request(app)
+        .post(`/dms/${bobId}/unread`)
+        .set('Authorization', `Bearer ${aliceToken}`)
+        .send({ messageId: otherDmId });
+
+      expect(res.status).toBe(404);
+      expect(res.body.error).toBe('Message not found in this conversation');
+    });
+
+    it('should accept valid messageId and mark correct messages as unread', async () => {
+      // Verify all messages are read
+      const readBefore = await prisma.directMessage.count({
+        where: { fromUserId: bobId, toUserId: aliceId, readAt: null },
+      });
+      expect(readBefore).toBe(0);
+
+      // Mark unread from the second message
+      const res = await request(app)
+        .post(`/dms/${bobId}/unread`)
+        .set('Authorization', `Bearer ${aliceToken}`)
+        .send({ messageId: dmId });
+
+      expect(res.status).toBe(200);
+      // Should mark the 2nd and 3rd messages as unread (id >= dmId)
+      expect(res.body.markedAsUnread).toBe(2);
     });
   });
 });

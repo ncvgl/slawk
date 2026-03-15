@@ -17,8 +17,8 @@ const createMessageSchema = z.object({
       (val) => !val.includes('\u0000'),
       { message: 'Message content cannot contain null bytes' }
     ),
-  threadId: z.number().optional(),
-  fileIds: z.array(z.number()).max(10).optional(),
+  threadId: z.number().int().positive().optional(),
+  fileIds: z.array(z.number().int().positive()).max(10).optional(),
 }).refine(
   (data) => (data.content?.trim().length ?? 0) > 0 || (data.fileIds && data.fileIds.length > 0),
   { message: 'Message must have content or file attachments' },
@@ -41,12 +41,12 @@ router.post('/:id/messages', authMiddleware, requireChannelMembership, async (re
       return;
     }
 
-    // Validate threadId belongs to the same channel (prevent cross-channel thread injection)
+    // Validate threadId belongs to the same channel and is not deleted
     if (threadId) {
       const parentMessage = await prisma.message.findUnique({
         where: { id: threadId },
       });
-      if (!parentMessage || parentMessage.channelId !== channelId) {
+      if (!parentMessage || parentMessage.deletedAt || parentMessage.channelId !== channelId) {
         res.status(400).json({ error: 'Thread parent must belong to the same channel' });
         return;
       }
@@ -65,7 +65,7 @@ router.post('/:id/messages', authMiddleware, requireChannelMembership, async (re
 
       if (fileIds && fileIds.length > 0) {
         const updated = await tx.file.updateMany({
-          where: { id: { in: fileIds }, userId, messageId: null },
+          where: { id: { in: fileIds }, userId, messageId: null, dmId: null },
           data: { messageId: msg.id },
         });
         if (updated.count !== fileIds.length) {

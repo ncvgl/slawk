@@ -92,6 +92,12 @@ router.patch('/users/:id', async (req: AuthRequest, res: Response) => {
       select: ADMIN_USER_SELECT,
     });
 
+    // Force-disconnect WebSocket sessions so the user reconnects with
+    // the new role.  Without this, the cached socket.user.role stays
+    // stale until the 5-minute periodic revalidation, letting a user
+    // demoted to GUEST bypass GUEST restrictions (DM/huddle checks).
+    kickUser(userId);
+
     writeAuditLog({
       action: 'user.role_changed',
       actorId: req.user!.userId,
@@ -183,10 +189,19 @@ router.post('/users/:id/reactivate', async (req: AuthRequest, res: Response) => 
 
     const target = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true },
+      select: { id: true, role: true },
     });
     if (!target) {
       res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    // Enforce same role hierarchy as deactivation:
+    // only OWNER can reactivate ADMIN-level users; an ADMIN cannot
+    // reactivate someone at or above their own rank.
+    const actorRole = req.user!.role || 'MEMBER';
+    if (actorRole !== 'OWNER' && ROLE_RANK[target.role] >= ROLE_RANK[actorRole]) {
+      res.status(403).json({ error: 'Cannot reactivate a user with equal or higher role' });
       return;
     }
 
@@ -561,8 +576,32 @@ router.post('/channels/:id/members', async (req: AuthRequest, res: Response) => 
 
     const { userId } = addMemberSchema.parse(req.body);
 
+    // Verify user exists and is active
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, deactivatedAt: true },
+    });
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+    if (user.deactivatedAt) {
+      res.status(400).json({ error: 'Cannot add a deactivated user to a channel' });
+      return;
+    }
+
     await prisma.channelMember.create({
       data: { userId, channelId },
+    });
+
+    const channel = await prisma.channel.findUnique({ where: { id: channelId }, select: { name: true } });
+    await writeAuditLog({
+      action: 'channel.member_added',
+      actorId: req.user!.userId,
+      targetType: 'channel',
+      targetId: channelId,
+      targetName: channel?.name,
+      details: `Added user ${userId} to channel`,
     });
 
     res.json({ message: 'Member added' });
@@ -586,8 +625,30 @@ router.delete('/channels/:id/members/:userId', async (req: AuthRequest, res: Res
       return;
     }
 
+    const channel = await prisma.channel.findUnique({ where: { id: channelId }, select: { name: true } });
+
     await prisma.channelMember.delete({
       where: { userId_channelId: { userId, channelId } },
+    });
+
+    // Evict user's sockets from the channel room so they stop receiving messages
+    const io = getIO();
+    if (io) {
+      io.to(`channel:${channelId}`).emit('channel:member-left', {
+        channelId,
+        userId,
+        memberCount: await prisma.channelMember.count({ where: { channelId } }),
+      });
+      io.in(`user:${userId}`).socketsLeave(`channel:${channelId}`);
+    }
+
+    await writeAuditLog({
+      action: 'channel.member_removed',
+      actorId: req.user!.userId,
+      targetType: 'channel',
+      targetId: channelId,
+      targetName: channel?.name,
+      details: `Removed user ${userId} from channel`,
     });
 
     res.json({ message: 'Member removed' });
@@ -644,7 +705,7 @@ router.post('/transfer-ownership', async (req: AuthRequest, res: Response) => {
 
     const target = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, name: true, deactivatedAt: true },
+      select: { id: true, name: true, role: true, deactivatedAt: true },
     });
 
     if (!target) {
@@ -657,11 +718,21 @@ router.post('/transfer-ownership', async (req: AuthRequest, res: Response) => {
       return;
     }
 
+    if (target.role === 'GUEST') {
+      res.status(400).json({ error: 'Cannot transfer ownership to a guest user' });
+      return;
+    }
+
     // Atomic: demote current owner to ADMIN, promote target to OWNER
     await prisma.$transaction([
       prisma.user.update({ where: { id: ownerId }, data: { role: 'ADMIN' } }),
       prisma.user.update({ where: { id: userId }, data: { role: 'OWNER' } }),
     ]);
+
+    // Force both users to reconnect so their WebSocket sessions pick up
+    // the new roles immediately (same rationale as role-change kick).
+    kickUser(ownerId);
+    kickUser(userId);
 
     writeAuditLog({
       action: 'workspace.ownership_transferred',

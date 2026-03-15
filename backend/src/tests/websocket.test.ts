@@ -2,16 +2,19 @@ import { TEST_PASSWORD } from './test-constants.js';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { io as Client, Socket as ClientSocket } from 'socket.io-client';
+import jwt from 'jsonwebtoken';
 import request from 'supertest';
 import app from '../app.js';
 import prisma from '../db.js';
 import { initializeWebSocket } from '../websocket/index.js';
+import { JWT_SECRET } from '../config.js';
 
 describe('WebSocket', () => {
   let httpServer: ReturnType<typeof createServer>;
   let io: Server;
   let clientSocket: ClientSocket;
   let authToken: string;
+  let userId: number;
   let channelId: number;
   let port: number;
 
@@ -32,6 +35,7 @@ describe('WebSocket', () => {
     // Create user and get token
     const userRes = await request(app).post('/auth/register').send(testUser);
     authToken = userRes.body.token;
+    userId = userRes.body.user.id;
 
     // Create channel
     const channelRes = await request(app)
@@ -323,5 +327,29 @@ describe('WebSocket', () => {
           }, 100);
         });
       });
+  });
+
+  it('should reject connection with token missing tokenVersion', (done) => {
+    // Craft a valid JWT that omits the tokenVersion claim.
+    // Before the fix, WebSocket auth accepted these tokens, bypassing
+    // server-side revocation (password change / deactivation).
+    const craftedToken = jwt.sign(
+      { userId },
+      JWT_SECRET,
+      { algorithm: 'HS256', expiresIn: '7d' },
+    );
+
+    clientSocket = Client(`http://localhost:${port}`, {
+      auth: { token: craftedToken },
+    });
+
+    clientSocket.on('connect', () => {
+      done(new Error('Should not connect with token missing tokenVersion'));
+    });
+
+    clientSocket.on('connect_error', (err) => {
+      expect(err.message).toBe('Invalid token');
+      done();
+    });
   });
 });

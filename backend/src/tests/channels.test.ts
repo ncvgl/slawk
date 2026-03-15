@@ -165,6 +165,70 @@ describe('Channels', () => {
     });
   });
 
+  describe('GET /channels/:id - non-member sanitization', () => {
+    let channelId: number;
+    let nonMemberToken: string;
+
+    beforeEach(async () => {
+      // User 1 (authToken) creates a public channel — becomes OWNER
+      const channelRes = await request(app)
+        .post('/channels')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ name: 'public-inspect' });
+      channelId = channelRes.body.id;
+
+      // User 2 is a non-member
+      const user2Res = await request(app).post('/auth/register').send({
+        email: 'nonmember@example.com',
+        password: 'password123',
+        name: 'Non Member',
+      });
+      nonMemberToken = user2Res.body.token;
+    });
+
+    it('should NOT leak role or joinedAt to non-members of public channels', async () => {
+      // Non-member views the public channel
+      const res = await request(app)
+        .get(`/channels/${channelId}`)
+        .set('Authorization', `Bearer ${nonMemberToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.members.length).toBeGreaterThan(0);
+
+      for (const member of res.body.members) {
+        // Should only contain a sanitized user object
+        expect(member).toHaveProperty('user');
+        expect(member.user).toHaveProperty('id');
+        expect(member.user).toHaveProperty('name');
+
+        // Must NOT leak ChannelMember internal fields
+        expect(member).not.toHaveProperty('role');
+        expect(member).not.toHaveProperty('joinedAt');
+        expect(member).not.toHaveProperty('userId');
+        expect(member).not.toHaveProperty('channelId');
+
+        // Must NOT leak avatar (the original sanitization intent)
+        expect(member.user).not.toHaveProperty('avatar');
+      }
+    });
+
+    it('should return full member details to actual members', async () => {
+      // Member views the same channel
+      const res = await request(app)
+        .get(`/channels/${channelId}`)
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.members.length).toBeGreaterThan(0);
+
+      // Members should see full details including role and avatar
+      const ownerMember = res.body.members[0];
+      expect(ownerMember).toHaveProperty('role');
+      expect(ownerMember).toHaveProperty('joinedAt');
+      expect(ownerMember.user).toHaveProperty('avatar');
+    });
+  });
+
   describe('GET /channels/:id/members', () => {
     let channelId: number;
 

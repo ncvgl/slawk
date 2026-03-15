@@ -26,6 +26,18 @@ router.post('/:id/reactions', authMiddleware, requireMessageAccess, async (req: 
     const userId = req.user!.userId;
     const { emoji } = reactionSchema.parse(req.body);
 
+    // Block reactions in archived channels
+    if (req.channelId) {
+      const channel = await prisma.channel.findUnique({
+        where: { id: req.channelId },
+        select: { archivedAt: true },
+      });
+      if (channel?.archivedAt) {
+        res.status(403).json({ error: 'This channel has been archived' });
+        return;
+      }
+    }
+
     // Check if reaction already exists
     const existingReaction = await prisma.reaction.findUnique({
       where: {
@@ -82,6 +94,18 @@ router.delete('/:id/reactions/:emoji', authMiddleware, requireMessageAccess, asy
     if (isNaN(messageId)) {
       res.status(400).json({ error: 'Invalid message ID' });
       return;
+    }
+
+    // Block reaction removal in archived channels
+    if (req.channelId) {
+      const channel = await prisma.channel.findUnique({
+        where: { id: req.channelId },
+        select: { archivedAt: true },
+      });
+      if (channel?.archivedAt) {
+        res.status(403).json({ error: 'This channel has been archived' });
+        return;
+      }
     }
 
     // Validate emoji param same as creation route

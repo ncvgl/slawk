@@ -127,19 +127,25 @@ export function initializeWebSocket(httpServer: HttpServer) {
         return next(new Error('Invalid token'));
       }
 
+      // Reject tokens missing tokenVersion — matches HTTP auth middleware.
+      // Without this, revocation via password change / deactivation is bypassed.
+      if (decoded.tokenVersion === undefined) {
+        return next(new Error('Invalid token'));
+      }
+
       // Verify tokenVersion against DB to reject revoked/outdated tokens
       const user = await prisma.user.findUnique({
         where: { id: decoded.userId },
-        select: { tokenVersion: true, deactivatedAt: true },
+        select: { tokenVersion: true, role: true, deactivatedAt: true },
       });
       if (!user || user.deactivatedAt) {
         return next(new Error('Invalid token'));
       }
-      if (decoded.tokenVersion !== undefined && user.tokenVersion !== decoded.tokenVersion) {
+      if (user.tokenVersion !== decoded.tokenVersion) {
         return next(new Error('Invalid token'));
       }
 
-      socket.user = decoded;
+      socket.user = { ...decoded, role: user.role };
       next();
     } catch (error) {
       next(new Error('Invalid token'));
@@ -158,10 +164,10 @@ export function initializeWebSocket(httpServer: HttpServer) {
     const users = connectedUserIds.length > 0
       ? await prisma.user.findMany({
           where: { id: { in: connectedUserIds } },
-          select: { id: true, tokenVersion: true },
+          select: { id: true, tokenVersion: true, role: true, deactivatedAt: true },
         })
       : [];
-    const versionMap = new Map(users.map(u => [u.id, u.tokenVersion]));
+    const userMap = new Map(users.map(u => [u.id, u]));
 
     for (const [, socket] of io.sockets.sockets) {
       const authSocket = socket as AuthenticatedSocket;
@@ -169,12 +175,25 @@ export function initializeWebSocket(httpServer: HttpServer) {
       if (!token) continue;
       try {
         const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] }) as JwtPayload & { tokenVersion?: number };
-        // Check tokenVersion if present in JWT
-        if (decoded.tokenVersion !== undefined && decoded.userId) {
-          const currentVersion = versionMap.get(decoded.userId);
-          if (currentVersion !== undefined && currentVersion !== decoded.tokenVersion) {
+        if (decoded.userId) {
+          const dbUser = userMap.get(decoded.userId);
+          // Disconnect if user was deleted or deactivated
+          if (!dbUser || dbUser.deactivatedAt) {
             authSocket.emit('error', { message: 'Session revoked' });
             authSocket.disconnect(true);
+            continue;
+          }
+          // Check tokenVersion mismatch (password change, admin action)
+          // Also disconnect tokens missing tokenVersion entirely — matches
+          // the initial auth check and the HTTP auth middleware.
+          if (decoded.tokenVersion === undefined || dbUser.tokenVersion !== decoded.tokenVersion) {
+            authSocket.emit('error', { message: 'Session revoked' });
+            authSocket.disconnect(true);
+            continue;
+          }
+          // Refresh role on socket to reflect admin role changes
+          if (authSocket.user && authSocket.user.role !== dbUser.role) {
+            authSocket.user = { ...authSocket.user, role: dbUser.role };
           }
         }
       } catch {
@@ -303,12 +322,12 @@ export function initializeWebSocket(httpServer: HttpServer) {
           return;
         }
 
-        // Validate threadId belongs to the same channel
+        // Validate threadId belongs to the same channel and is not deleted
         if (data.threadId) {
           const parentMessage = await prisma.message.findUnique({
             where: { id: data.threadId },
           });
-          if (!parentMessage || parentMessage.channelId !== data.channelId) {
+          if (!parentMessage || parentMessage.deletedAt || parentMessage.channelId !== data.channelId) {
             socket.emit('error', { message: 'Thread parent must belong to the same channel' });
             return;
           }
@@ -328,7 +347,7 @@ export function initializeWebSocket(httpServer: HttpServer) {
           // Attach files atomically — validates ownership and unattached status
           if (data.fileIds && data.fileIds.length > 0) {
             const updated = await tx.file.updateMany({
-              where: { id: { in: data.fileIds }, userId: socket.user!.userId, messageId: null },
+              where: { id: { in: data.fileIds }, userId: socket.user!.userId, messageId: null, dmId: null },
               data: { messageId: msg.id },
             });
             if (updated.count !== data.fileIds.length) {
@@ -389,6 +408,16 @@ export function initializeWebSocket(httpServer: HttpServer) {
           return;
         }
 
+        // Block edits in archived channels
+        const editChannel = await prisma.channel.findUnique({
+          where: { id: message.channelId },
+          select: { archivedAt: true },
+        });
+        if (editChannel?.archivedAt) {
+          socket.emit('error', { message: 'This channel has been archived' });
+          return;
+        }
+
         const updatedMessage = await prisma.message.update({
           where: { id: data.messageId },
           data: { content: data.content, editedAt: new Date() },
@@ -435,6 +464,16 @@ export function initializeWebSocket(httpServer: HttpServer) {
 
         if (message.userId !== socket.user.userId) {
           socket.emit('error', { message: 'You can only delete your own messages' });
+          return;
+        }
+
+        // Block deletes in archived channels
+        const delChannel = await prisma.channel.findUnique({
+          where: { id: message.channelId },
+          select: { archivedAt: true },
+        });
+        if (delChannel?.archivedAt) {
+          socket.emit('error', { message: 'This channel has been archived' });
           return;
         }
 
@@ -570,15 +609,31 @@ export function initializeWebSocket(httpServer: HttpServer) {
 
         const isSelfDM = socket.user.userId === data.toUserId;
 
-        // Check if recipient exists (self-DM is allowed)
+        // Check if recipient exists and is active (self-DM is allowed)
         if (!isSelfDM) {
           const recipient = await prisma.user.findUnique({
             where: { id: data.toUserId },
+            select: { id: true, deactivatedAt: true },
           });
 
-          if (!recipient) {
+          if (!recipient || recipient.deactivatedAt) {
             socket.emit('error', { message: 'Unable to send message' });
             return;
+          }
+
+          // Guests can only DM users who share a channel with them
+          if (socket.user!.role === 'GUEST') {
+            const sharedChannel = await prisma.$queryRaw<Array<{ id: number }>>`
+              SELECT cm1."channelId" AS id
+              FROM "ChannelMember" cm1
+              JOIN "ChannelMember" cm2 ON cm2."channelId" = cm1."channelId"
+              WHERE cm1."userId" = ${socket.user!.userId} AND cm2."userId" = ${data.toUserId}
+              LIMIT 1
+            `;
+            if (sharedChannel.length === 0) {
+              socket.emit('error', { message: 'Unable to send message' });
+              return;
+            }
           }
         }
 

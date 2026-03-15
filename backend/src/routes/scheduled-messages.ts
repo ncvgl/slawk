@@ -39,10 +39,19 @@ router.post('/schedule', authMiddleware, async (req: AuthRequest, res: Response)
       return;
     }
 
-    // Check channel membership
+    // Check channel membership and archival status
     const isMember = await checkChannelMembership(userId, channelId);
     if (!isMember) {
       res.status(403).json({ error: 'You must be a member of the channel' });
+      return;
+    }
+
+    const channel = await prisma.channel.findUnique({
+      where: { id: channelId },
+      select: { archivedAt: true },
+    });
+    if (channel?.archivedAt) {
+      res.status(403).json({ error: 'This channel has been archived' });
       return;
     }
 
@@ -222,20 +231,25 @@ router.post('/scheduled/:id/send', authMiddleware, async (req: AuthRequest, res:
       return;
     }
 
-    // Check channel membership
-    const isMember = await checkChannelMembership(userId, scheduled.channelId);
-    if (!isMember) {
-      res.status(403).json({ error: 'You are no longer a member of the channel' });
-      return;
-    }
+    // Atomically verify authorization and send — membership and archival
+    // are checked inside the transaction to close the TOCTOU gap.
+    const result = await prisma.$transaction(async (tx) => {
+      const membership = await tx.channelMember.findUnique({
+        where: { userId_channelId: { userId, channelId: scheduled.channelId } },
+      });
+      if (!membership) return { error: 'You are no longer a member of the channel' } as const;
 
-    // Atomically send
-    const message = await prisma.$transaction(async (tx) => {
+      const channel = await tx.channel.findUnique({
+        where: { id: scheduled.channelId },
+        select: { archivedAt: true },
+      });
+      if (channel?.archivedAt) return { error: 'This channel has been archived' } as const;
+
       await tx.scheduledMessage.update({
         where: { id },
         data: { sent: true },
       });
-      return tx.message.create({
+      const msg = await tx.message.create({
         data: {
           content: scheduled.content,
           userId: scheduled.userId,
@@ -246,7 +260,15 @@ router.post('/scheduled/:id/send', authMiddleware, async (req: AuthRequest, res:
           files: { select: { id: true, filename: true, originalName: true, mimetype: true, size: true, url: true } },
         },
       });
+      return { message: msg } as const;
     });
+
+    if ('error' in result) {
+      res.status(403).json({ error: result.error });
+      return;
+    }
+
+    const { message } = result;
 
     // Broadcast via WebSocket
     const { getIO } = await import('../websocket/index.js');
