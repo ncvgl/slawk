@@ -669,6 +669,10 @@ router.post('/:userId/read', authMiddleware, async (req: AuthRequest, res: Respo
 });
 
 // POST /dms/:userId/unread - Mark DM conversation as unread from a specific message
+const markDmUnreadSchema = z.object({
+  messageId: z.number().int().positive(),
+});
+
 router.post('/:userId/unread', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const currentUserId = req.user!.userId;
@@ -677,6 +681,8 @@ router.post('/:userId/unread', authMiddleware, async (req: AuthRequest, res: Res
       res.status(400).json({ error: 'Invalid user ID' });
       return;
     }
+
+    const { messageId } = markDmUnreadSchema.parse(req.body);
 
     // Guests can only interact with shared-channel members
     if (req.user!.role === 'GUEST') {
@@ -693,9 +699,17 @@ router.post('/:userId/unread', authMiddleware, async (req: AuthRequest, res: Res
       }
     }
 
-    const messageId = req.body?.messageId;
-    if (!messageId || typeof messageId !== 'number') {
-      res.status(400).json({ error: 'messageId is required' });
+    // Verify the message belongs to this DM conversation
+    const targetMessage = await prisma.directMessage.findFirst({
+      where: {
+        id: messageId,
+        fromUserId: otherUserId,
+        toUserId: currentUserId,
+        deletedAt: null,
+      },
+    });
+    if (!targetMessage) {
+      res.status(404).json({ error: 'Message not found in this conversation' });
       return;
     }
 
@@ -714,6 +728,10 @@ router.post('/:userId/unread', authMiddleware, async (req: AuthRequest, res: Res
 
     res.json({ markedAsUnread: result.count });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: error.issues });
+      return;
+    }
     logError('Mark DMs as unread error', error);
     res.status(500).json({ error: 'Failed to mark messages as unread' });
   }
