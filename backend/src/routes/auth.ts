@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 import prisma from '../db.js';
 import { JWT_SECRET } from '../config.js';
 import { authMiddleware } from '../middleware/auth.js';
@@ -174,6 +175,14 @@ router.post('/register', async (req: Request, res: Response) => {
     }
     if (error instanceof Error && error.message === 'INVITE_INVALID') {
       res.status(400).json({ error: 'Invite code is no longer valid' });
+      return;
+    }
+    // Handle unique constraint violation (concurrent registration race).
+    // Return the same status + message as the normal existing-email path
+    // so concurrent requests can't differentiate "email already existed"
+    // (400) from "email just now taken by a racing request" (was 500).
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      res.status(400).json({ error: 'Unable to complete registration' });
       return;
     }
     logError('Register error', error);

@@ -115,6 +115,33 @@ describe('Authentication', () => {
       expect(res.body.error).toBe('Unable to complete registration');
     });
 
+    it('should return identical error for concurrent duplicate registration (not 500)', async () => {
+      // Send two registration requests simultaneously with the same email.
+      // Both pass the findUnique check (no user yet), then one succeeds
+      // and the other hits the unique constraint (P2002).  The P2002 must
+      // return the same 400 + message as the normal duplicate path so
+      // attackers can't distinguish "email already existed" from "email
+      // just now taken by a racing request".
+      const payload = {
+        email: 'race@example.com',
+        password: 'password123',
+        name: 'Race User',
+      };
+
+      const [res1, res2] = await Promise.all([
+        request(app).post('/auth/register').send(payload),
+        request(app).post('/auth/register').send(payload),
+      ]);
+
+      const statuses = [res1.status, res2.status].sort();
+      // One must succeed (201), the other must be rejected (400) — never 500
+      expect(statuses).toEqual([201, 400]);
+
+      // The rejected one must use the same generic message
+      const rejected = res1.status === 400 ? res1 : res2;
+      expect(rejected.body.error).toBe('Unable to complete registration');
+    });
+
     it('should treat emails as case-insensitive', async () => {
       // Register with lowercase
       await request(app).post('/auth/register').send(testUser);
