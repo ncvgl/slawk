@@ -15,6 +15,14 @@ import { parseIntParam } from '../utils/params.js';
 import { logError } from '../utils/logger.js';
 import { JWT_SECRET } from '../config.js';
 
+// Strip internal storage details from file records before sending to clients.
+// The gcsPath reveals the GCS bucket structure and could enable direct bucket
+// access if the bucket has misconfigured ACLs.
+function stripInternalFields(file: any): any {
+  const { gcsPath, ...safe } = file;
+  return safe;
+}
+
 // GCS setup - only initialize if bucket name is configured
 const GCS_BUCKET_NAME = process.env.GCS_BUCKET_NAME;
 const gcsStorage = GCS_BUCKET_NAME ? new Storage() : null;
@@ -288,7 +296,7 @@ router.post('/', authMiddleware, uploadLimiter, (req: AuthRequest, res: Response
     });
     fileRecord.url = downloadUrl;
 
-    res.status(201).json(fileRecord);
+    res.status(201).json(stripInternalFields(fileRecord));
   } catch (error) {
     // Clean up orphaned file on disk if Prisma or any post-upload step fails
     if (req.file?.path && fs.existsSync(req.file.path)) {
@@ -302,7 +310,7 @@ router.post('/', authMiddleware, uploadLimiter, (req: AuthRequest, res: Response
 // GET /files/:id - Get file info
 router.get('/:id', authMiddleware, requireFileAccess, async (req: AuthRequest, res: Response) => {
   try {
-    res.json(req.file);
+    res.json(stripInternalFields(req.file));
   } catch (error) {
     logError('Get file error', error);
     res.status(500).json({ error: 'Failed to get file' });
@@ -532,7 +540,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       take: limit,
     });
 
-    res.json(files);
+    res.json(files.map(stripInternalFields));
   } catch (error) {
     logError('List files error', error);
     res.status(500).json({ error: 'Failed to list files' });

@@ -625,7 +625,15 @@ router.get('/:id/files', authMiddleware, requirePublicChannelReadAccess, async (
       where: {
         message: { channelId, deletedAt: null },
       },
-      include: {
+      select: {
+        id: true,
+        filename: true,
+        originalName: true,
+        mimetype: true,
+        size: true,
+        url: true,
+        userId: true,
+        createdAt: true,
         user: { select: { id: true, name: true, avatar: true } },
       },
       orderBy: { createdAt: 'desc' },

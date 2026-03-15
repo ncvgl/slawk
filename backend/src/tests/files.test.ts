@@ -717,4 +717,73 @@ describe('File Uploads', () => {
       expect(existingRes.body.error).toBe(nonExistentRes.body.error);
     });
   });
+
+  describe('Internal storage path non-disclosure', () => {
+    it('should not expose gcsPath in upload response', async () => {
+      const res = await request(app)
+        .post('/files')
+        .set('Authorization', `Bearer ${authToken}`)
+        .attach('file', testFilePath);
+
+      expect(res.status).toBe(201);
+      expect(res.body).not.toHaveProperty('gcsPath');
+      expect(res.body).toHaveProperty('url'); // public download URL is fine
+    });
+
+    it('should not expose gcsPath in file info response', async () => {
+      const uploadRes = await request(app)
+        .post('/files')
+        .set('Authorization', `Bearer ${authToken}`)
+        .attach('file', testFilePath);
+      const fileId = uploadRes.body.id;
+
+      const res = await request(app)
+        .get(`/files/${fileId}`)
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).not.toHaveProperty('gcsPath');
+    });
+
+    it('should not expose gcsPath in file list response', async () => {
+      await request(app)
+        .post('/files')
+        .set('Authorization', `Bearer ${authToken}`)
+        .attach('file', testFilePath);
+
+      const res = await request(app)
+        .get('/files')
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.length).toBeGreaterThan(0);
+      for (const file of res.body) {
+        expect(file).not.toHaveProperty('gcsPath');
+      }
+    });
+
+    it('should not expose gcsPath in channel file list', async () => {
+      // Upload and attach a file to a channel message
+      const uploadRes = await request(app)
+        .post('/files')
+        .set('Authorization', `Bearer ${authToken}`)
+        .attach('file', testFilePath);
+      const fileId = uploadRes.body.id;
+
+      await request(app)
+        .post(`/channels/${channelId}/messages`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ content: 'File attached', fileIds: [fileId] });
+
+      const res = await request(app)
+        .get(`/channels/${channelId}/files`)
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.length).toBeGreaterThan(0);
+      for (const file of res.body) {
+        expect(file).not.toHaveProperty('gcsPath');
+      }
+    });
+  });
 });
