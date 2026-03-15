@@ -108,7 +108,7 @@ export async function requireFileAccess(
   const userId = req.user!.userId;
 
   if (file.messageId) {
-    // File is attached to a message — check channel membership and soft-delete
+    // File is attached to a channel message — check channel membership and soft-delete
     const message = await prisma.message.findUnique({
       where: { id: file.messageId, deletedAt: null },
     });
@@ -124,6 +124,21 @@ export async function requireFileAccess(
 
     if (!membership) {
       res.status(403).json({ error: 'You must be a member of this channel' });
+      return;
+    }
+  } else if (file.dmId) {
+    // File is attached to a DM — verify the user is a participant (sender or recipient)
+    const dm = await prisma.directMessage.findUnique({
+      where: { id: file.dmId },
+    });
+
+    if (!dm || dm.deletedAt) {
+      res.status(404).json({ error: 'File not found' });
+      return;
+    }
+
+    if (dm.fromUserId !== userId && dm.toUserId !== userId) {
+      res.status(403).json({ error: 'Access denied' });
       return;
     }
   } else {

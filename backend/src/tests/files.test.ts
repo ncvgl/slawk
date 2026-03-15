@@ -468,4 +468,137 @@ describe('File Uploads', () => {
       expect(res.status).toBe(403);
     });
   });
+
+  describe('DM file access authorization', () => {
+    let aliceToken: string;
+    let bobToken: string;
+    let eveToken: string;
+    let aliceId: number;
+    let bobId: number;
+
+    beforeEach(async () => {
+      await prisma.dMReaction.deleteMany();
+      await prisma.reaction.deleteMany();
+      await prisma.file.deleteMany();
+      await prisma.directMessage.deleteMany();
+      await prisma.message.deleteMany();
+      await prisma.channelRead.deleteMany();
+      await prisma.channelMember.deleteMany();
+      await prisma.channel.deleteMany();
+      await prisma.user.deleteMany();
+
+      const aliceRes = await request(app).post('/auth/register').send({
+        email: 'alice-dmfile@example.com',
+        password: 'password123',
+        name: 'Alice',
+      });
+      aliceToken = aliceRes.body.token;
+      aliceId = aliceRes.body.user.id;
+
+      const bobRes = await request(app).post('/auth/register').send({
+        email: 'bob-dmfile@example.com',
+        password: 'password123',
+        name: 'Bob',
+      });
+      bobToken = bobRes.body.token;
+      bobId = bobRes.body.user.id;
+
+      const eveRes = await request(app).post('/auth/register').send({
+        email: 'eve-dmfile@example.com',
+        password: 'password123',
+        name: 'Eve',
+      });
+      eveToken = eveRes.body.token;
+    });
+
+    it('should allow the DM recipient to access the file', async () => {
+      // Alice uploads a file
+      const uploadRes = await request(app)
+        .post('/files')
+        .set('Authorization', `Bearer ${aliceToken}`)
+        .attach('file', testFilePath);
+      expect(uploadRes.status).toBe(201);
+      const fileId = uploadRes.body.id;
+
+      // Alice sends a DM to Bob with the file
+      const dmRes = await request(app)
+        .post('/dms')
+        .set('Authorization', `Bearer ${aliceToken}`)
+        .send({ toUserId: bobId, content: 'Check this file', fileIds: [fileId] });
+      expect(dmRes.status).toBe(201);
+
+      // Bob (recipient) should be able to access the file metadata
+      const fileRes = await request(app)
+        .get(`/files/${fileId}`)
+        .set('Authorization', `Bearer ${bobToken}`);
+      expect(fileRes.status).toBe(200);
+      expect(fileRes.body.id).toBe(fileId);
+    });
+
+    it('should allow the DM sender to access their own file', async () => {
+      // Alice uploads and sends
+      const uploadRes = await request(app)
+        .post('/files')
+        .set('Authorization', `Bearer ${aliceToken}`)
+        .attach('file', testFilePath);
+      const fileId = uploadRes.body.id;
+
+      await request(app)
+        .post('/dms')
+        .set('Authorization', `Bearer ${aliceToken}`)
+        .send({ toUserId: bobId, content: 'File for Bob', fileIds: [fileId] });
+
+      // Alice (sender) should still access the file
+      const fileRes = await request(app)
+        .get(`/files/${fileId}`)
+        .set('Authorization', `Bearer ${aliceToken}`);
+      expect(fileRes.status).toBe(200);
+    });
+
+    it('should deny a non-participant access to DM-attached files', async () => {
+      // Alice uploads and sends to Bob
+      const uploadRes = await request(app)
+        .post('/files')
+        .set('Authorization', `Bearer ${aliceToken}`)
+        .attach('file', testFilePath);
+      const fileId = uploadRes.body.id;
+
+      await request(app)
+        .post('/dms')
+        .set('Authorization', `Bearer ${aliceToken}`)
+        .send({ toUserId: bobId, content: 'Private file', fileIds: [fileId] });
+
+      // Eve (not a DM participant) should be denied
+      const fileRes = await request(app)
+        .get(`/files/${fileId}`)
+        .set('Authorization', `Bearer ${eveToken}`);
+      expect(fileRes.status).toBe(403);
+    });
+
+    it('should deny access to files in deleted DMs', async () => {
+      // Alice uploads and sends to Bob
+      const uploadRes = await request(app)
+        .post('/files')
+        .set('Authorization', `Bearer ${aliceToken}`)
+        .attach('file', testFilePath);
+      const fileId = uploadRes.body.id;
+
+      const dmRes = await request(app)
+        .post('/dms')
+        .set('Authorization', `Bearer ${aliceToken}`)
+        .send({ toUserId: bobId, content: 'Ephemeral file', fileIds: [fileId] });
+      const dmId = dmRes.body.id;
+
+      // Alice deletes the DM
+      await request(app)
+        .delete(`/dms/messages/${dmId}`)
+        .set('Authorization', `Bearer ${aliceToken}`);
+
+      // Bob should no longer access the file (DM is soft-deleted)
+      const fileRes = await request(app)
+        .get(`/files/${fileId}`)
+        .set('Authorization', `Bearer ${bobToken}`);
+      expect(fileRes.status).toBe(404);
+    });
+  });
 });
