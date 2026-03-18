@@ -1,25 +1,15 @@
 #!/bin/sh
 set -e
 
-# Wait for Cloud SQL proxy socket to be ready
-if echo "$DATABASE_URL" | grep -q "/cloudsql/"; then
-  SOCKET_DIR=$(echo "$DATABASE_URL" | sed 's/.*host=\(\/cloudsql\/[^&]*\).*/\1/')
-  echo "Waiting for Cloud SQL proxy at ${SOCKET_DIR}..."
-  for i in $(seq 1 30); do
-    if [ -S "${SOCKET_DIR}/.s.PGSQL.5432" ]; then
-      echo "Cloud SQL proxy is ready."
-      break
-    fi
-    sleep 1
-  done
-fi
+echo "Waiting for database to be ready..."
+until npx prisma migrate status > /dev/null 2>&1; do
+  echo "Database not ready, retrying in 2s..."
+  sleep 2
+done
+echo "Database is ready."
 
 echo "Running database migrations..."
-timeout 60 npx prisma migrate deploy || {
-  echo "Migration failed or timed out, checking status..."
-  npx prisma migrate status
-  exit 1
-}
+npx prisma migrate deploy
 
 if [ "$RUN_SEED" = "true" ]; then
   echo "Seeding database..."
@@ -27,4 +17,5 @@ if [ "$RUN_SEED" = "true" ]; then
 fi
 
 echo "Starting server..."
+mkdir -p /app/uploads/avatars /app/uploads/files
 exec node dist/index.js
