@@ -31,6 +31,9 @@ steps:
       - '--set-env-vars=JWT_SECRET=${_JWT_SECRET}'
       - '--set-env-vars=GCS_BUCKET_NAME=${_GCS_BUCKET}'
       - '--set-env-vars=NODE_ENV=production'
+      - '--set-env-vars=VAPID_PUBLIC_KEY=${_VAPID_PUBLIC_KEY}'
+      - '--set-env-vars=VAPID_PRIVATE_KEY=${_VAPID_PRIVATE_KEY}'
+      - '--set-env-vars=VAPID_SUBJECT=${_VAPID_SUBJECT}'
       - '--set-env-vars=RUN_SEED=${_RUN_SEED}'
       - '--timeout=3600'
       - '--session-affinity'
@@ -60,6 +63,9 @@ substitutions:
   _RUN_SEED: 'false'
   _DATABASE_URL: ''
   _JWT_SECRET: ''
+  _VAPID_PUBLIC_KEY: ''
+  _VAPID_PRIVATE_KEY: ''
+  _VAPID_SUBJECT: 'mailto:admin@slawk.dev'
 
 options:
   logging: CLOUD_LOGGING_ONLY
