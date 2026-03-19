@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -15,6 +16,63 @@ function shortcodeToNative(emoji: string): string {
   const emojiData = (data as any).emojis?.[key];
   if (emojiData?.skins?.[0]?.native) return emojiData.skins[0].native;
   return emoji;
+}
+
+function ReactionPill({
+  reaction,
+  hasReacted,
+  tooltip,
+  onClick,
+}: {
+  reaction: Reaction;
+  hasReacted: boolean;
+  tooltip: string | undefined;
+  onClick: () => void;
+}) {
+  const ref = useRef<HTMLButtonElement>(null);
+  const [hovered, setHovered] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+
+  const handleMouseEnter = () => {
+    if (!tooltip || !ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    setPos({ top: rect.top - 6, left: rect.left + rect.width / 2 });
+    setHovered(true);
+  };
+
+  const handleMouseLeave = () => {
+    setHovered(false);
+  };
+
+  return (
+    <>
+      <button
+        ref={ref}
+        onClick={onClick}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        className={cn(
+          'inline-flex h-[22px] items-center gap-1 rounded-[12px] border px-[6px] text-[12px] transition-colors',
+          hasReacted
+            ? 'border-slack-link bg-slack-highlight text-slack-link'
+            : 'border-slack-border bg-white text-slack-primary hover:bg-slack-hover'
+        )}
+      >
+        <span data-testid="reaction-emoji" className="text-sm leading-none">{shortcodeToNative(reaction.emoji)}</span>
+        <span className="text-[13px] font-medium">{reaction.count}</span>
+      </button>
+      {hovered && tooltip && pos && createPortal(
+        <div
+          className="pointer-events-none fixed z-[9999] -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-md bg-gray-900 px-2.5 py-1.5 text-xs text-white shadow-lg"
+          style={{ top: pos.top, left: pos.left }}
+        >
+          {tooltip}
+          <div className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+        </div>,
+        document.body
+      )}
+    </>
+  );
 }
 
 interface MessageReactionsProps {
@@ -51,26 +109,13 @@ export function MessageReactions({ reactions, messageId, onAddReaction, onRemove
           ? `${names.join(', ')} reacted with ${shortcodeToNative(reaction.emoji)}`
           : undefined;
         return (
-          <div key={reaction.emoji} className="group/reaction relative">
-            <button
-              onClick={() => handleReactionClick(reaction.emoji, hasReacted)}
-              className={cn(
-                'inline-flex h-[22px] items-center gap-1 rounded-[12px] border px-[6px] text-[12px] transition-colors',
-                hasReacted
-                  ? 'border-slack-link bg-slack-highlight text-slack-link'
-                  : 'border-slack-border bg-white text-slack-primary hover:bg-slack-hover'
-              )}
-            >
-              <span data-testid="reaction-emoji" className="text-sm leading-none">{shortcodeToNative(reaction.emoji)}</span>
-              <span className="text-[13px] font-medium">{reaction.count}</span>
-            </button>
-            {tooltip && (
-              <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 hidden -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-900 px-2.5 py-1.5 text-xs text-white shadow-lg group-hover/reaction:block">
-                {tooltip}
-                <div className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
-              </div>
-            )}
-          </div>
+          <ReactionPill
+            key={reaction.emoji}
+            reaction={reaction}
+            hasReacted={hasReacted}
+            tooltip={tooltip}
+            onClick={() => handleReactionClick(reaction.emoji, hasReacted)}
+          />
         );
       })}
       <button
