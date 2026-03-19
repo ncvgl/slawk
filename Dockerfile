@@ -18,7 +18,7 @@ RUN test -f dist/index.js
 
 # ── Stage 3: Production image ────────────────────────────────────────
 FROM node:22-alpine AS production
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl postgresql-client
 RUN addgroup -g 1001 -S appgroup && adduser -u 1001 -S appuser -G appgroup
 WORKDIR /app
 

@@ -7,10 +7,12 @@ CREATE TABLE "DirectMessage" (
     "content" TEXT NOT NULL,
     "fromUserId" INTEGER NOT NULL,
     "toUserId" INTEGER NOT NULL,
+    "isPinned" BOOLEAN NOT NULL DEFAULT false,
+    "pinnedBy" INTEGER,
+    "pinnedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "deletedAt" TIMESTAMP(3),
-
     CONSTRAINT "DirectMessage_pkey" PRIMARY KEY ("id")
 );
 
