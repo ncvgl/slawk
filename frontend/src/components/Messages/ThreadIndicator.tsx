@@ -29,6 +29,7 @@ export function ThreadIndicator({ replyCount, participants = [], onClick, testId
     <button
       data-testid={testId}
       onClick={onClick}
+      onTouchStart={(e) => e.stopPropagation()}
       className="mt-[6px] flex items-center gap-2 rounded px-1 py-0.5 text-[13px] text-slack-link hover:bg-slack-highlight -ml-1"
     >
       <div data-testid="thread-avatars" className="flex -space-x-1">
