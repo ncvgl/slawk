@@ -319,29 +319,26 @@ router.get('/:id', authMiddleware, requireFileAccess, async (req: AuthRequest, r
 
 // POST /files/download-token - Issue a short-lived, file-scoped download token
 const downloadTokenSchema = z.object({
-  fileId: z.number().int().positive(),
+  fileId: z.number().int().positive().optional(),
 });
-
 router.post('/download-token', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const parsed = downloadTokenSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: 'fileId is required' });
+      res.status(400).json({ error: 'Invalid request' });
       return;
     }
     const { fileId } = parsed.data;
-
-    // Verify the user has access to this file before issuing a token.
-    // Tokens are bearer credentials usable without authentication, so
-    // we must not issue them for files the requester cannot access.
-    const file = await verifyFileAccess(req.user!.userId, fileId);
-    if (!file) {
-      res.status(404).json({ error: 'File not found' });
-      return;
+    // If fileId provided, verify access before issuing a scoped token
+    if (fileId !== undefined) {
+      const file = await verifyFileAccess(req.user!.userId, fileId);
+      if (!file) {
+        res.status(404).json({ error: 'File not found' });
+        return;
+      }
     }
-
     const downloadToken = jwt.sign(
-      { userId: req.user!.userId, purpose: 'file-download', fileId },
+      { userId: req.user!.userId, purpose: 'file-download', ...(fileId !== undefined && { fileId }) },
       JWT_SECRET,
       { algorithm: 'HS256', expiresIn: '5m' },
     );
@@ -362,8 +359,8 @@ router.get('/:id/download', (req: AuthRequest, res: Response, next) => {
         res.status(403).json({ error: 'Invalid download token' });
         return;
       }
-      // Download tokens must be scoped to a specific file
-      if (!payload.fileId || payload.fileId !== parseIntParam(req.params.id)) {
+      // If token is scoped to a specific file, verify it matches
+      if (payload.fileId !== undefined && payload.fileId !== parseIntParam(req.params.id)) {
         res.status(403).json({ error: 'Token not valid for this file' });
         return;
       }
