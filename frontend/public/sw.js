@@ -11,15 +11,13 @@ self.addEventListener('push', (event) => {
     return;
   }
 
-  const { title, body, tag, url, renotify } = payload;
+  const { title, body, url } = payload;
 
   event.waitUntil(
     self.registration.showNotification(title || 'Slawk', {
       body: body || '',
       icon: '/favicon-192.png',
       badge: '/favicon-192.png',
-      tag: tag || undefined,
-      renotify: !!renotify,
       data: { url: url || '/' },
     })
   );

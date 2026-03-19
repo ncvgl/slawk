@@ -79,6 +79,7 @@ const apiLimiter = isTest
         }
         return req.ip || 'unknown';
       },
+      validate: { keyGeneratorIpFallback: false },
     });
 
 // Cache-Control: no-store for all API responses

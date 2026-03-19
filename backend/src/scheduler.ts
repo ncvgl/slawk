@@ -120,8 +120,7 @@ export function startScheduler(): NodeJS.Timeout {
               if (isUserViewingChannel(member.userId, scheduled.channelId)) continue;
               sendPushToUser(member.userId, {
                 title: `#${channelName}`,
-                body: `${senderName}: ${message.content.slice(0, 100)}`,
-                tag: `channel-${scheduled.channelId}`,
+                body: `${senderName}: ${message.content.slice(0, 100) || 'Sent an attachment'}`,
                 url: `/c/${scheduled.channelId}`,
               }).catch(() => {});
             }

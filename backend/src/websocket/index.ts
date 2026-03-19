@@ -393,7 +393,7 @@ export function initializeWebSocket(httpServer: HttpServer) {
           });
           const senderName = finalMessage.user?.name || 'Someone';
           const channelName = channelInfo?.name || 'channel';
-          const body = `${senderName}: ${finalMessage.content.slice(0, 100)}`;
+          const body = `${senderName}: ${finalMessage.content.slice(0, 100) || 'Sent an attachment'}`;
 
           prisma.channelMember.findMany({
             where: { channelId: data.channelId },
@@ -405,7 +405,6 @@ export function initializeWebSocket(httpServer: HttpServer) {
               sendPushToUser(member.userId, {
                 title: `#${channelName}`,
                 body,
-                tag: `channel-${data.channelId}`,
                 url: `/c/${data.channelId}`,
               }).catch(() => {});
             }
@@ -703,10 +702,8 @@ export function initializeWebSocket(httpServer: HttpServer) {
             const senderName = dm.fromUser?.name || 'Someone';
             sendPushToUser(data.toUserId, {
               title: senderName,
-              body: dm.content.slice(0, 100),
-              tag: `dm-${socket.user.userId}`,
+              body: dm.content.slice(0, 100) || 'Sent an attachment',
               url: `/d/${socket.user.userId}`,
-              renotify: true,
             }).catch(() => {});
           }
         }

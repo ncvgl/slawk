@@ -97,10 +97,8 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
           const senderName = dm.fromUser?.name || 'Someone';
           sendPushToUser(toUserId, {
             title: senderName,
-            body: dm.content.slice(0, 100),
-            tag: `dm-${fromUserId}`,
+            body: dm.content.slice(0, 100) || 'Sent an attachment',
             url: `/d/${fromUserId}`,
-            renotify: true,
           }).catch(() => {});
         }
       }
@@ -446,10 +444,8 @@ router.post('/messages/:id/reply', authMiddleware, requireDmAccess, async (req: 
         const senderName = reply.fromUser?.name || 'Someone';
         sendPushToUser(toUserId, {
           title: `${senderName} (thread)`,
-          body: content.slice(0, 100),
-          tag: `dm-thread-${parentId}`,
+          body: content.slice(0, 100) || 'Sent an attachment',
           url: `/d/${fromUserId}`,
-          renotify: true,
         }).catch(() => {});
       }
     }

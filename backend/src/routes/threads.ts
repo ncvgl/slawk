@@ -105,9 +105,7 @@ router.post('/:id/reply', authMiddleware, requireMessageAccess, async (req: Auth
         sendPushToUser(p.userId, {
           title: `#${channelName} thread`,
           body: `${senderName}: ${content.slice(0, 100)}`,
-          tag: `thread-${parentId}`,
           url: `/c/${parentMessage.channelId}`,
-          renotify: true,
         }).catch(() => {});
       }
     }

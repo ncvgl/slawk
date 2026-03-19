@@ -235,6 +235,20 @@ function AppShell() {
       // If the message is for a channel we're not viewing, increment unread
       if (msg.channelId !== activeChannelId) {
         incrementUnread(msg.channelId);
+        // Show desktop notification when tab is hidden (visible tab uses in-app unread indicators)
+        if (document.hidden && msg.user?.id !== currentUserId && Notification.permission === 'granted' && navigator.serviceWorker?.controller) {
+          const channelName = useChannelStore.getState().channels.find(c => c.id === msg.channelId)?.name;
+          if (channelName) {
+            navigator.serviceWorker.ready.then((reg) => {
+              reg.showNotification(`#${channelName}`, {
+                body: `${msg.user?.name || 'Someone'}: ${(msg.content || '').slice(0, 100)}`,
+                icon: '/favicon-192.png',
+                badge: '/favicon-192.png',
+                data: { url: `/c/${msg.channelId}` },
+              });
+            }).catch(() => {});
+          }
+        }
       }
     };
 
@@ -264,6 +278,17 @@ function AppShell() {
       }
       if (activeDMId !== otherUserId && !isSelfDM) {
         incrementDMUnread(otherUserId);
+        // Show desktop notification when tab is hidden (visible tab uses in-app unread indicators)
+        if (document.hidden && !isFromMe && Notification.permission === 'granted' && navigator.serviceWorker?.controller) {
+          navigator.serviceWorker.ready.then((reg) => {
+            reg.showNotification(otherUser.name, {
+              body: (dm.content || '').slice(0, 100) || 'Sent an attachment',
+              icon: '/favicon-192.png',
+              badge: '/favicon-192.png',
+              data: { url: `/d/${otherUserId}` },
+            });
+          }).catch(() => {});
+        }
       }
       // Add message to DM store if conversation is loaded
       useDMStore.getState().addIncomingMessage(dm, currentUser.id);
@@ -289,6 +314,18 @@ function AppShell() {
       const otherUserId = reply.fromUserId;
       const participant = { id: reply.fromUser.id, name: reply.fromUser.name, avatar: reply.fromUser.avatar ?? null };
       useDMStore.getState().incrementReplyCount(reply.threadId, otherUserId, participant);
+      // Show desktop notification for DM thread replies when tab is hidden
+      const { activeDMId } = useChannelStore.getState();
+      if (document.hidden && activeDMId !== otherUserId && Notification.permission === 'granted' && navigator.serviceWorker?.controller) {
+        navigator.serviceWorker.ready.then((reg) => {
+          reg.showNotification(`${reply.fromUser.name} (thread)`, {
+            body: (reply.content || '').slice(0, 100) || 'Sent an attachment',
+            icon: '/favicon-192.png',
+            badge: '/favicon-192.png',
+            data: { url: `/d/${otherUserId}` },
+          });
+        }).catch(() => {});
+      }
     };
 
     const handleDMReactionAdded = (data: { dmId: number; reaction: { emoji: string; userId: number; user: { name: string } } }) => {
