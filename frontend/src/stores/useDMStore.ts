@@ -124,13 +124,21 @@ export const useDMStore = create<DMState>((set, get) => ({
     try {
       const dm = await sendDM(userId, content, fileIds);
       const message = transformDM(dm);
-      set((state) => ({
-        messages: {
-          ...state.messages,
-          [userId]: [...(state.messages[userId] ?? []), message],
-        },
-        isSending: false,
-      }));
+      set((state) => {
+        const existing = state.messages[userId] ?? [];
+        // Dedup: the REST broadcast (io.to) may have already delivered this
+        // via the dm:new WebSocket event before the HTTP response arrived
+        if (existing.some((m) => m.id === message.id)) {
+          return { isSending: false };
+        }
+        return {
+          messages: {
+            ...state.messages,
+            [userId]: [...existing, message],
+          },
+          isSending: false,
+        };
+      });
     } catch {
       set({ isSending: false, sendError: 'Message failed to send. Please try again.' });
     }
