@@ -5,8 +5,7 @@ ADD COLUMN     "pinnedAt" TIMESTAMP(3),
 ADD COLUMN     "pinnedBy" INTEGER;
 
 -- AlterTable: Add editedAt to DirectMessage
-ALTER TABLE "DirectMessage" ADD COLUMN     "editedAt" TIMESTAMP(3),
-ADD COLUMN     "isPinned" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "DirectMessage" ADD COLUMN     "editedAt" TIMESTAMP(3);
 
 -- CreateTable
 CREATE TABLE "Bookmark" (
