@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import crypto from 'crypto';
 import prisma from '../db.js';
-import { authMiddleware } from '../middleware/auth.js';
+import { authMiddleware, invalidateTokenCache } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/adminAuth.js';
 import { AuthRequest } from '../types.js';
 import { getIO, kickUser } from '../websocket/index.js';
@@ -92,6 +92,9 @@ router.patch('/users/:id', async (req: AuthRequest, res: Response) => {
       select: ADMIN_USER_SELECT,
     });
 
+    // Invalidate cached auth so the new role takes effect immediately
+    invalidateTokenCache(userId);
+
     // Force-disconnect WebSocket sessions so the user reconnects with
     // the new role.  Without this, the cached socket.user.role stays
     // stale until the 5-minute periodic revalidation, letting a user
@@ -161,6 +164,7 @@ router.post('/users/:id/deactivate', async (req: AuthRequest, res: Response) => 
       select: ADMIN_USER_SELECT,
     });
 
+    invalidateTokenCache(userId);
     kickUser(userId);
 
     writeAuditLog({
@@ -728,6 +732,10 @@ router.post('/transfer-ownership', async (req: AuthRequest, res: Response) => {
       prisma.user.update({ where: { id: ownerId }, data: { role: 'ADMIN' } }),
       prisma.user.update({ where: { id: userId }, data: { role: 'OWNER' } }),
     ]);
+
+    // Invalidate cached auth so the new roles take effect immediately
+    invalidateTokenCache(ownerId);
+    invalidateTokenCache(userId);
 
     // Force both users to reconnect so their WebSocket sessions pick up
     // the new roles immediately (same rationale as role-change kick).

@@ -1,4 +1,5 @@
 import express from 'express';
+import compression from 'compression';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -44,6 +45,7 @@ app.use(helmet({
 }));
 const corsOrigin = process.env.CORS_ORIGIN || (process.env.NODE_ENV === 'production' ? false : 'http://localhost:5173');
 app.use(cors({ origin: corsOrigin as string | boolean }));
+app.use(compression());
 app.use(express.json({ limit: '100kb' }));
 
 // Rate limiting (skip in test environment)

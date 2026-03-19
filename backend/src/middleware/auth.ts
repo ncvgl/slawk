@@ -4,6 +4,20 @@ import { AuthRequest, JwtPayload } from '../types.js';
 import { JWT_SECRET } from '../config.js';
 import prisma from '../db.js';
 
+// Short-lived cache for tokenVersion checks to avoid a DB round-trip on every request.
+// TTL is 5 seconds — revoked tokens may work for up to 5s after revocation.
+// Disabled in test to avoid stale state between tests that bypass the API.
+const TOKEN_CACHE_TTL = process.env.NODE_ENV === 'test' ? 0 : 5_000;
+const tokenCache = new Map<number, { tokenVersion: number; role: string; deactivatedAt: Date | null; expiresAt: number }>();
+
+export function invalidateTokenCache(userId: number) {
+  tokenCache.delete(userId);
+}
+
+export function clearTokenCache() {
+  tokenCache.clear();
+}
+
 export async function authMiddleware(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization;
 
@@ -29,19 +43,31 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
       res.status(401).json({ error: 'Invalid token' });
       return;
     }
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      select: { tokenVersion: true, role: true, deactivatedAt: true },
-    });
-    if (!user || user.tokenVersion !== decoded.tokenVersion) {
+
+    const now = Date.now();
+    let cached = tokenCache.get(decoded.userId);
+    if (!cached || cached.expiresAt < now) {
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.userId },
+        select: { tokenVersion: true, role: true, deactivatedAt: true },
+      });
+      if (!user) {
+        res.status(401).json({ error: 'Invalid token' });
+        return;
+      }
+      cached = { tokenVersion: user.tokenVersion, role: user.role, deactivatedAt: user.deactivatedAt, expiresAt: now + TOKEN_CACHE_TTL };
+      tokenCache.set(decoded.userId, cached);
+    }
+
+    if (cached.tokenVersion !== decoded.tokenVersion) {
       res.status(401).json({ error: 'Invalid token' });
       return;
     }
-    if (user.deactivatedAt) {
+    if (cached.deactivatedAt) {
       res.status(401).json({ error: 'Invalid token' });
       return;
     }
-    req.user = { ...decoded, role: user.role };
+    req.user = { ...decoded, role: cached.role };
 
     next();
   } catch (error) {

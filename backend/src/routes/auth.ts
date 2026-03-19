@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import prisma from '../db.js';
 import { JWT_SECRET } from '../config.js';
-import { authMiddleware } from '../middleware/auth.js';
+import { authMiddleware, invalidateTokenCache } from '../middleware/auth.js';
 import { AuthRequest } from '../types.js';
 import { logError } from '../utils/logger.js';
 import { kickUser } from '../websocket/index.js';
@@ -354,6 +354,9 @@ router.post('/change-password', authMiddleware, async (req: AuthRequest, res: Re
       },
       select: { id: true, tokenVersion: true },
     });
+
+    // Invalidate cached auth so the revoked token is rejected immediately
+    invalidateTokenCache(userId);
 
     // Immediately disconnect all WebSocket connections for this user
     // (don't wait for the 5-minute periodic revalidation — the password

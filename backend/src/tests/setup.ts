@@ -1,4 +1,9 @@
 import prisma from '../db.js';
+import { clearTokenCache } from '../middleware/auth.js';
+
+beforeEach(() => {
+  clearTokenCache();
+});
 
 beforeAll(async () => {
   // Clean database before tests

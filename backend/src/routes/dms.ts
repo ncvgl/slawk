@@ -306,35 +306,36 @@ router.get('/:userId', authMiddleware, async (req: AuthRequest, res: Response) =
       nextCursor = undefined;
       hasMore = false;
     } else {
-      const messages = await prisma.directMessage.findMany({
-        where: dmWhere,
-        include: dmInclude,
-        orderBy: { createdAt: 'desc' },
-        take: limit + 1,
-        ...(cursor && {
-          cursor: { id: cursor },
-          skip: 1,
+      // Run message fetch and mark-read in parallel — saves one DB round-trip
+      const [messages] = await Promise.all([
+        prisma.directMessage.findMany({
+          where: dmWhere,
+          include: dmInclude,
+          orderBy: { createdAt: 'desc' },
+          take: limit + 1,
+          ...(cursor && {
+            cursor: { id: cursor },
+            skip: 1,
+          }),
         }),
-      });
+        prisma.directMessage.updateMany({
+          where: {
+            fromUserId: otherUserId,
+            toUserId: currentUserId,
+            deletedAt: null,
+            readAt: null,
+          },
+          data: {
+            readAt: new Date(),
+          },
+        }).catch(() => {}),
+      ]);
 
       const paginated = paginateResults(messages, limit);
       enrichedMessages = enrichDMMessages(paginated.results);
       nextCursor = paginated.nextCursor;
       hasMore = paginated.hasMore;
     }
-
-    // Mark messages from the other user as read
-    await prisma.directMessage.updateMany({
-      where: {
-        fromUserId: otherUserId,
-        toUserId: currentUserId,
-        deletedAt: null,
-        readAt: null,
-      },
-      data: {
-        readAt: new Date(),
-      },
-    });
 
     res.json({
       user: otherUser,
