@@ -188,6 +188,14 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
     updateReplyCount(messageId, userId, count, participant);
   }, [updateReplyCount, userId, currentUser]);
 
+  // Stabilize onSend callback to prevent MessageInput re-renders
+  const handleSendDM = useCallback(
+    async (content: string, fileIds?: number[]) => {
+      await storeSendMessage(userId, content, fileIds);
+    },
+    [userId, storeSendMessage]
+  );
+
   // Close thread panel when switching conversations
   useEffect(() => {
     setActiveThreadId(null);
@@ -526,7 +534,7 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
           {/* Input */}
           <MessageInput
             placeholder={`Message ${userName}`}
-            onSend={async (content, fileIds) => { await storeSendMessage(userId, content, fileIds); }}
+            onSend={handleSendDM}
             sendError={sendError}
             clearSendError={clearSendError}
             dmParticipantIds={currentUser ? [currentUser.id, userId] : [userId]}
@@ -541,7 +549,7 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
             className="flex w-full md:w-[300px] flex-col border-l border-slack-border bg-white absolute inset-0 md:static md:inset-auto z-30 md:z-auto"
           >
             <PanelHeader icon={Pin} title="Pinned messages" onClose={() => setShowPins(false)} />
-            <div className="flex-1 overflow-y-auto p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <div className="flex-1 overflow-y-auto p-3">
               {pinnedMessages.length === 0 ? (
                 <div className="text-center text-sm text-slack-hint py-4">No pinned messages yet</div>
               ) : (
@@ -574,7 +582,7 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
             className="flex w-full md:w-[300px] flex-col border-l border-slack-border bg-white absolute inset-0 md:static md:inset-auto z-30 md:z-auto"
           >
             <PanelHeader icon={FileText} title="Files" onClose={() => setShowFiles(false)} />
-            <div className="flex-1 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-center text-sm text-slack-hint">
+            <div className="flex-1 overflow-y-auto p-4 text-center text-sm text-slack-hint">
               No files shared yet
             </div>
           </div>

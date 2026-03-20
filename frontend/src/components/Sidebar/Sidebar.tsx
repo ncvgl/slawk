@@ -7,8 +7,6 @@ import {
   ChevronRight,
   Plus,
   SquarePen,
-  Bell,
-  BellOff,
   LogOut,
   Star,
   User,
@@ -18,7 +16,6 @@ import { cn } from '@/lib/utils';
 import { useChannelStore } from '@/stores/useChannelStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useProfileStore } from '@/stores/useProfileStore';
-import { useNotificationStore } from '@/stores/useNotificationStore';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { ChannelItem } from './ChannelItem';
@@ -43,7 +40,6 @@ export function Sidebar() {
     useChannelStore();
   const { user, logout } = useAuthStore();
   const { openProfile } = useProfileStore();
-  const { permission, isSubscribed, subscribe, unsubscribe } = useNotificationStore();
   const closeSidebar = useMobileStore((s) => s.closeSidebar);
   const [channelsExpanded, setChannelsExpanded] = useState(true);
   const [dmsExpanded, setDmsExpanded] = useState(true);
@@ -245,17 +241,6 @@ export function Sidebar() {
                   <User className="h-4 w-4" />
                   Profile
                 </Button>
-                {permission === 'unsupported' ? null : permission === 'denied' ? (
-                  <Button variant="menu-item" className="text-slack-hint cursor-default" onClick={() => setShowAvatarMenu(false)}>
-                    <BellOff className="h-4 w-4" />
-                    Notifications blocked
-                  </Button>
-                ) : (
-                  <Button variant="menu-item" onClick={() => { setShowAvatarMenu(false); isSubscribed ? unsubscribe() : subscribe(); }}>
-                    {isSubscribed ? <BellOff className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
-                    {isSubscribed ? 'Disable notifications' : 'Enable notifications'}
-                  </Button>
-                )}
                 <Button variant="menu-item" onClick={() => { setShowAvatarMenu(false); logout(); }}>
                   <LogOut className="h-4 w-4" />
                   Sign out
