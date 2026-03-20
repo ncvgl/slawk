@@ -228,6 +228,13 @@ function AppShell() {
     const currentUserId = useAuthStore.getState().user?.id;
     if (currentUserId) setHuddleUserId(currentUserId);
 
+    // Mark self as online as soon as socket connects (fixes race with hydrate/getMyProfile)
+    const handleConnect = () => {
+      useAuthStore.getState().updateUser({ status: 'online' });
+    };
+    // If already connected (reconnect scenario), update immediately
+    if (socket.connected) handleConnect();
+
     const handleNewMessage = (msg: import('@/lib/api').ApiMessage) => {
       const { onMessageNew } = useMessageStore.getState();
       const { activeChannelId, incrementUnread } = useChannelStore.getState();
@@ -339,6 +346,11 @@ function AppShell() {
     const handlePresenceUpdate = (data: { userId: number; status: string }) => {
       const { updateDMStatus } = useChannelStore.getState();
       updateDMStatus(data.userId, data.status as import('@/lib/types').DirectMessage['userStatus']);
+      // Also update own status in auth store when server confirms our presence
+      const currentUser = useAuthStore.getState().user;
+      if (currentUser && data.userId === currentUser.id) {
+        useAuthStore.getState().updateUser({ status: data.status as any });
+      }
     };
 
     const handleMemberAdded = (data: { channelId: number; memberCount: number }) => {
@@ -383,6 +395,7 @@ function AppShell() {
       useMessageStore.getState().onReactionRemoved(data);
     };
 
+    socket.on('connect', handleConnect);
     socket.on('message:new', handleNewMessage);
     socket.on('message:updated', handleUpdatedMessage);
     socket.on('message:deleted', handleDeletedMessage);
@@ -437,6 +450,7 @@ function AppShell() {
     socket.on('disconnect', handleDisconnect);
 
     return () => {
+      socket.off('connect', handleConnect);
       socket.off('message:new', handleNewMessage);
       socket.off('message:updated', handleUpdatedMessage);
       socket.off('message:deleted', handleDeletedMessage);
