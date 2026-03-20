@@ -27,7 +27,7 @@ import type { Message as MessageType, Reaction } from '@/lib/types';
 interface ThreadPanelProps {
   messageId: number;
   onClose: () => void;
-  onReplyCountChange?: (messageId: number, count: number) => void;
+  onReplyCountChange?: (messageId: number, count: number, fromSelf?: boolean) => void;
   variant?: 'channel' | 'dm';
   readOnly?: boolean;
 }
@@ -161,10 +161,12 @@ export function ThreadPanel({ messageId, onClose, onReplyCountChange, variant = 
   const onReplyCountChangeRef = useRef(onReplyCountChange);
   onReplyCountChangeRef.current = onReplyCountChange;
   const hasLoadedReplies = useRef(false);
+  const didSendReply = useRef(false);
   useEffect(() => {
     if (!hasLoadedReplies.current && replies.length === 0) return;
     hasLoadedReplies.current = true;
-    onReplyCountChangeRef.current?.(messageId, replies.length);
+    onReplyCountChangeRef.current?.(messageId, replies.length, didSendReply.current);
+    didSendReply.current = false;
   }, [replies.length, messageId]);
 
   // --- Callbacks for Message component ---
@@ -276,6 +278,7 @@ export function ThreadPanel({ messageId, onClose, onReplyCountChange, variant = 
 
     setIsSending(true);
     setReplyError(null);
+    didSendReply.current = true;
     try {
       let apiReply;
       const fileIds = editor.pendingFiles.map((f) => f.id);
@@ -292,6 +295,7 @@ export function ThreadPanel({ messageId, onClose, onReplyCountChange, variant = 
       });
       editor.clearEditor();
     } catch (err) {
+      didSendReply.current = false;
       console.error('Failed to send reply:', err);
       setReplyError('Failed to send reply. Please try again.');
     } finally {

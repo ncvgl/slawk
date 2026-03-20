@@ -181,9 +181,12 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
     } catch { /* ignore */ }
   }, [userId, fetchConversation, showPins]);
 
-  const handleReplyCountChange = useCallback((messageId: number, count: number) => {
-    updateReplyCount(messageId, userId, count);
-  }, [updateReplyCount, userId]);
+  const handleReplyCountChange = useCallback((messageId: number, count: number, fromSelf?: boolean) => {
+    const participant = fromSelf && currentUser
+      ? { id: currentUser.id, name: currentUser.name, avatar: currentUser.avatar ?? null }
+      : undefined;
+    updateReplyCount(messageId, userId, count, participant);
+  }, [updateReplyCount, userId, currentUser]);
 
   // Close thread panel when switching conversations
   useEffect(() => {
