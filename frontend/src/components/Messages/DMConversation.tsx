@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
 import { format, isToday, isYesterday } from 'date-fns';
 import {
   Pin,
@@ -223,6 +223,15 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
   useEffect(() => {
     setActiveThreadId(null);
   }, [userId]);
+
+  // Memoize dmParticipantIds to prevent MessageInput re-renders
+  const dmParticipantIds = useMemo(
+    () => (currentUser ? [currentUser.id, userId] : [userId]),
+    [currentUser?.id, userId]
+  );
+
+  // Memoize placeholder to prevent MessageInput re-renders
+  const placeholder = useMemo(() => `Message ${userName}`, [userName]);
 
   return (
     <div data-testid="dm-conversation" className="flex h-full flex-col">
@@ -572,11 +581,11 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
 
           {/* Input */}
           <MessageInput
-            placeholder={`Message ${userName}`}
+            placeholder={placeholder}
             onSend={handleSendDM}
             sendError={sendError}
             clearSendError={clearSendError}
-            dmParticipantIds={currentUser ? [currentUser.id, userId] : [userId]}
+            dmParticipantIds={dmParticipantIds}
             testIdPrefix="dm"
           />
         </div>

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { Hash, Menu } from 'lucide-react';
 import { useMobileStore } from '@/stores/useMobileStore';
 import { useChannelStore } from '@/stores/useChannelStore';
@@ -58,6 +58,12 @@ export function MessageArea() {
       }
     },
     [activeChannelId, sendMessage]
+  );
+
+  // Memoize placeholder to prevent MessageInput re-renders
+  const placeholder = useMemo(
+    () => (activeChannel ? `Message #${activeChannel.name}` : ''),
+    [activeChannel?.name]
   );
 
   // Show DM conversation if a DM is active
@@ -131,7 +137,7 @@ export function MessageArea() {
           </div>
         ) : (
           <MessageInput
-            placeholder={`Message #${activeChannel.name}`}
+            placeholder={placeholder}
             onSend={handleSendMessage}
             sendError={sendError}
             clearSendError={clearSendError}
