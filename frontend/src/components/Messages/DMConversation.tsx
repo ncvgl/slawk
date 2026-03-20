@@ -182,11 +182,8 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
   }, [userId, fetchConversation, showPins]);
 
   const handleReplyCountChange = useCallback((messageId: number, count: number) => {
-    const participant = currentUser
-      ? { id: currentUser.id, name: currentUser.name, avatar: currentUser.avatar ?? null }
-      : undefined;
-    updateReplyCount(messageId, userId, count, participant);
-  }, [updateReplyCount, userId, currentUser]);
+    updateReplyCount(messageId, userId, count);
+  }, [updateReplyCount, userId]);
 
   // Close thread panel when switching conversations
   useEffect(() => {
