@@ -236,7 +236,7 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
 
           {/* Right Section */}
           <div className="flex items-center gap-2">
-            <HuddleButton userId={userId} />
+            {!isSelf && <HuddleButton userId={userId} />}
             <div className="hidden sm:block">
               <HeaderNotifications testIdPrefix="dm" />
             </div>
