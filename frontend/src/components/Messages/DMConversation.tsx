@@ -188,6 +188,14 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
     updateReplyCount(messageId, userId, count, participant);
   }, [updateReplyCount, userId, currentUser]);
 
+  // Stabilize onSend callback to prevent MessageInput re-renders
+  const handleSendDM = useCallback(
+    async (content: string, fileIds?: number[]) => {
+      await storeSendMessage(userId, content, fileIds);
+    },
+    [userId, storeSendMessage]
+  );
+
   // Close thread panel when switching conversations
   useEffect(() => {
     setActiveThreadId(null);
@@ -526,7 +534,7 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
           {/* Input */}
           <MessageInput
             placeholder={`Message ${userName}`}
-            onSend={async (content, fileIds) => { await storeSendMessage(userId, content, fileIds); }}
+            onSend={handleSendDM}
             sendError={sendError}
             clearSendError={clearSendError}
             dmParticipantIds={currentUser ? [currentUser.id, userId] : [userId]}
