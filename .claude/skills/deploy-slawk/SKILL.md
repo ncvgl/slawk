@@ -42,9 +42,12 @@ For redeployments, all infrastructure (Cloud SQL, APIs, IAM, Artifact Registry) 
 
 ### 1. Get existing config
 
-Pull the region and env vars from the running service — no need to ask the user for any of these:
+Resolve the project and region, then pull env vars from the running service:
 
 ```bash
+# Get the active GCP project
+gcloud config get-value project
+
 # Get the region from the service listing
 gcloud run services list --filter="metadata.name=slawk" --format="value(region)"
 
@@ -53,7 +56,7 @@ gcloud run services describe slawk --project=PROJECT_ID --region=REGION \
   --format='yaml(spec.template.spec.containers[0].env)'
 ```
 
-Extract: `DATABASE_URL`, `JWT_SECRET`, `GCS_BUCKET_NAME`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` from the output.
+Extract: `DATABASE_URL`, `JWT_SECRET`, `GCS_BUCKET_NAME`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` from the output. No need to ask the user for any of these.
 
 ### 2. Push unpushed commits
 
@@ -63,7 +66,7 @@ The `deploy.sh` script clones from the `main` branch on GitHub. Check for unpush
 git log origin/main..HEAD --oneline
 ```
 
-If there are unpushed commits, push them before deploying:
+If there are unpushed commits, ask the user for confirmation before pushing, then push:
 
 ```bash
 git push origin main
