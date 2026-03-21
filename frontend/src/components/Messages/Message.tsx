@@ -200,7 +200,7 @@ export function Message({ message, showAvatar, isCompact, onOpenThread, readOnly
                     <video
                       controls
                       preload="metadata"
-                      className="max-h-[300px] max-w-[400px]"
+                      className="max-h-[300px] max-w-full"
                       src={getFileUrl(file.id)}
                     />
                     <div className="flex items-center gap-2 px-3 py-1.5 border-t border-slack-border">
