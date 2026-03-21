@@ -408,11 +408,11 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
                                 <div key={file.id} className="rounded-lg border border-slack-border overflow-hidden">
                                   {file.mimetype.startsWith('audio/') || (file.mimetype === 'video/webm' && file.originalName.startsWith('voice-message')) ? (
                                     <div className="px-3 py-2.5">
-                                      <audio controls controlsList="nodownload noplaybackrate" preload="metadata" className="h-8" src={getFileUrl(file.id)} />
+                                      <audio controls playsInline controlsList="nodownload noplaybackrate" preload="metadata" className="h-8" src={getFileUrl(file.id)} />
                                     </div>
                                   ) : file.mimetype.startsWith('video/') ? (
                                     <div>
-                                      <video controls preload="metadata" className="max-h-[300px] max-w-[400px]" src={getFileUrl(file.id)} />
+                                      <video controls playsInline preload="metadata" className="max-h-[300px] max-w-[400px]" src={getFileUrl(file.id)} />
                                       <div className="flex items-center gap-2 px-3 py-1.5 border-t border-slack-border">
                                         <span className="text-[13px] text-slack-link truncate max-w-[200px]">{file.originalName}</span>
                                         <a href={getAuthFileUrl(`/files/${file.id}/download`, { download: true })} download={file.originalName.replace(/[/\\:\0]/g, '_')} rel="noopener" className="ml-auto flex-shrink-0 text-slack-disabled hover:text-slack-primary" onClick={(e) => e.stopPropagation()}>

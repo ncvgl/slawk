@@ -10,7 +10,7 @@ interface PanelHeaderProps {
 
 export function PanelHeader({ icon: Icon, title, onClose }: PanelHeaderProps) {
   return (
-    <div className="flex h-[49px] items-center justify-between border-b border-slack-border px-4 pt-[env(safe-area-inset-top)]">
+    <div className="flex min-h-[49px] items-center justify-between border-b border-slack-border px-4 pt-[env(safe-area-inset-top)]">
       <div className="flex items-center gap-1.5">
         {Icon && <Icon className="h-4 w-4 text-slack-secondary" />}
         <span className="text-[15px] font-bold text-slack-primary">{title}</span>

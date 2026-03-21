@@ -189,6 +189,7 @@ export function Message({ message, showAvatar, isCompact, onOpenThread, readOnly
                   <div className="px-3 py-2.5">
                     <audio
                       controls
+                      playsInline
                       controlsList="nodownload noplaybackrate"
                       preload="metadata"
                       className="h-8"
@@ -199,6 +200,7 @@ export function Message({ message, showAvatar, isCompact, onOpenThread, readOnly
                   <div>
                     <video
                       controls
+                      playsInline
                       preload="metadata"
                       className="max-h-[300px] max-w-[400px]"
                       src={getFileUrl(file.id)}
