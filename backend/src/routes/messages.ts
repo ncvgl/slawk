@@ -7,7 +7,7 @@ import { AuthRequest } from '../types.js';
 import { USER_SELECT_BASIC, FILE_SELECT, MESSAGE_INCLUDE_FULL, MESSAGE_INCLUDE_WITH_FILES } from '../db/selects.js';
 import { parsePagination, paginateResults } from '../utils/pagination.js';
 import { logError } from '../utils/logger.js';
-import { getIO, isUserViewingChannel } from '../websocket/index.js';
+import { getIO, isUserOnline } from '../websocket/index.js';
 import { sendPushToUser } from '../services/pushService.js';
 
 const router = Router();
@@ -102,7 +102,7 @@ router.post('/:id/messages', authMiddleware, requireChannelMembership, async (re
         }).then((members) => {
           for (const member of members) {
             if (member.userId === userId) continue;
-            if (isUserViewingChannel(member.userId, channelId)) continue;
+            if (isUserOnline(member.userId)) continue;
             sendPushToUser(member.userId, {
               title: `#${channelName}`,
               body,

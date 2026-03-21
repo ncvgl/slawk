@@ -9,7 +9,6 @@ import { USER_SELECT_BASIC, FILE_SELECT, DM_INCLUDE_USERS } from '../db/selects.
 import { parsePagination, paginateResults } from '../utils/pagination.js';
 import { parseIntParam } from '../utils/params.js';
 import { logError } from '../utils/logger.js';
-import { isUserViewingDM } from '../websocket/index.js';
 import { sendPushToUser } from '../services/pushService.js';
 
 const router = Router();
@@ -93,7 +92,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
         io.to(`user:${toUserId}`).emit('dm:new', dm);
 
         // Push notification (fire-and-forget)
-        if (!isUserViewingDM(toUserId, fromUserId)) {
+        if (!isUserOnline(toUserId)) {
           const senderName = dm.fromUser?.name || 'Someone';
           sendPushToUser(toUserId, {
             title: senderName,
@@ -441,7 +440,7 @@ router.post('/messages/:id/reply', authMiddleware, requireDmAccess, async (req: 
 
     // Push notification for DM thread reply (fire-and-forget)
     if (reply && fromUserId !== toUserId) {
-      if (!isUserViewingDM(toUserId, fromUserId)) {
+      if (!isUserOnline(toUserId)) {
         const senderName = reply.fromUser?.name || 'Someone';
         sendPushToUser(toUserId, {
           title: `${senderName} (thread)`,

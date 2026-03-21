@@ -1,5 +1,5 @@
 import prisma from './db.js';
-import { getIO, isUserViewingChannel } from './websocket/index.js';
+import { getIO, isUserOnline } from './websocket/index.js';
 import { USER_SELECT_BASIC, FILE_SELECT } from './db/selects.js';
 import { logError } from './utils/logger.js';
 import { sendPushToUser } from './services/pushService.js';
@@ -117,7 +117,7 @@ export function startScheduler(): NodeJS.Timeout {
           }).then((members) => {
             for (const member of members) {
               if (member.userId === scheduled.userId) continue;
-              if (isUserViewingChannel(member.userId, scheduled.channelId)) continue;
+              if (isUserOnline(member.userId)) continue;
               sendPushToUser(member.userId, {
                 title: `#${channelName}`,
                 body: `${senderName}: ${message.content.slice(0, 100) || 'Sent an attachment'}`,

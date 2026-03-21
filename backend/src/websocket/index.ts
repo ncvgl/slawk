@@ -401,7 +401,7 @@ export function initializeWebSocket(httpServer: HttpServer) {
           }).then((members) => {
             for (const member of members) {
               if (member.userId === socket.user!.userId) continue;
-              if (isUserViewingChannel(member.userId, data.channelId)) continue;
+              if (isUserOnline(member.userId)) continue;
               sendPushToUser(member.userId, {
                 title: `#${channelName}`,
                 body,
@@ -698,7 +698,7 @@ export function initializeWebSocket(httpServer: HttpServer) {
           io.to(`user:${data.toUserId}`).emit('dm:new', dm);
 
           // Fire push notification for DM (fire-and-forget)
-          if (!isUserViewingDM(data.toUserId, socket.user.userId)) {
+          if (!isUserOnline(data.toUserId)) {
             const senderName = dm.fromUser?.name || 'Someone';
             sendPushToUser(data.toUserId, {
               title: senderName,

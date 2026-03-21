@@ -8,7 +8,7 @@ import { getIO } from '../websocket/index.js';
 import { USER_SELECT_BASIC, MESSAGE_INCLUDE_FULL, MESSAGE_INCLUDE_WITH_FILES, THREAD_REPLY_INCLUDE } from '../db/selects.js';
 import { parseIntParam } from '../utils/params.js';
 import { logError } from '../utils/logger.js';
-import { isUserViewingChannel } from '../websocket/index.js';
+import { isUserOnline } from '../websocket/index.js';
 import { sendPushToUser } from '../services/pushService.js';
 
 const router = Router();
@@ -101,7 +101,7 @@ router.post('/:id/reply', authMiddleware, requireMessageAccess, async (req: Auth
 
       for (const p of participants) {
         if (p.userId === userId) continue;
-        if (isUserViewingChannel(p.userId, parentMessage.channelId)) continue;
+        if (isUserOnline(p.userId)) continue;
         sendPushToUser(p.userId, {
           title: `#${channelName} thread`,
           body: `${senderName}: ${content.slice(0, 100)}`,
