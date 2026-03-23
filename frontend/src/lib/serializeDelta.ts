@@ -41,7 +41,11 @@ export function serializeDelta(quill: Quill): string {
     // Handle mention embeds: { insert: { mention: { id, name } } }
     if (typeof op.insert === 'object' && op.insert !== null && 'mention' in op.insert) {
       const m = op.insert.mention as { id: number; name: string };
-      pendingText += `<@${m.id}|${m.name}>`;
+      if (m.id === -1 && m.name === 'here') {
+        pendingText += '<@here>';
+      } else {
+        pendingText += `<@${m.id}|${m.name}>`;
+      }
       continue;
     }
     if (typeof op.insert !== 'string') continue;

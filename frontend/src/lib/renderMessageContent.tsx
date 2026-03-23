@@ -7,8 +7,9 @@ import React from 'react';
  */
 function renderInline(content: string, keyOffset: number = 0): React.ReactNode[] {
   // Mentions use <@id|name> format (inserted by autocomplete). Bare @word is NOT a mention.
+  // Also supports <@here> for broadcast mentions.
   // Order matters: **bold** before *italic*, ~~strike~~ before ~strike~, _italic_ uses word-boundary-like guards
-  const TOKEN = /(\*\*(.+?)\*\*)|(<@(\d+)\|([^>]+)>)|(\*([^*\n]+?)\*)|((?<![a-zA-Z0-9])_([^_\n]+?)_(?![a-zA-Z0-9]))|(`([^`\n]+?)`)|(~~(.+?)~~)|(~([^~\n]+?)~)|\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<>"'\])]+)/g;
+  const TOKEN = /(\*\*(.+?)\*\*)|(<@here>)|(<@(\d+)\|([^>]+)>)|(\*([^*\n]+?)\*)|((?<![a-zA-Z0-9])_([^_\n]+?)_(?![a-zA-Z0-9]))|(`([^`\n]+?)`)|(~~(.+?)~~)|(~([^~\n]+?)~)|\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<>"'\])]+)/g;
   const nodes: React.ReactNode[] = [];
   let last = 0;
   let m: RegExpExecArray | null;
@@ -19,29 +20,32 @@ function renderInline(content: string, keyOffset: number = 0): React.ReactNode[]
       // **bold** — recurse for nested formatting
       nodes.push(<strong key={key++} className="font-bold">{renderInline(m[2], key * 1000)}</strong>);
     } else if (m[3]) {
-      // <@id|name> — mention
-      nodes.push(<span key={key++} className="mention-highlight rounded bg-slack-mention px-[2px] text-slack-link font-medium cursor-pointer hover:bg-slack-mention-hover" data-mention-id={m[4]} data-mention-name={m[5]}>@{m[5]}</span>);
-    } else if (m[6]) {
+      // <@here> — broadcast mention
+      nodes.push(<span key={key++} className="mention-highlight rounded bg-amber-200/60 px-[2px] text-amber-900 font-medium cursor-pointer hover:bg-amber-200">@here</span>);
+    } else if (m[4]) {
+      // <@id|name> — user mention
+      nodes.push(<span key={key++} className="mention-highlight rounded bg-slack-mention px-[2px] text-slack-link font-medium cursor-pointer hover:bg-slack-mention-hover" data-mention-id={m[5]} data-mention-name={m[6]}>@{m[6]}</span>);
+    } else if (m[7]) {
       // *italic* — recurse for nested formatting
-      nodes.push(<em key={key++} className="leading-[22px]">{renderInline(m[7], key * 1000)}</em>);
-    } else if (m[8]) {
+      nodes.push(<em key={key++} className="leading-[22px]">{renderInline(m[8], key * 1000)}</em>);
+    } else if (m[9]) {
       // _italic_ — recurse for nested formatting
-      nodes.push(<em key={key++} className="leading-[22px]">{renderInline(m[9], key * 1000)}</em>);
-    } else if (m[10]) {
+      nodes.push(<em key={key++} className="leading-[22px]">{renderInline(m[10], key * 1000)}</em>);
+    } else if (m[11]) {
       // `code` — no recursion (code is literal)
-      nodes.push(<code key={key++} className="rounded-[3px] border border-slack-border bg-slack-code-bg px-1 py-0.5 font-mono text-[0.875em] text-slack-code-inline">{m[11]}</code>);
-    } else if (m[12]) {
+      nodes.push(<code key={key++} className="rounded-[3px] border border-slack-border bg-slack-code-bg px-1 py-0.5 font-mono text-[0.875em] text-slack-code-inline">{m[12]}</code>);
+    } else if (m[13]) {
       // ~~strikethrough~~ — recurse for nested formatting
-      nodes.push(<s key={key++}>{renderInline(m[13], key * 1000)}</s>);
-    } else if (m[14]) {
+      nodes.push(<s key={key++}>{renderInline(m[14], key * 1000)}</s>);
+    } else if (m[15]) {
       // ~strikethrough~ — recurse for nested formatting
-      nodes.push(<s key={key++}>{renderInline(m[15], key * 1000)}</s>);
-    } else if (m[16]) {
+      nodes.push(<s key={key++}>{renderInline(m[16], key * 1000)}</s>);
+    } else if (m[17]) {
       // [text](url)
-      nodes.push(<a key={key++} href={m[17]} target="_blank" rel="noopener noreferrer" className="text-slack-link underline hover:text-slack-link-hover">{m[16]}</a>);
-    } else if (m[18]) {
+      nodes.push(<a key={key++} href={m[18]} target="_blank" rel="noopener noreferrer" className="text-slack-link underline hover:text-slack-link-hover">{m[17]}</a>);
+    } else if (m[19]) {
       // plain URL
-      nodes.push(<a key={key++} href={m[18]} target="_blank" rel="noopener noreferrer" className="text-slack-link underline hover:text-slack-link-hover">{m[18]}</a>);
+      nodes.push(<a key={key++} href={m[19]} target="_blank" rel="noopener noreferrer" className="text-slack-link underline hover:text-slack-link-hover">{m[19]}</a>);
     }
     last = m.index + m[0].length;
   }

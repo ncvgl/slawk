@@ -18,8 +18,10 @@ class MentionBlot extends Embed {
     node.setAttribute('data-mention-id', String(data.id));
     node.setAttribute('data-mention-name', data.name);
     node.textContent = `@${data.name}`;
-    node.style.cssText =
-      'background:rgba(29,155,209,0.1);color:#1264a3;border-radius:3px;padding:0 2px;font-weight:500;cursor:pointer;';
+    const isHere = data.id === -1 && data.name === 'here';
+    node.style.cssText = isHere
+      ? 'background:rgba(255,183,77,0.3);color:#b25e00;border-radius:3px;padding:0 2px;font-weight:500;cursor:pointer;'
+      : 'background:rgba(29,155,209,0.1);color:#1264a3;border-radius:3px;padding:0 2px;font-weight:500;cursor:pointer;';
     node.contentEditable = 'false';
     return node;
   }
@@ -498,19 +500,30 @@ export function useQuillEditor({
       return;
     }
     let cancelled = false;
-    const timer = setTimeout(async () => {
+    const fetchUsers = async () => {
       try {
         const users = await getUsers(mentionQuery || undefined);
         if (!cancelled) {
           const filtered = dmParticipantIds
             ? users.filter((u) => dmParticipantIds.includes(u.id))
             : users;
-          setMentionUsers(filtered);
+          // Add @here special option (filtered by query) — only in channels, not DMs
+          const hereOption: AuthUser = { id: -1, name: 'here', avatar: null };
+          const q = mentionQuery.toLowerCase();
+          const showHere = !dmParticipantIds && (!q || 'here'.startsWith(q));
+          const withHere = showHere ? [hereOption, ...filtered] : filtered;
+          setMentionUsers(withHere);
         }
       } catch {
         // ignore
       }
-    }, 150);
+    };
+    // No debounce for empty query (initial '@') so dropdown appears instantly
+    if (!mentionQuery) {
+      fetchUsers();
+      return () => { cancelled = true; };
+    }
+    const timer = setTimeout(fetchUsers, 150);
     return () => {
       cancelled = true;
       clearTimeout(timer);
@@ -523,7 +536,12 @@ export function useQuillEditor({
       if (!quill || mentionStartIndex === null) return;
       const deleteLength = mentionQuery.length + 1; // +1 for the '@'
       quill.deleteText(mentionStartIndex, deleteLength);
-      quill.insertEmbed(mentionStartIndex, 'mention', { id: user.id, name: user.name }, 'user');
+      if (user.id === -1 && user.name === 'here') {
+        // @here special mention — insert as styled embed
+        quill.insertEmbed(mentionStartIndex, 'mention', { id: -1, name: 'here' }, 'user');
+      } else {
+        quill.insertEmbed(mentionStartIndex, 'mention', { id: user.id, name: user.name }, 'user');
+      }
       quill.insertText(mentionStartIndex + 1, ' ', 'user');
       quill.setSelection(mentionStartIndex + 2);
       setShowMentionDropdown(false);
