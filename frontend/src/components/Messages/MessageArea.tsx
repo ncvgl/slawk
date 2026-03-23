@@ -50,6 +50,16 @@ export function MessageArea() {
     }));
   }, []);
 
+  // Stabilize onSend callback to prevent MessageInput re-renders
+  const handleSendMessage = useCallback(
+    async (content: string, fileIds?: number[]) => {
+      if (activeChannelId) {
+        await sendMessage(activeChannelId, content, fileIds);
+      }
+    },
+    [activeChannelId, sendMessage]
+  );
+
   // Show DM conversation if a DM is active
   if (activeDMId && activeDM) {
     return <DMConversation userId={activeDM.userId} userName={activeDM.userName} userAvatar={activeDM.userAvatar || undefined} />;
@@ -122,7 +132,7 @@ export function MessageArea() {
         ) : (
           <MessageInput
             placeholder={`Message #${activeChannel.name}`}
-            onSend={(content, fileIds) => sendMessage(activeChannelId!, content, fileIds)}
+            onSend={handleSendMessage}
             sendError={sendError}
             clearSendError={clearSendError}
             channelId={activeChannelId!}

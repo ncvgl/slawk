@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useState } from 'react';
+import React, { useRef, useEffect, useCallback, useState } from 'react';
 import {
   SendHorizontal,
   ChevronDown,
@@ -38,7 +38,7 @@ interface MessageInputProps {
   testIdPrefix?: string;
 }
 
-export function MessageInput({ placeholder, onSend, sendError, clearSendError, channelId, dmParticipantIds, testIdPrefix }: MessageInputProps) {
+export const MessageInput = React.memo(function MessageInput({ placeholder, onSend, sendError, clearSendError, channelId, dmParticipantIds, testIdPrefix }: MessageInputProps) {
   const prefix = testIdPrefix ? `${testIdPrefix}-` : '';
 
   // Schedule message state
@@ -286,4 +286,4 @@ export function MessageInput({ placeholder, onSend, sendError, clearSendError, c
       )}
     </div>
   );
-}
+});
