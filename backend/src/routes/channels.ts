@@ -14,15 +14,20 @@ const router = Router();
 
 const createChannelSchema = z.object({
   name: z.string()
-    .min(1)
+    .min(1, 'Channel name is required')
     .max(25, 'Channel name must be 25 characters or fewer')
+    .transform((name) => name.trim().toLowerCase())
     .refine(
-      (name) => !name.includes('..') && !name.includes('/') && !name.includes('\\'),
-      { message: 'Channel name cannot contain path traversal characters' }
+      (name) => name.length >= 1,
+      { message: 'Channel name is required' }
     )
     .refine(
-      (name) => !/[\x00-\x1F\x7F]/.test(name),
-      { message: 'Channel name cannot contain control characters' }
+      (name) => name.length <= 25,
+      { message: 'Channel name must be 25 characters or fewer' }
+    )
+    .refine(
+      (name) => /^[a-z0-9][a-z0-9-]*$/.test(name),
+      { message: 'Channel names can only contain lowercase letters, numbers, and hyphens, and must start with a letter or number' }
     ),
   isPrivate: z.boolean().optional().default(false),
 });

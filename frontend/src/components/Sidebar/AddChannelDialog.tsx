@@ -85,14 +85,24 @@ export function AddChannelDialog({
             <form
               onSubmit={async (e) => {
                 e.preventDefault();
-                const name = newChannelName.trim();
+                const name = newChannelName.trim().toLowerCase();
                 if (!name) return;
+                if (name.length > 25) {
+                  setCreateChannelError('Channel name must be 25 characters or fewer');
+                  return;
+                }
+                if (!/^[a-z0-9][a-z0-9-]*$/.test(name)) {
+                  setCreateChannelError('Channel names can only contain lowercase letters, numbers, and hyphens');
+                  return;
+                }
                 try {
                   await onCreateChannel(name, isPrivate);
                   setNewChannelName('');
                   setCreateChannelError('');
-                } catch {
-                  setCreateChannelError('Channel name already exists');
+                } catch (err) {
+                  setCreateChannelError(
+                    err instanceof Error ? err.message : 'Failed to create channel'
+                  );
                 }
               }}
             >
@@ -105,13 +115,15 @@ export function AddChannelDialog({
                 onChange={(e) => {
                   const val = e.target.value.toLowerCase();
                   setNewChannelName(val);
-                  if (val.trim().length > 25) {
+                  const trimmed = val.trim().toLowerCase();
+                  if (trimmed.length > 25) {
                     setCreateChannelError('Channel name must be 25 characters or fewer');
+                  } else if (trimmed.length > 0 && !/^[a-z0-9][a-z0-9-]*$/.test(trimmed)) {
+                    setCreateChannelError('Channel names can only contain lowercase letters, numbers, and hyphens');
                   } else if (createChannelError) {
                     setCreateChannelError('');
                   }
                 }}
-                maxLength={25}
                 placeholder="e.g. plan-budget"
                 autoFocus
                 className="w-full rounded border border-slack-input-border px-3 py-2 text-[15px] text-slack-primary outline-none focus:border-slack-link focus:ring-1 focus:ring-slack-link"
@@ -173,7 +185,7 @@ export function AddChannelDialog({
                 <Button variant="ghost" type="button" onClick={handleClose}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={!newChannelName.trim()}>
+                <Button type="submit" disabled={!newChannelName.trim() || !!createChannelError}>
                   Create
                 </Button>
               </div>
