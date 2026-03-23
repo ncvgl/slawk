@@ -7,6 +7,7 @@ import {
   Menu,
   Download,
   FileIcon,
+  Search,
 } from 'lucide-react';
 import { Avatar } from '@/components/ui/avatar';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -28,6 +29,7 @@ import { DeleteConfirmDialog } from './DeleteConfirmDialog';
 import { HeaderSearch } from './HeaderSearch';
 import { HeaderNotifications } from './HeaderNotifications';
 import { HeaderTabs } from './HeaderTabs';
+import { MobileSearchOverlay } from './MobileSearchOverlay';
 import { PanelHeader } from './PanelHeader';
 import { HuddleButton } from '@/components/Huddle/HuddleButton';
 import { HuddleSystemMessage } from '@/components/Huddle/HuddleInvite';
@@ -74,6 +76,7 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
   const [pinnedMessages, setPinnedMessages] = useState<DMMessage[]>([]);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [isStarred, setIsStarred] = useState(false);
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [highlightedId, setHighlightedId] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -262,6 +265,13 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
             <div className="hidden sm:block">
               <HeaderSearch testIdPrefix="dm" />
             </div>
+            <button
+              onClick={() => setShowMobileSearch(true)}
+              className="flex h-8 w-8 items-center justify-center rounded hover:bg-slack-hover sm:hidden"
+              data-testid="dm-mobile-search-button"
+            >
+              <Search className="h-4 w-4 text-slack-secondary" />
+            </button>
           </div>
         </div>
         {/* Tabs Row */}
@@ -272,6 +282,11 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
           onToggleFiles={() => { setShowFiles((prev) => !prev); setShowPins(false); }}
           testIdPrefix="dm"
         />
+
+        {/* Mobile search overlay */}
+        {showMobileSearch && (
+          <MobileSearchOverlay onClose={() => setShowMobileSearch(false)} testIdPrefix="dm" />
+        )}
       </header>
 
       {/* Body: messages column + optional side panel */}

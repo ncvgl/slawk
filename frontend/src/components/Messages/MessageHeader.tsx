@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Hash, Lock, Star, MoreVertical, LogOut, Menu } from 'lucide-react';
+import { Hash, Lock, Star, MoreVertical, LogOut, Menu, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getChannelMembers, type ChannelMember } from '@/lib/api';
 import { useChannelStore } from '@/stores/useChannelStore';
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { HeaderSearch } from './HeaderSearch';
 import { HeaderNotifications } from './HeaderNotifications';
 import { HeaderTabs } from './HeaderTabs';
+import { MobileSearchOverlay } from './MobileSearchOverlay';
 import { useMobileStore } from '@/stores/useMobileStore';
 
 interface MessageHeaderProps {
@@ -59,6 +60,7 @@ export function MessageHeader({ channel, showMembers, onToggleMembers, onToggleP
   }, [channel.id]);
 
   const [leaveError, setLeaveError] = useState<string | null>(null);
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
 
   const handleLeaveChannel = async () => {
     setShowMenu(false);
@@ -140,6 +142,13 @@ export function MessageHeader({ channel, showMembers, onToggleMembers, onToggleP
           <div className="hidden sm:block">
             <HeaderSearch />
           </div>
+          <button
+            onClick={() => setShowMobileSearch(true)}
+            className="flex h-8 w-8 items-center justify-center rounded hover:bg-slack-hover sm:hidden"
+            data-testid="mobile-search-button"
+          >
+            <Search className="h-4 w-4 text-slack-secondary" />
+          </button>
           {!readOnly && (
             <div className="relative" ref={menuRef}>
               <Button
@@ -181,6 +190,11 @@ export function MessageHeader({ channel, showMembers, onToggleMembers, onToggleP
         onTogglePins={onTogglePins}
         onToggleFiles={onToggleFiles}
       />
+
+      {/* Mobile search overlay */}
+      {showMobileSearch && (
+        <MobileSearchOverlay onClose={() => setShowMobileSearch(false)} />
+      )}
     </header>
   );
 }
