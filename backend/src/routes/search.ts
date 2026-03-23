@@ -34,24 +34,25 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     });
     const channelIds = userChannels.map((c) => c.channelId);
 
-    // Search channel messages
+    // Search channel messages (content, author name, or channel name)
     let messages: any[] = [];
     if (searchMessages && channelIds.length > 0) {
-      const messageWhere: any = {
-        channelId: channelId ? { equals: channelId } : { in: channelIds },
-        deletedAt: null,
-        content: {
-          contains: query,
-          mode: 'insensitive',
-        },
-      };
+      const channelFilter = channelId ? { equals: channelId } : { in: channelIds };
 
       // If channelId specified, verify user is a member
       if (channelId && !channelIds.includes(channelId)) {
         // User not a member of this channel, skip message search
       } else {
         messages = await prisma.message.findMany({
-          where: messageWhere,
+          where: {
+            channelId: channelFilter,
+            deletedAt: null,
+            OR: [
+              { content: { contains: query, mode: 'insensitive' } },
+              { user: { name: { contains: query, mode: 'insensitive' } } },
+              { channel: { name: { contains: query, mode: 'insensitive' } } },
+            ],
+          },
           include: {
             user: {
               select: { id: true, name: true, avatar: true },
@@ -61,7 +62,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
             },
           },
           orderBy: { createdAt: 'desc' },
-          take: 25,
+          take: 50,
         });
       }
     }
@@ -86,20 +87,23 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       }
 
       if (req.user!.role !== 'GUEST' || dmUserFilter) {
-        const dmWhere: any = {
-          OR: [
-            { fromUserId: userId, ...(dmUserFilter && { toUserId: { in: dmUserFilter } }) },
-            { toUserId: userId, ...(dmUserFilter && { fromUserId: { in: dmUserFilter } }) },
-          ],
-          deletedAt: null,
-          content: {
-            contains: query,
-            mode: 'insensitive',
-          },
-        };
+        const dmParticipantFilter = (role: 'fromUserId' | 'toUserId') => ({
+          [role]: userId,
+          ...(dmUserFilter && { [role === 'fromUserId' ? 'toUserId' : 'fromUserId']: { in: dmUserFilter } }),
+        });
 
         dms = await prisma.directMessage.findMany({
-          where: dmWhere,
+          where: {
+            OR: [
+              { ...dmParticipantFilter('fromUserId'), content: { contains: query, mode: 'insensitive' } },
+              { ...dmParticipantFilter('toUserId'), content: { contains: query, mode: 'insensitive' } },
+              { ...dmParticipantFilter('fromUserId'), fromUser: { name: { contains: query, mode: 'insensitive' } } },
+              { ...dmParticipantFilter('fromUserId'), toUser: { name: { contains: query, mode: 'insensitive' } } },
+              { ...dmParticipantFilter('toUserId'), fromUser: { name: { contains: query, mode: 'insensitive' } } },
+              { ...dmParticipantFilter('toUserId'), toUser: { name: { contains: query, mode: 'insensitive' } } },
+            ],
+            deletedAt: null,
+          },
           include: {
             fromUser: {
               select: { id: true, name: true, avatar: true },
@@ -109,36 +113,54 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
             },
           },
           orderBy: { createdAt: 'desc' },
-          take: 25,
+          take: 50,
         });
       }
     }
 
-    // Combine and format results
-    const formattedMessages = messages.map((m) => ({
-      id: m.id,
-      type: 'message' as const,
-      content: m.content,
-      createdAt: m.createdAt,
-      user: m.user,
-      channel: m.channel,
-      threadId: m.threadId,
-    }));
+    // Combine and format results with relevance scoring
+    const queryLower = query.toLowerCase();
 
-    const formattedDMs = dms.map((dm) => ({
-      id: dm.id,
-      type: 'dm' as const,
-      content: dm.content,
-      createdAt: dm.createdAt,
-      user: dm.fromUser,
-      otherUser: dm.fromUserId === userId ? dm.toUser : dm.fromUser,
-      participant: dm.fromUserId === userId ? dm.toUser : dm.fromUser,
-    }));
+    const formattedMessages = messages.map((m) => {
+      let score = 0;
+      if (m.content?.toLowerCase().includes(queryLower)) score += 1;
+      if (m.user?.name?.toLowerCase().includes(queryLower)) score += 2;
+      if (m.channel?.name?.toLowerCase().includes(queryLower)) score += 1;
+      return {
+        id: m.id,
+        type: 'message' as const,
+        content: m.content,
+        createdAt: m.createdAt,
+        user: m.user,
+        channel: m.channel,
+        threadId: m.threadId,
+        _score: score,
+      };
+    });
 
-    // Merge and sort by date
+    const formattedDMs = dms.map((dm) => {
+      let score = 0;
+      if (dm.content?.toLowerCase().includes(queryLower)) score += 1;
+      const otherUser = dm.fromUserId === userId ? dm.toUser : dm.fromUser;
+      if (dm.fromUser?.name?.toLowerCase().includes(queryLower)) score += 2;
+      if (otherUser?.name?.toLowerCase().includes(queryLower)) score += 2;
+      return {
+        id: dm.id,
+        type: 'dm' as const,
+        content: dm.content,
+        createdAt: dm.createdAt,
+        user: dm.fromUser,
+        otherUser,
+        participant: otherUser,
+        _score: score,
+      };
+    });
+
+    // Merge, sort by score (desc) then date (desc), strip internal score
     const results = [...formattedMessages, ...formattedDMs]
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, 50);
+      .sort((a, b) => b._score - a._score || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 50)
+      .map(({ _score, ...rest }) => rest);
 
     res.json({
       results,
