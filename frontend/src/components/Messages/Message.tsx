@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
 import { FileIcon, Download, Pin, Mic } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -60,6 +60,22 @@ export function Message({ message, showAvatar, isCompact, onOpenThread, readOnly
   });
   const isOwner = currentUser?.id === message.userId;
   const isEditing = editingId === message.id;
+
+  // Collapsible long messages
+  const MAX_COLLAPSED_HEIGHT = 300;
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [isCollapsed, setIsCollapsed] = useState(true);
+  const [needsCollapse, setNeedsCollapse] = useState(false);
+
+  const measureContent = useCallback(() => {
+    if (contentRef.current) {
+      setNeedsCollapse(contentRef.current.scrollHeight > MAX_COLLAPSED_HEIGHT);
+    }
+  }, []);
+
+  useEffect(() => {
+    measureContent();
+  }, [message.content, measureContent]);
 
   const formattedTime = format(message.createdAt, 'h:mm a');
 
@@ -166,18 +182,41 @@ export function Message({ message, showAvatar, isCompact, onOpenThread, readOnly
             </div>
           </div>
         ) : (
-          <div
-            className="text-[15px] font-normal text-slack-primary leading-[22px] whitespace-pre-wrap break-words"
-            onClick={(e) => {
-              const el = (e.target as HTMLElement).closest('[data-mention-id]');
-              if (!el) return;
-              const id = el.getAttribute('data-mention-id');
-              if (id) openProfile(Number(id));
-            }}
-          >
-            {renderMessageContent(message.content)}
-            {!showAvatar && message.isEdited && (
-              <span className="text-[12px] text-slack-secondary ml-1">(edited)</span>
+          <div className="relative">
+            <div
+              ref={contentRef}
+              className={cn(
+                "text-[15px] font-normal text-slack-primary leading-[22px] whitespace-pre-wrap break-words",
+                needsCollapse && isCollapsed && "overflow-hidden"
+              )}
+              style={needsCollapse && isCollapsed ? { maxHeight: MAX_COLLAPSED_HEIGHT } : undefined}
+              onClick={(e) => {
+                const el = (e.target as HTMLElement).closest('[data-mention-id]');
+                if (!el) return;
+                const id = el.getAttribute('data-mention-id');
+                if (id) openProfile(Number(id));
+              }}
+            >
+              {renderMessageContent(message.content)}
+              {!showAvatar && message.isEdited && (
+                <span className="text-[12px] text-slack-secondary ml-1">(edited)</span>
+              )}
+            </div>
+            {needsCollapse && isCollapsed && (
+              <div
+                className="absolute bottom-0 left-0 right-0 h-12 pointer-events-none"
+                style={{
+                  background: `linear-gradient(to top, ${message.isPinned ? '#FEF9ED' : '#ffffff'}, transparent)`,
+                }}
+              />
+            )}
+            {needsCollapse && (
+              <button
+                onClick={() => setIsCollapsed(!isCollapsed)}
+                className="text-[13px] font-medium text-slack-link hover:underline mt-0.5"
+              >
+                {isCollapsed ? 'Show more' : 'Show less'}
+              </button>
             )}
           </div>
         )}
