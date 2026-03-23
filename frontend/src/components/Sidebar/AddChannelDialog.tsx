@@ -103,7 +103,7 @@ export function AddChannelDialog({
                 type="text"
                 value={newChannelName}
                 onChange={(e) => {
-                  const val = e.target.value;
+                  const val = e.target.value.toLowerCase();
                   setNewChannelName(val);
                   if (val.trim().length > 25) {
                     setCreateChannelError('Channel name must be 25 characters or fewer');

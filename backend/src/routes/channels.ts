@@ -34,8 +34,19 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       res.status(403).json({ error: 'Guests cannot create channels' });
       return;
     }
-    const { name, isPrivate } = createChannelSchema.parse(req.body);
+    const parsed = createChannelSchema.parse(req.body);
+    const name = parsed.name.toLowerCase();
+    const isPrivate = parsed.isPrivate;
     const userId = req.user!.userId;
+
+    // Case-insensitive uniqueness check (DB unique constraint is case-sensitive)
+    const existing = await prisma.channel.findFirst({
+      where: { name: { equals: name, mode: 'insensitive' } },
+    });
+    if (existing) {
+      res.status(400).json({ error: 'Channel name already exists' });
+      return;
+    }
 
     const channel = await prisma.channel.create({
       data: {
