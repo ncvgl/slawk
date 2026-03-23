@@ -53,7 +53,7 @@ export function Message({ message, showAvatar, isCompact, onOpenThread, readOnly
   const effectiveAddReaction = onAddReaction ?? addReaction;
   const effectiveRemoveReaction = onRemoveReaction ?? removeReaction;
   const {
-    editingId, editContent, setEditContent, editInputRef,
+    editingId, editContent, editError, setEditContent, editInputRef,
     startEdit, cancelEdit, saveEdit, handleEditKeyDown,
   } = useMessageEdit({
     onSave: onEditMessage ?? ((id, content) => editMessage(id, content)),
@@ -139,11 +139,17 @@ export function Message({ message, showAvatar, isCompact, onOpenThread, readOnly
             <textarea
               ref={editInputRef}
               value={editContent}
-              onChange={(e) => setEditContent(e.target.value)}
+              onChange={(e) => { setEditContent(e.target.value); }}
               onKeyDown={(e) => handleEditKeyDown(e, message.content)}
-              className="w-full rounded border border-slack-link bg-white p-2 text-[15px] text-slack-primary leading-[22px] resize-none outline-none"
+              className={cn(
+                "w-full rounded border bg-white p-2 text-[15px] text-slack-primary leading-[22px] resize-none outline-none",
+                editError ? "border-red-500" : "border-slack-link"
+              )}
               rows={2}
             />
+            {editError && (
+              <p className="mt-1 text-[12px] text-red-600">{editError}</p>
+            )}
             <div className="mt-1 flex items-center gap-2 text-[12px]">
               <button
                 onClick={cancelEdit}

@@ -10,6 +10,7 @@ interface UseMessageEditOptions {
 export function useMessageEdit({ onSave }: UseMessageEditOptions) {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editContent, setEditContent] = useState('');
+  const [editError, setEditError] = useState<string | null>(null);
   const editInputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -21,6 +22,7 @@ export function useMessageEdit({ onSave }: UseMessageEditOptions) {
 
   const startEdit = (messageId: number, content: string) => {
     setEditingId(messageId);
+    setEditError(null);
     // Convert <@id|name> mention tokens to readable @name for editing
     setEditContent(content.replace(/<@\d+\|([^>]+)>/g, '@$1'));
   };
@@ -28,14 +30,20 @@ export function useMessageEdit({ onSave }: UseMessageEditOptions) {
   const cancelEdit = () => {
     setEditingId(null);
     setEditContent('');
+    setEditError(null);
   };
 
   const saveEdit = async (originalContent?: string) => {
     if (editingId === null) return;
     const trimmed = editContent.trim();
-    if (trimmed && trimmed !== originalContent) {
+    if (!trimmed) {
+      setEditError('Message cannot be empty.');
+      return;
+    }
+    if (trimmed !== originalContent) {
       await onSave(editingId, trimmed);
     }
+    setEditError(null);
     setEditingId(null);
   };
 
@@ -52,6 +60,7 @@ export function useMessageEdit({ onSave }: UseMessageEditOptions) {
   return {
     editingId,
     editContent,
+    editError,
     setEditContent,
     editInputRef,
     startEdit,

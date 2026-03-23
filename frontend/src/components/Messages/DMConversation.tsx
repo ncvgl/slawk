@@ -89,7 +89,7 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
   const toggleBookmark = useBookmarkStore((s) => s.toggle);
   const bookmarkedIds = useBookmarkStore((s) => s.bookmarkedIds);
   const {
-    editingId, editContent, setEditContent, editInputRef,
+    editingId, editContent, editError, setEditContent, editInputRef,
     startEdit, cancelEdit, saveEdit, handleEditKeyDown,
   } = useMessageEdit({
     onSave: (id, content) => storeEditMessage(id, content, userId),
@@ -391,11 +391,17 @@ export function DMConversation({ userId, userName, userAvatar }: DMConversationP
                                 ref={editInputRef}
                                 data-testid="dm-edit-input"
                                 value={editContent}
-                                onChange={(e) => setEditContent(e.target.value)}
+                                onChange={(e) => { setEditContent(e.target.value); }}
                                 onKeyDown={(e) => handleEditKeyDown(e, msg.content)}
-                                className="w-full resize-none rounded border border-slack-link bg-white p-2 text-[15px] leading-[22px] text-slack-primary outline-none"
+                                className={cn(
+                                  "w-full resize-none rounded border bg-white p-2 text-[15px] leading-[22px] text-slack-primary outline-none",
+                                  editError ? "border-red-500" : "border-slack-link"
+                                )}
                                 rows={2}
                               />
+                              {editError && (
+                                <p className="mt-1 text-[12px] text-red-600">{editError}</p>
+                              )}
                               <div className="mt-1 flex items-center gap-2 text-[12px]">
                                 <button
                                   onClick={cancelEdit}
