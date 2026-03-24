@@ -8,6 +8,7 @@ import { useMobileStore } from '@/stores/useMobileStore';
 import { useConnectionStore } from '@/stores/useConnectionStore';
 import { AdminPage } from '@/components/Admin/AdminPage';
 import { FilesPage } from '@/components/Messages/FilesPage';
+import { UnreadsPage } from '@/components/Messages/UnreadsPage';
 import { LaterPage } from '@/components/Messages/LaterPage';
 
 export function AppLayout() {
@@ -27,6 +28,8 @@ export function AppLayout() {
   let content: React.ReactNode;
   if (location.pathname === '/admin') {
     content = <AdminPage />;
+  } else if (location.pathname === '/unreads') {
+    content = <UnreadsPage />;
   } else if (location.pathname === '/files') {
     content = <FilesPage />;
   } else if (location.pathname === '/later') {

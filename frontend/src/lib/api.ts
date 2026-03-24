@@ -274,6 +274,7 @@ export interface ApiMessage {
   updatedAt: string;
   deletedAt: string | null;
   user: { id: number; name: string; email: string; avatar?: string | null };
+  channel?: { id: number; name: string };
   reactions: ApiReaction[];
   files: { id: number; filename: string; originalName: string; mimetype: string; size: number; url: string }[];
   _count: { replies: number };
@@ -595,6 +596,18 @@ export function addBookmark(messageId: number) {
 
 export function removeBookmark(messageId: number) {
   return request<{ message: string }>(`/messages/${messageId}/bookmark`, { method: 'DELETE' });
+}
+
+// ---- Unreads ----
+
+export function getUnreadMessages(cursor?: number, limit = 50) {
+  const params = new URLSearchParams({ limit: limit.toString() });
+  if (cursor) params.append('cursor', cursor.toString());
+  return request<{
+    messages: ApiMessage[];
+    nextCursor?: number;
+    hasMore: boolean;
+  }>(`/unreads?${params}`);
 }
 
 // ---- Channel Members ----

@@ -103,6 +103,13 @@ function LaterRouteSync() {
   return null;
 }
 
+function UnreadsRouteSync() {
+  useEffect(() => {
+    useChannelStore.setState({ activeChannelId: null, activeDMId: null });
+  }, []);
+  return null;
+}
+
 function AdminRouteSync() {
   useEffect(() => {
     useChannelStore.setState({ activeChannelId: null, activeDMId: null });
@@ -563,6 +570,7 @@ function App() {
           <Route path="c/:channelId" element={<RouteSync />} />
           <Route path="d/:userId" element={<RouteSync />} />
           <Route path="files" element={<FileRouteSync />} />
+          <Route path="unreads" element={<UnreadsRouteSync />} />
           <Route path="later" element={<LaterRouteSync />} />
           <Route path="admin" element={<AdminGuard><AdminRouteSync /></AdminGuard>} />
           <Route path="*" element={<DefaultRedirect />} />
