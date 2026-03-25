@@ -78,6 +78,56 @@ test.describe('Admin Panel - Admin Access', () => {
     await expect(main.locator('table')).toBeVisible({ timeout: 10_000 });
     await expect(main.locator('table').getByText('general')).toBeVisible();
   });
+
+  test('webhooks tab - create and delete webhook', async ({ page }) => {
+    await navigateToAdmin(page);
+
+    const main = page.locator('main');
+    await main.getByRole('button', { name: /Webhooks/ }).click();
+
+    // Initially empty
+    await expect(main.getByText('No webhooks configured yet')).toBeVisible({ timeout: 10_000 });
+
+    // Create webhook
+    await main.getByPlaceholder('My Integration').fill('Test Webhook');
+    await main.getByRole('combobox').selectOption({ label: '# general' });
+    await main.getByRole('button', { name: /Create/ }).click();
+
+    // Webhook appears in table
+    await expect(main.locator('table tbody tr').first()).toBeVisible({ timeout: 10_000 });
+    await expect(main.getByText('Test Webhook')).toBeVisible();
+    await expect(main.getByText('general')).toBeVisible();
+    await expect(main.getByText('Active')).toBeVisible();
+
+    // Copy webhook URL
+    const copyButton = main.getByTitle('Copy webhook URL').first();
+    await copyButton.click();
+    // Check icon appears briefly
+    await expect(copyButton.locator('svg')).toHaveClass(/text-green-600/);
+
+    // Delete webhook
+    await main.getByTitle('Delete webhook').first().click();
+    await expect(main.getByText('No webhooks configured yet')).toBeVisible({ timeout: 5_000 });
+  });
+
+  test('webhooks tab - shows last used time', async ({ page }) => {
+    await navigateToAdmin(page);
+
+    const main = page.locator('main');
+    await main.getByRole('button', { name: /Webhooks/ }).click();
+
+    // Create webhook
+    await main.getByPlaceholder('My Integration').fill('API Webhook');
+    await main.getByRole('combobox').selectOption({ label: '# general' });
+    await main.getByRole('button', { name: /Create/ }).click();
+
+    // Initially shows "Never"
+    await expect(main.locator('table tbody tr').first()).toBeVisible({ timeout: 10_000 });
+    await expect(main.getByText('Never')).toBeVisible();
+
+    // Cleanup
+    await main.getByTitle('Delete webhook').first().click();
+  });
 });
 
 test.describe('Admin Panel - Non-Admin Access', () => {

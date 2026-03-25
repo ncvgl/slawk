@@ -1,31 +1,34 @@
 import { useState, useEffect } from 'react';
-import { Shield, Users, Link2, Hash, Menu, ScrollText } from 'lucide-react';
+import { Shield, Users, Link2, Hash, Menu, ScrollText, Webhook } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAdminStore } from '@/stores/useAdminStore';
 import { useMobileStore } from '@/stores/useMobileStore';
 import { AdminMembersTab } from './AdminMembersTab';
 import { AdminInvitesTab } from './AdminInvitesTab';
 import { AdminChannelsTab } from './AdminChannelsTab';
+import { AdminWebhooksTab } from './AdminWebhooksTab';
 import { AdminAuditLogTab } from './AdminAuditLogTab';
 
-type Tab = 'members' | 'invites' | 'channels' | 'audit';
+type Tab = 'members' | 'invites' | 'channels' | 'webhooks' | 'audit';
 
 const TABS: { id: Tab; label: string; icon: typeof Users }[] = [
   { id: 'members', label: 'Members', icon: Users },
   { id: 'invites', label: 'Invites', icon: Link2 },
   { id: 'channels', label: 'Channels', icon: Hash },
+  { id: 'webhooks', label: 'Webhooks', icon: Webhook },
   { id: 'audit', label: 'Audit Log', icon: ScrollText },
 ];
 
 export function AdminPage() {
   const [activeTab, setActiveTab] = useState<Tab>('members');
-  const { fetchUsers, fetchChannels, fetchInvites } = useAdminStore();
+  const { fetchUsers, fetchChannels, fetchInvites, fetchWebhooks } = useAdminStore();
 
   useEffect(() => {
     fetchUsers();
     fetchChannels();
     fetchInvites();
-  }, [fetchUsers, fetchChannels, fetchInvites]);
+    fetchWebhooks();
+  }, [fetchUsers, fetchChannels, fetchInvites, fetchWebhooks]);
 
   return (
     <div className="flex h-full flex-col bg-white">
@@ -65,6 +68,7 @@ export function AdminPage() {
         {activeTab === 'members' && <AdminMembersTab />}
         {activeTab === 'invites' && <AdminInvitesTab />}
         {activeTab === 'channels' && <AdminChannelsTab />}
+        {activeTab === 'webhooks' && <AdminWebhooksTab />}
         {activeTab === 'audit' && <AdminAuditLogTab />}
       </div>
     </div>

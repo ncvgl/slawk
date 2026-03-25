@@ -793,3 +793,35 @@ export function adminCreateInvite(data: { role?: string; maxUses?: number | null
 export function adminDeleteInvite(inviteId: number) {
   return request<{ message: string }>(`/admin/invites/${inviteId}`, { method: 'DELETE' });
 }
+
+// ---- Webhooks ----
+
+export interface AdminWebhook {
+  id: number;
+  name: string;
+  channelId: number;
+  token: string;
+  createdBy: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  lastUsedAt: string | null;
+  channel: { id: number; name: string };
+  creator: { id: number; name: string };
+}
+
+export function adminGetWebhooks(channelId?: number) {
+  const params = channelId ? `?channelId=${channelId}` : '';
+  return request<AdminWebhook[]>(`/webhooks${params}`);
+}
+
+export function adminCreateWebhook(data: { name: string; channelId: number }) {
+  return request<AdminWebhook>('/webhooks', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export function adminDeleteWebhook(webhookId: number) {
+  return request<{ message: string }>(`/webhooks/${webhookId}`, { method: 'DELETE' });
+}

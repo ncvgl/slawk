@@ -1,11 +1,12 @@
 import { create } from 'zustand';
 import * as api from '@/lib/api';
-import type { AdminUser, AdminChannel, AdminInvite, AuditLogEntry } from '@/lib/api';
+import type { AdminUser, AdminChannel, AdminInvite, AuditLogEntry, AdminWebhook } from '@/lib/api';
 
 interface AdminState {
   users: AdminUser[];
   channels: AdminChannel[];
   invites: AdminInvite[];
+  webhooks: AdminWebhook[];
   auditLog: AuditLogEntry[];
   auditLogTotal: number;
   isLoading: boolean;
@@ -13,6 +14,7 @@ interface AdminState {
   fetchUsers: () => Promise<void>;
   fetchChannels: () => Promise<void>;
   fetchInvites: () => Promise<void>;
+  fetchWebhooks: () => Promise<void>;
   fetchAuditLog: (limit?: number, offset?: number) => Promise<void>;
   updateUserRole: (userId: number, role: 'ADMIN' | 'MEMBER' | 'GUEST') => Promise<void>;
   transferOwnership: (userId: number) => Promise<void>;
@@ -20,6 +22,8 @@ interface AdminState {
   reactivateUser: (userId: number) => Promise<void>;
   createInvite: (data: { role?: string; maxUses?: number | null; expiresAt?: string | null }) => Promise<void>;
   deleteInvite: (inviteId: number) => Promise<void>;
+  createWebhook: (data: { name: string; channelId: number }) => Promise<void>;
+  deleteWebhook: (webhookId: number) => Promise<void>;
   deleteChannel: (channelId: number) => Promise<void>;
   archiveChannel: (channelId: number) => Promise<void>;
   unarchiveChannel: (channelId: number) => Promise<void>;
@@ -31,6 +35,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   users: [],
   channels: [],
   invites: [],
+  webhooks: [],
   auditLog: [],
   auditLogTotal: 0,
   isLoading: false,
@@ -122,6 +127,34 @@ export const useAdminStore = create<AdminState>((set, get) => ({
       await api.adminDeleteInvite(inviteId);
     } catch (err) {
       set({ invites: prev, error: err instanceof Error ? err.message : 'Failed to delete invite' });
+    }
+  },
+
+  fetchWebhooks: async () => {
+    try {
+      const webhooks = await api.adminGetWebhooks();
+      set({ webhooks });
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Failed to fetch webhooks' });
+    }
+  },
+
+  createWebhook: async (data) => {
+    try {
+      const webhook = await api.adminCreateWebhook(data);
+      set({ webhooks: [webhook, ...get().webhooks] });
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Failed to create webhook' });
+    }
+  },
+
+  deleteWebhook: async (webhookId) => {
+    const prev = get().webhooks;
+    set({ webhooks: prev.filter((w) => w.id !== webhookId) });
+    try {
+      await api.adminDeleteWebhook(webhookId);
+    } catch (err) {
+      set({ webhooks: prev, error: err instanceof Error ? err.message : 'Failed to delete webhook' });
     }
   },
 
