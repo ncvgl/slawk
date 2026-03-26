@@ -108,7 +108,13 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     if (socket?.connected) {
       // Send via socket with ack callback so we can detect errors
       return new Promise<void>((resolve, reject) => {
+        // Fallback timeout — reject if no ack in 10s so failures aren't silently swallowed
+        const timeout = setTimeout(() => {
+          set({ sendError: 'Message send timed out. Please try again.' });
+          reject(new Error('Message send timed out'));
+        }, 10000);
         socket.emit('message:send', { channelId, content, fileIds }, (response: { error?: string }) => {
+          clearTimeout(timeout);
           if (response?.error) {
             set({ sendError: response.error });
             reject(new Error(response.error));
@@ -117,8 +123,6 @@ export const useMessageStore = create<MessageState>((set, get) => ({
             resolve();
           }
         });
-        // Fallback timeout — if no ack in 5s, assume success (older server without ack)
-        setTimeout(resolve, 5000);
       });
     } else {
       // Fallback to REST if socket not connected
