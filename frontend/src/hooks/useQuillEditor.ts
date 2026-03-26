@@ -661,17 +661,27 @@ export function useQuillEditor({
       return;
     }
 
+    const LINE_FORMATS = ['blockquote', 'list', 'header', 'code-block'];
+
     if (value) {
       const range = quill.getSelection();
       if (range) {
         const currentFormat = quill.getFormat(range);
-        quill.format(format, currentFormat[format] === value ? false : value);
+        if (LINE_FORMATS.includes(format)) {
+          quill.formatLine(range.index, range.length || 1, format, currentFormat[format] === value ? false : value);
+        } else {
+          quill.format(format, currentFormat[format] === value ? false : value);
+        }
       }
     } else {
       const range = quill.getSelection();
       if (range) {
         const currentFormat = quill.getFormat(range);
-        quill.format(format, !currentFormat[format]);
+        if (LINE_FORMATS.includes(format)) {
+          quill.formatLine(range.index, range.length || 1, format, !currentFormat[format]);
+        } else {
+          quill.format(format, !currentFormat[format]);
+        }
       }
     }
     quill.focus();
