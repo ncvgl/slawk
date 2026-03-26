@@ -14,7 +14,7 @@ import {
   wsUserIdSchema,
 } from '../middleware/authorize.js';
 // Huddle schemas imported by huddles.ts directly
-import { USER_SELECT_BASIC, MESSAGE_INCLUDE_WITH_FILES, DM_INCLUDE_USERS } from '../db/selects.js';
+import { USER_SELECT_BASIC, MESSAGE_INCLUDE_WITH_FILES, MESSAGE_INCLUDE_FULL, DM_INCLUDE_USERS } from '../db/selects.js';
 import { logError } from '../utils/logger.js';
 import { registerHuddleHandlers, handleHuddleDisconnect } from './huddles.js';
 import { sendPushToUser } from '../services/pushService.js';
@@ -381,7 +381,7 @@ export function initializeWebSocket(httpServer: HttpServer) {
 
           return tx.message.findUnique({
             where: { id: msg.id },
-            include: MESSAGE_INCLUDE_WITH_FILES,
+            include: MESSAGE_INCLUDE_FULL,
           });
         });
 
@@ -415,9 +415,9 @@ export function initializeWebSocket(httpServer: HttpServer) {
                 title: `#${channelName}`,
                 body,
                 url: `/c/${data.channelId}`,
-              }).catch(() => {});
+              }).catch((err) => logError('Push notification dispatch failed', err));
             }
-          }).catch(() => {});
+          }).catch((err) => logError('Push notification dispatch failed', err));
         }
       } catch (error) {
         logError('WebSocket message error', error);
@@ -713,7 +713,7 @@ export function initializeWebSocket(httpServer: HttpServer) {
               title: senderName,
               body: dm.content.slice(0, 100) || 'Sent an attachment',
               url: `/d/${socket.user.userId}`,
-            }).catch(() => {});
+            }).catch((err) => logError('Push notification dispatch failed', err));
           }
         }
       } catch (error) {

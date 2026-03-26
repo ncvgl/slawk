@@ -78,7 +78,7 @@ router.post('/:id/messages', authMiddleware, requireChannelMembership, async (re
 
       return tx.message.findUnique({
         where: { id: msg.id },
-        include: MESSAGE_INCLUDE_WITH_FILES,
+        include: MESSAGE_INCLUDE_FULL,
       });
     });
 
@@ -108,9 +108,9 @@ router.post('/:id/messages', authMiddleware, requireChannelMembership, async (re
               title: `#${channelName}`,
               body,
               url: `/c/${channelId}`,
-            }).catch(() => {});
+            }).catch((err) => logError('Push notification dispatch failed', err));
           }
-        }).catch(() => {});
+        }).catch((err) => logError('Push notification dispatch failed', err));
       }
     }
 
