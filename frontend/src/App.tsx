@@ -8,6 +8,7 @@ import { useBookmarkStore } from '@/stores/useBookmarkStore';
 import { connectSocket, disconnectSocket, getSocket } from '@/lib/socket';
 import { useNotificationStore } from '@/stores/useNotificationStore';
 import { useHuddleStore, setHuddleUserId } from '@/stores/useHuddleStore';
+import { useConnectionStore } from '@/stores/useConnectionStore';
 import { HuddleBar } from '@/components/Huddle/HuddleBar';
 import { HuddleIncomingCall } from '@/components/Huddle/HuddleIncomingCall';
 import { AppLayout } from '@/components/Layout/AppLayout';
@@ -231,6 +232,7 @@ function AppShell() {
     // Mark self as online as soon as socket connects (fixes race with hydrate/getMyProfile)
     const handleConnect = () => {
       useAuthStore.getState().updateUser({ status: 'online' });
+      useConnectionStore.getState().setConnected(true);
     };
     // If already connected (reconnect scenario), update immediately
     if (socket.connected) handleConnect();
@@ -369,6 +371,11 @@ function AppShell() {
     const handleChannelDeleted = (data: { channelId: number }) => {
       // Re-fetch channels to remove the deleted channel from sidebar
       useChannelStore.getState().fetchChannels();
+      // Clear cached messages for the deleted channel so stale data doesn't re-appear
+      const msgStore = useMessageStore.getState();
+      if (msgStore.loadedChannelId === data.channelId) {
+        useMessageStore.setState({ messages: [], loadedChannelId: null });
+      }
       const { activeChannelId } = useChannelStore.getState();
       if (activeChannelId === data.channelId) {
         useChannelStore.setState({ activeChannelId: null });
@@ -446,6 +453,7 @@ function AppShell() {
     const handleDisconnect = () => {
       joinedChannelsRef.current.clear();
       useHuddleStore.getState().cleanup();
+      useConnectionStore.getState().setConnected(false);
     };
     socket.on('disconnect', handleDisconnect);
 

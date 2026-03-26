@@ -107,7 +107,7 @@ router.post('/:id/reply', authMiddleware, requireMessageAccess, async (req: Auth
           title: `#${channelName} thread`,
           body: `${senderName}: ${content.slice(0, 100)}`,
           url: `/c/${parentMessage.channelId}`,
-        }).catch(() => {});
+        }).catch((err) => logError('Push notification dispatch failed', err));
       }
     }
 

@@ -10,6 +10,17 @@ import prisma from '../db.js';
 const TOKEN_CACHE_TTL = process.env.NODE_ENV === 'test' ? 0 : 5_000;
 const tokenCache = new Map<number, { tokenVersion: number; role: string; deactivatedAt: Date | null; expiresAt: number }>();
 
+// Periodically evict expired entries to prevent unbounded growth.
+// Without this, entries accumulate forever (only skipped on read, never deleted).
+if (process.env.NODE_ENV !== 'test') {
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, entry] of tokenCache) {
+      if (entry.expiresAt < now) tokenCache.delete(key);
+    }
+  }, 10 * 60 * 1000).unref();
+}
+
 export function invalidateTokenCache(userId: number) {
   tokenCache.delete(userId);
 }

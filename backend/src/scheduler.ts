@@ -9,7 +9,10 @@ const INTERVAL_MS = 30_000; // 30 seconds
 export function startScheduler(): NodeJS.Timeout {
   console.log('Scheduler started — checking every 30s for due messages');
 
+  let isProcessing = false;
   const handle = setInterval(async () => {
+    if (isProcessing) return;
+    isProcessing = true;
     try {
       const due = await prisma.scheduledMessage.findMany({
         where: {
@@ -122,9 +125,9 @@ export function startScheduler(): NodeJS.Timeout {
                 title: `#${channelName}`,
                 body: `${senderName}: ${message.content.slice(0, 100) || 'Sent an attachment'}`,
                 url: `/c/${scheduled.channelId}`,
-              }).catch(() => {});
+              }).catch((err) => logError('Push notification dispatch failed', err));
             }
-          }).catch(() => {});
+          }).catch((err) => logError('Push notification dispatch failed', err));
 
           console.log(
             `Scheduler: sent message ${message.id} to channel ${scheduled.channelId} (was scheduled ${scheduled.id})`
@@ -135,6 +138,8 @@ export function startScheduler(): NodeJS.Timeout {
       }
     } catch (err) {
       logError('Scheduler tick error', err);
+    } finally {
+      isProcessing = false;
     }
   }, INTERVAL_MS);
 

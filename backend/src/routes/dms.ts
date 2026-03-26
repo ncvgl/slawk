@@ -99,7 +99,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
             title: senderName,
             body: dm.content.slice(0, 100) || 'Sent an attachment',
             url: `/d/${fromUserId}`,
-          }).catch(() => {});
+          }).catch((err) => logError('Push notification dispatch failed', err));
         }
       }
     }
@@ -327,7 +327,7 @@ router.get('/:userId', authMiddleware, async (req: AuthRequest, res: Response) =
           data: {
             readAt: new Date(),
           },
-        }).catch(() => {}),
+        }).catch((err) => logError('DM read-status update failed', err)),
       ]);
 
       const paginated = paginateResults(messages, limit);
@@ -447,7 +447,7 @@ router.post('/messages/:id/reply', authMiddleware, requireDmAccess, async (req: 
           title: `${senderName} (thread)`,
           body: content.slice(0, 100) || 'Sent an attachment',
           url: `/d/${fromUserId}`,
-        }).catch(() => {});
+        }).catch((err) => logError('Push notification dispatch failed', err));
       }
     }
 
