@@ -13,6 +13,7 @@ import {
   Star,
   User,
   Shield,
+  Inbox,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useChannelStore } from '@/stores/useChannelStore';
@@ -31,11 +32,6 @@ import type { AuthUser } from '@/lib/api';
 import { useMobileStore } from '@/stores/useMobileStore';
 // HuddleBar moved to global render in App.tsx
 
-const navItems = [
-  { icon: Bookmark, label: 'Later', id: 'later' },
-  { icon: FileText, label: 'Files', id: 'files' },
-];
-
 export function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -47,7 +43,7 @@ export function Sidebar() {
   const closeSidebar = useMobileStore((s) => s.closeSidebar);
   const [channelsExpanded, setChannelsExpanded] = useState(true);
   const [dmsExpanded, setDmsExpanded] = useState(true);
-  const activeNav = location.pathname === '/files' ? 'files' : location.pathname === '/later' ? 'later' : location.pathname === '/admin' ? 'admin' : 'dms';
+  const activeNav = location.pathname === '/unreads' ? 'unreads' : location.pathname === '/files' ? 'files' : location.pathname === '/later' ? 'later' : location.pathname === '/admin' ? 'admin' : 'dms';
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
   const [showAddChannelDialog, setShowAddChannelDialog] = useState(false);
   const [browseChannels, setBrowseChannels] = useState<Channel[]>([]);
@@ -55,6 +51,15 @@ export function Sidebar() {
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
   const avatarMenuRef = useRef<HTMLDivElement>(null);
   const workspaceMenuRef = useRef<HTMLDivElement>(null);
+
+  // Calculate total unread count across all channels
+  const totalUnreadCount = channels.reduce((sum, ch) => sum + ch.unreadCount, 0);
+
+  const navItems = [
+    { icon: Inbox, label: 'Unreads', id: 'unreads', badge: totalUnreadCount > 0 ? totalUnreadCount : undefined },
+    { icon: Bookmark, label: 'Later', id: 'later' },
+    { icon: FileText, label: 'Files', id: 'files' },
+  ];
 
   // Close avatar menu when clicking outside
   useEffect(() => {
@@ -157,7 +162,14 @@ export function Sidebar() {
             key={item.id}
             data-testid={`nav-item-${item.id}`}
             onClick={() => {
-              if (item.id === 'files') {
+              if (item.id === 'unreads') {
+                if (activeNav === 'unreads') {
+                  const firstChannel = channels.find((ch) => ch.isMember);
+                  if (firstChannel) navTo(`/c/${firstChannel.id}`);
+                } else {
+                  navTo('/unreads');
+                }
+              } else if (item.id === 'files') {
                 if (activeNav === 'files') {
                   const firstChannel = channels.find((ch) => ch.isMember);
                   if (firstChannel) navTo(`/c/${firstChannel.id}`);

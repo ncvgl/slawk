@@ -52,24 +52,40 @@ export function MessageList({ channelId, onOpenThread, readOnly }: MessageListPr
   const messageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const [highlightedId, setHighlightedId] = useState<number | null>(null);
   const didScrollToTarget = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isAtBottom = useRef(true); // Start true since we auto-scroll on load
+
+  // Check if user is at/near bottom of message list
+  const handleScroll = () => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+    isAtBottom.current = distanceFromBottom < 100; // Within 100px of bottom
+  };
 
   // Clear stale refs and fetch messages when channel changes
   useEffect(() => {
     messageRefs.current = new Map();
+    isAtBottom.current = true; // Reset to true when switching channels
     fetchMessages(channelId, scrollToMessageId ?? undefined);
   }, [channelId, fetchMessages, scrollToMessageId]);
 
   // After messages load, persist the read state to the backend so the
   // unread badge does not reappear on page reload.
+  // Only mark as read if user is at/near the bottom of the message list.
   useEffect(() => {
     if (readOnly || messages.length === 0) return;
     const lastMessage = messages[messages.length - 1];
-    // Update in-memory unread count immediately
+    // Update in-memory unread count immediately (clears badge)
     markChannelAsRead(channelId);
-    // Persist to the server (fire-and-forget; errors are non-critical)
-    markChannelRead(channelId, lastMessage.id).catch(() => {
-      // Silently ignore errors (e.g. if the user isn't a member)
-    });
+    // Only persist to backend if user is at/near bottom
+    if (isAtBottom.current) {
+      markChannelRead(channelId, lastMessage.id).catch(() => {
+        // Silently ignore errors (e.g. if the user isn't a member)
+      });
+    }
   }, [channelId, messages.length, markChannelAsRead, readOnly]);
 
   // Scroll to target message from search result
@@ -99,6 +115,7 @@ export function MessageList({ channelId, onOpenThread, readOnly }: MessageListPr
       return;
     }
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    isAtBottom.current = true; // Mark as at bottom after auto-scroll
   }, [messages.length, scrollToMessageId]);
 
   if (isLoading && messages.length === 0) {
@@ -127,7 +144,7 @@ export function MessageList({ channelId, onOpenThread, readOnly }: MessageListPr
   }
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto pt-5 pb-4 bg-white">
+    <div ref={containerRef} onScroll={handleScroll} className="flex-1 min-h-0 overflow-y-auto pt-5 pb-4 bg-white">
       {messages.map((message, index) => {
         const previousMessage = messages[index - 1];
         const showDateSeparator = shouldShowDateSeparator(message, previousMessage);
