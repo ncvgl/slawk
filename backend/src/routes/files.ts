@@ -15,6 +15,10 @@ import { parseIntParam } from '../utils/params.js';
 import { logError } from '../utils/logger.js';
 import { JWT_SECRET } from '../config.js';
 
+// Maximum file size in MB (configurable via environment variable, defaults to 50MB)
+const MAX_FILE_SIZE_MB = parseInt(process.env.MAX_FILE_SIZE_MB || '50', 10);
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
 // Strip internal storage details from file records before sending to clients.
 // The gcsPath reveals the GCS bucket structure and could enable direct bucket
 // access if the bucket has misconfigured ACLs.
@@ -49,7 +53,7 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage,
   limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB limit
+    fileSize: MAX_FILE_SIZE_BYTES,
   },
   fileFilter: (req, file, cb) => {
     // Allow common file types
@@ -136,7 +140,7 @@ router.post('/', authMiddleware, uploadLimiter, (req: AuthRequest, res: Response
   upload.single('file')(req, res, (err: any) => {
     if (err) {
       if (err.code === 'LIMIT_FILE_SIZE') {
-        res.status(413).json({ error: 'File is too large. Maximum file size is 50 MB.' });
+        res.status(413).json({ error: `File is too large. Maximum file size is ${MAX_FILE_SIZE_MB} MB.` });
         return;
       }
       if (err.message === 'File type not allowed') {
