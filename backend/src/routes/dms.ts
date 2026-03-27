@@ -5,7 +5,7 @@ import prisma from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { requireDmOwnership, requireDmAccess } from '../middleware/authorize.js';
 import { AuthRequest } from '../types.js';
-import { isUserViewingDM, getIO } from '../websocket/index.js';
+import { isUserViewingDM, isUserOnline, getIO } from '../websocket/index.js';
 import { USER_SELECT_BASIC, FILE_SELECT, DM_INCLUDE_USERS } from '../db/selects.js';
 import { parsePagination, paginateResults } from '../utils/pagination.js';
 import { parseIntParam } from '../utils/params.js';
