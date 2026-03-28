@@ -103,4 +103,42 @@ test.describe('File Uploads', () => {
     // Image should have a download button
     await expect(fileAttachment.getByTestId('image-download')).toBeVisible();
   });
+
+  test('user can drag and drop an image into the editor (#157)', async ({ page }) => {
+    const email = uniqueEmail();
+    await register(page, 'DragDropUser', email, TEST_PASSWORD);
+
+    await clickChannel(page, 'general');
+    await page.waitForTimeout(500);
+
+    // Read the test image file
+    const buffer = fs.readFileSync(TEST_IMAGE_PATH);
+    const dataTransfer = await page.evaluateHandle((data) => {
+      const dt = new DataTransfer();
+      const file = new File([new Uint8Array(data)], 'test-image.png', { type: 'image/png' });
+      dt.items.add(file);
+      return dt;
+    }, Array.from(buffer));
+
+    // Simulate drag and drop on the editor
+    const editor = page.locator('.ql-editor');
+    await editor.dispatchEvent('drop', { dataTransfer });
+
+    // File preview should appear
+    await expect(page.getByTestId('file-preview')).toBeVisible({ timeout: 5000 });
+
+    // Send the message with the dropped image
+    const uniqueText = `Drag drop ${Date.now()}`;
+    await editor.click();
+    await page.keyboard.type(uniqueText, { delay: 10 });
+    await page.keyboard.press('Enter');
+
+    // Verify the message with image attachment appears
+    const messageRow = page.locator('.group.relative.flex.px-5').filter({ hasText: uniqueText });
+    await expect(messageRow.first()).toBeVisible({ timeout: 10000 });
+
+    const fileAttachment = messageRow.first().locator('[data-testid="message-file"]');
+    await expect(fileAttachment).toBeVisible({ timeout: 10000 });
+    await expect(fileAttachment.locator('img')).toBeVisible({ timeout: 5000 });
+  });
 });
