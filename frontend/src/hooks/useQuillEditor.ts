@@ -472,6 +472,44 @@ export function useQuillEditor({
     };
     quill.root.addEventListener('paste', handlePaste, { capture: true });
 
+    // Handle file drop from drag-and-drop
+    const handleDragOver = (e: DragEvent) => {
+      // Required to allow drop — only if dragging files
+      if (e.dataTransfer?.types.includes('Files')) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = 'copy';
+      }
+    };
+
+    const handleDrop = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const files = e.dataTransfer?.files;
+      if (!files || files.length === 0) return;
+
+      (async () => {
+        setIsUploading(true);
+        setUploadError(null);
+        try {
+          for (const file of Array.from(files)) {
+            const uploaded = await uploadFile(file);
+            setPendingFiles((prev) => [...prev, uploaded]);
+          }
+        } catch (err: any) {
+          const msg = err?.message || 'Failed to upload dropped file. Please try again.';
+          setUploadError(msg);
+          setTimeout(() => setUploadError(null), 5000);
+        } finally {
+          setIsUploading(false);
+        }
+      })();
+    };
+
+    quill.root.addEventListener('dragover', handleDragOver as any);
+    quill.root.addEventListener('drop', handleDrop as any);
+
     quillRef.current = quill;
   }, [placeholder, testId, enableInlineCode]); // eslint-disable-line react-hooks/exhaustive-deps
 
