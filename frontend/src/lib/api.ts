@@ -216,6 +216,10 @@ export function leaveChannel(id: number) {
   return request<{ message: string }>(`/channels/${id}/leave`, { method: 'POST' });
 }
 
+export function markChannelReadBaseline(channelId: number) {
+  return request<{ success: boolean }>(`/channels/${channelId}/read/baseline`, { method: 'POST' });
+}
+
 export function markChannelRead(channelId: number, messageId: number) {
   return request<{ success: boolean }>(`/channels/${channelId}/read`, {
     method: 'POST',

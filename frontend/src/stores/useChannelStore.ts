@@ -251,6 +251,7 @@ export const useChannelStore = create<ChannelState>((set, get) => ({
     const channel = get().channels.find((ch) => ch.id === channelId);
     if (channel?.isMember) {
       get().markChannelAsRead(channelId);
+      api.markChannelReadBaseline(channelId).catch(() => {});
     }
   },
 

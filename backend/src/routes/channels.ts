@@ -710,6 +710,42 @@ router.post('/:id/read', authMiddleware, requireChannelMembership, async (req: A
   }
 });
 
+// POST /channels/:id/read/baseline - Establish a read baseline when opening a channel
+// No-op if a ChannelRead record already exists; creates one at the latest message if not.
+// This ensures GET /unreads can correctly identify messages that arrived after the user
+// last visited the channel, even if they never scrolled to the bottom.
+router.post('/:id/read/baseline', authMiddleware, requireChannelMembership, async (req: AuthRequest, res: Response) => {
+  try {
+    const channelId = req.channelId!;
+    const userId = req.user!.userId;
+
+    const existing = await prisma.channelRead.findUnique({
+      where: { userId_channelId: { userId, channelId } },
+    });
+
+    if (existing) {
+      res.json({ success: true });
+      return;
+    }
+
+    // No record yet — find the latest message to use as the baseline
+    const latestMessage = await prisma.message.findFirst({
+      where: { channelId, threadId: null, deletedAt: null },
+      orderBy: { id: 'desc' },
+      select: { id: true },
+    });
+
+    await prisma.channelRead.create({
+      data: { userId, channelId, lastReadMessageId: latestMessage?.id ?? null },
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    logError('Mark channel read baseline error', error);
+    res.status(500).json({ error: 'Failed to set read baseline' });
+  }
+});
+
 // POST /channels/:id/unread - Mark channel as unread from a specific message
 const markUnreadSchema = z.object({
   messageId: z.number().int().positive(),
