@@ -1,6 +1,14 @@
 // Slawk Push Notification Service Worker
 // Push-only — no fetch handler to avoid interfering with Vite dev server
 
+self.addEventListener('install', () => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(clients.claim());
+});
+
 self.addEventListener('push', (event) => {
   if (!event.data) return;
 
