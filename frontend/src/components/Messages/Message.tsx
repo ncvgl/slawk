@@ -187,6 +187,7 @@ export function Message({ message, showAvatar, isCompact, onOpenThread, readOnly
           <div className="relative">
             <div
               ref={contentRef}
+              data-testid="message-content"
               className={cn(
                 "text-[15px] font-normal text-slack-primary leading-[22px] whitespace-pre-wrap break-words",
                 needsCollapse && isCollapsed && "overflow-hidden"

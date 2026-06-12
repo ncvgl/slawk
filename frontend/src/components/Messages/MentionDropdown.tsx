@@ -31,6 +31,7 @@ export const MentionDropdown = forwardRef<HTMLDivElement, MentionDropdownProps>(
             <button
               key={user.id}
               ref={(el) => { itemRefs.current[index] = el; }}
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => onSelect(user)}
               className={cn(
                 'flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-slack-link hover:text-white',

@@ -132,6 +132,9 @@ export function useQuillEditor({
   emojiActiveRef.current = showEmojiAutocomplete && filteredEmojis.length > 0;
   const mentionUsersRef = useRef(mentionUsers);
   mentionUsersRef.current = mentionUsers;
+  // Refs so insertMention always reads the latest values regardless of render batching
+  const mentionStartIndexRef = useRef<number | null>(mentionStartIndex);
+  mentionStartIndexRef.current = mentionStartIndex;
   const mentionSelectedIndexRef = useRef(mentionSelectedIndex);
   mentionSelectedIndexRef.current = mentionSelectedIndex;
   const filteredEmojisRef = useRef(filteredEmojis);
@@ -569,23 +572,29 @@ export function useQuillEditor({
   const insertMention = useCallback(
     (user: AuthUser) => {
       const quill = quillRef.current;
-      if (!quill || mentionStartIndex === null) return;
-      const deleteLength = mentionQuery.length + 1; // +1 for the '@'
-      quill.deleteText(mentionStartIndex, deleteLength);
+      // Read from ref so we always get the latest value even if React batched the state update
+      const startIndex = mentionStartIndexRef.current;
+      if (!quill || startIndex === null) return;
+      // Derive deleteLength from the actual cursor position rather than mentionQuery state,
+      // which can be stale when the user types quickly and React batches updates.
+      // cursor is sitting right after the last typed character of the @query.
+      const sel = quill.getSelection();
+      const deleteLength = sel ? sel.index - startIndex : 0;
+      if (deleteLength <= 0) return;
+      quill.deleteText(startIndex, deleteLength);
       if (user.id === -1 && user.name === 'here') {
-        // @here special mention — insert as styled embed
-        quill.insertEmbed(mentionStartIndex, 'mention', { id: -1, name: 'here' }, 'user');
+        quill.insertEmbed(startIndex, 'mention', { id: -1, name: 'here' }, 'user');
       } else {
-        quill.insertEmbed(mentionStartIndex, 'mention', { id: user.id, name: user.name }, 'user');
+        quill.insertEmbed(startIndex, 'mention', { id: user.id, name: user.name }, 'user');
       }
-      quill.insertText(mentionStartIndex + 1, ' ', 'user');
-      quill.setSelection(mentionStartIndex + 2);
+      quill.insertText(startIndex + 1, ' ', 'user');
+      quill.setSelection(startIndex + 2);
       setShowMentionDropdown(false);
       setMentionQuery('');
       setMentionStartIndex(null);
       quill.focus();
     },
-    [mentionStartIndex, mentionQuery],
+    [],
   );
   insertMentionRef.current = insertMention;
 
